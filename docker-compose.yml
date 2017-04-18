@@ -1,0 +1,30 @@
+version: '2'
+services:
+  webserver_module:
+    build: ./webserver_module
+    container_name: webserver_module
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./webserver_module:/webserver_module
+  data_module:
+    build: data_module/
+    container_name: data_module
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data_module:/data_module
+  data_mining_module:
+    build: data_mining_module/
+    container_name: data_mining_module
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./data_mining_module:/data_mining_module
+  database_module:
+    # https://hub.docker.com/_/rethinkdb/
+    image: rethinkdb:2.3.5
+    container_name: database_module
+    ports:
+      - "28015:28015"
+      - "8001:8080" # Admin interface

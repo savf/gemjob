@@ -1,0 +1,7 @@
+pandas
+numpy
+matplotlib
+scipy
+nltk
+flask-restful
+scikit-learn
