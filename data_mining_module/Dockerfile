@@ -1,4 +1,5 @@
 FROM serebrov/python27-pandas
+RUN mkdir /data_mining_module
 ADD requirements.txt /data_mining_module
 WORKDIR /data_mining_module
 RUN apt-get update && \
