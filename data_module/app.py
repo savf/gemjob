@@ -14,6 +14,7 @@ os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 import upwork
 import requests
 import json
+import credentials
 
 app = Flask(__name__)
 api = Api(app)
@@ -44,9 +45,10 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             print 'paging: ' + str(p * max_request_size) + ';' + str(_sample_size)
 
             # connect to upwork with Benjamin's account and API key
-            client = upwork.Client(public_key="dd7c62bd28c1c1506f122b839bff24cb", secret_key="a5c46a4b8fd9981a",
-                                   oauth_access_token="8e185ed6f0c84abc070b0b26f06227ca",
-                                   oauth_access_token_secret="2c64038ff17fc607",
+
+            client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                                   oauth_access_token=credentials.oauth_access_token,
+                                   oauth_access_token_secret=credentials.oauth_access_token_secret,
                                    timeout=30)
 
             query_data = {'q': '*', 'category2': 'Data Science & Analytics', 'job_status': 'completed'}
@@ -73,7 +75,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
 api.add_resource(DataUpdater, '/update_data/', '/update_data/<int:sample_size>')
 
-@app.route('/') 
+@app.route('/')
 def start() :
     last_updated = 'get this from db'
     return "<h1>Data Module</h1><p>Last updated: "+ last_updated +"</p>"
