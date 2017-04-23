@@ -1,2 +1,4 @@
 /.idea
 data_module/.idea/
+data_module/credentials.py
+data_module/credentials.pyc
