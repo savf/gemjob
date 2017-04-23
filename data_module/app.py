@@ -96,7 +96,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 url = job_data['url']
                 get_result = session.get(url, headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
-                soup = BeautifulSoup(get_result.text, "lxml")
+                soup = BeautifulSoup(get_result.text)
 
                 elements = soup.find_all('p', {'class': 'm-xs-bottom'})
                 if len(elements) > 1:
@@ -123,7 +123,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         login_page = self.session_requests.get(upwork_login_url, headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
 
-        soup = BeautifulSoup(login_page.text, "lxml")
+        soup = BeautifulSoup(login_page.text)
         login_token = soup.find(id="login__token")
 
         if login_token != None:
