@@ -1,3 +1,4 @@
 flask-restful
 python-upwork
 requests
+beautifulsoup4
