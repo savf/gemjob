@@ -99,7 +99,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                     exception = str(e.code) + ' - ' + e.msg
 
         # get additional info from webpages
-        #found_jobs = self.get_web_content(found_jobs)
+        found_jobs = self.get_web_content(found_jobs)
         if found_jobs != None:
             # data to json
             found_jobs_json = json.dumps(found_jobs)
@@ -144,7 +144,10 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                         split_text = element.get_text(strip=True).split(':')
                         job_data[split_text[0]] = split_text[1]
                 else:
-                    print 'get_web_content: Page contains no info'
+                    if any("captcha" in item['src'] for item in soup.find_all('script')):
+                        print 'get_web_content: Page blocked by captcha'
+                    else:
+                        print 'get_web_content: Page contains no info'
                     return None
 
             return found_jobs
@@ -179,8 +182,8 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             login_response = self.session_requests.post(
                 upwork_login_url,
                 data=payload,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'}
+                headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
+                                       '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'}
             )
             if login_response.ok:
                 return self.session_requests
