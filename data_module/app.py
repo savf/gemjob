@@ -6,25 +6,51 @@
 # if sample size is not provided, a default number will be chosen
 # -> http://localhost:5000/update_data/
 
-from flask import Flask, g
-from flask_restful import Resource, Api
-import os
-working_dir = os.path.dirname(os.path.realpath(__file__))+'/'
-os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
-import upwork
-import requests
-from bs4 import BeautifulSoup
 import json
-import time
+import os
+
+from datetime import datetime
+from dateutil import tz
+from time import sleep, strftime, gmtime
+
+import requests
+import rethinkdb as rdb
+import upwork
+from bs4 import BeautifulSoup
+from flask import Flask, g, abort
+from flask_restful import Resource, Api
+from rethinkdb.errors import RqlRuntimeError, RqlDriverError
+
 import credentials
+
+working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
+os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 
 app = Flask(__name__)
 api = Api(app)
 
+RDB_HOST = 'database_module'
+RDB_PORT = 28015
+RDB_DB = 'datasets'
+RDB_TABLE = 'jobs'
+
 max_tries = 10
 max_request_size = 99
 
-wait_between_html_extractions = 10 # in seconds
+wait_between_html_extractions = 10  # in seconds
+
+
+def db_setup():
+    connection = rdb.connect(RDB_HOST, RDB_PORT)
+    try:
+        if not rdb.db_list().contains(RDB_DB).run(connection):
+            rdb.db_create(RDB_DB).run(connection)
+        if not rdb.db(RDB_DB).table_list().contains(RDB_TABLE).run(connection):
+            rdb.db(RDB_DB).table_create(RDB_TABLE).run(connection)
+    except RqlRuntimeError:
+        print 'Database {} and table {} already exist.'.format(RDB_DB, RDB_TABLE)
+    finally:
+        connection.close()
 
 ###### class begin
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
@@ -33,10 +59,11 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
     def get(self, sample_size=5):
 
         if sample_size < 1:
-            return {'api_name': 'Data module REST API', 'success': False, 'sample-size': 0, 'exception': 'sample_size too small'}
+            return {'api_name': 'Data module REST API', 'success': False, 'sample-size': 0,
+                    'exception': 'sample_size too small'}
 
         found_jobs = []
-        pages = 1 + (sample_size-1) / max_request_size
+        pages = 1 + (sample_size - 1) / max_request_size
         print 'pages: ' + str(pages)
         _sample_size = max_request_size
 
@@ -45,7 +72,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         # assemble data in multiple iterations because of maximum number of data we can request
         for p in range(0, pages):
 
-            if p == pages-1:
+            if p == pages - 1:
                 _sample_size = sample_size % max_request_size
             # print 'paging: ' + str(p * max_request_size) + ';' + str(_sample_size)
 
@@ -60,8 +87,11 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             # try to get data until we either got it or we exceed the limit
             for i in range(0, max_tries):
                 try:
-                    found_jobs.extend(client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size), page_size=_sample_size))
-                    print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(_sample_size)
+                    found_jobs.extend(
+                        client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
+                                                       page_size=_sample_size))
+                    print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
+                        _sample_size)
                     break
                 except Exception as e:
                     print 'Num of tries: ' + str(i)
@@ -69,20 +99,27 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                     exception = str(e.code) + ' - ' + e.msg
 
         # get additional info from webpages
-        found_jobs = self.get_web_content(found_jobs)
+        #found_jobs = self.get_web_content(found_jobs)
         if found_jobs != None:
             # data to json
             found_jobs_json = json.dumps(found_jobs)
 
-            # TODO store found_jobs in DB
-            with open(working_dir+"found_jobs.json", "a+") as f:
+            # add current time as timestamp to all jobs
+            for job in found_jobs:
+                job.update({"requested_on": rdb.now()})
+
+            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="error").run(g.rdb_conn)
+
+            with open(working_dir + strftime("found_jobs_%d.%m.-%H.json", gmtime()), "a+") as f:
                 f.truncate()
                 f.write(found_jobs_json)
-
-            return {'api_name': 'Data module REST API', 'success': len(found_jobs) == _sample_size, 'sample-size': len(found_jobs), 'exception': exception}
+            success_criterion = len(found_jobs) == _sample_size and response['inserted'] > 0
+            return {'api_name': 'Data module REST API', 'success': success_criterion,
+                    'sample-size': len(found_jobs), 'exception': exception}
 
         return {'api_name': 'Data module REST API', 'success': False,
                 'sample-size': 0, 'exception': 'Web crawling failed'}
+
     ### get end
 
     ### get info from HTML pages
@@ -91,11 +128,14 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         if session:
             print 'get_web_content: Login successful'
             for job_data in found_jobs:
-                time.sleep(wait_between_html_extractions) # wait first, to avoid DDOSing Upwork
+                sleep(wait_between_html_extractions)  # wait first, to avoid DOSing Upwork
 
                 url = job_data['url']
+                #get_result = session.get(url, headers={
+                #    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
                 get_result = session.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
+                    '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'})
                 soup = BeautifulSoup(get_result.text)
 
                 elements = soup.find_all('p', {'class': 'm-xs-bottom'})
@@ -111,55 +151,79 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
         print 'get_web_content: No session'
         return None
+
     ### get_web_content end
 
     ### login and get session
     def get_upwork_page_session(self):
-        time.sleep(wait_between_html_extractions)  # wait first, to avoid DDOSing Upwork
+        sleep(wait_between_html_extractions)  # wait first, to avoid DDOSing Upwork
 
         self.session_requests = requests.session()
 
         upwork_login_url = 'https://www.upwork.com/ab/account-security/login'
         login_page = self.session_requests.get(upwork_login_url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
+                    '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'})
 
         soup = BeautifulSoup(login_page.text)
         login_token = soup.find(id="login__token")
 
         if login_token != None:
             login_token = login_token['value']
-            payload = {     'login[username]': credentials.login_username,
-                            'login[password]': credentials.login_password,
-                            'login[rememberme]': 1,
-                            'login[_token]': login_token,
-                            'login[iovation]': ''
-                            }
+            payload = {'login[username]': credentials.login_username,
+                       'login[password]': credentials.login_password,
+                       'login[rememberme]': 1,
+                       'login[_token]': login_token,
+                       'login[iovation]': ''
+                       }
             login_response = self.session_requests.post(
                 upwork_login_url,
-                data = payload,
+                data=payload,
                 headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'}
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'}
             )
             if login_response.ok:
                 return self.session_requests
         else:
-            with open(working_dir+"login_page.html", "a+") as f:
+            with open(working_dir + "login_page.html", "a+") as f:
                 f.truncate()
                 f.write(soup.encode("utf-8"))
             self.session_requests = None
         print 'get_upwork_page_session: Login failed'
         return None
-    ### get_upwork_page_session end
+        ### get_upwork_page_session end
+
 
 ###### class end
+
+@app.before_request
+def before_request():
+    try:
+        g.rdb_conn = rdb.connect(host=RDB_HOST, port=RDB_PORT, db=RDB_DB)
+    except RqlDriverError:
+        abort(503, "No database connection could be established.")
+
+
+@app.teardown_request
+def teardown_request(exception):
+    try:
+        g.rdb_conn.close()
+    except AttributeError:
+        pass
 
 
 api.add_resource(DataUpdater, '/update_data/', '/update_data/<int:sample_size>')
 
+
 @app.route('/')
-def start() :
-    last_updated = 'get this from db'
-    return "<h1>Data Module</h1><p>Last updated: "+ last_updated +"</p>"
+def start():
+    last_updated = rdb.table(RDB_TABLE).order_by("requested_on").max().get_field("requested_on").run(g.rdb_conn)
+    target_zone = tz.gettz('Europe/Zurich')
+    last_updated = last_updated.replace(tzinfo=tz.gettz('UTC'))
+    last_updated = last_updated.astimezone(target_zone)
+    return "<h1>Data Module</h1><p>Last updated: {} </p>".format(last_updated)
+
 
 if __name__ == '__main__':
-    app.run(debug=True, host="0.0.0.0")
+    db_setup()
+    app.run(debug=True, use_debugger=False, use_reloader=False, host="0.0.0.0")

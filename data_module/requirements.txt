@@ -2,3 +2,4 @@ flask-restful
 python-upwork
 requests
 beautifulsoup4
+rethinkdb
