@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>gemjob</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="height=device-height,width=device-width,user-scalable=no">
+
+    <link href="{{ url_for('static', filename='reset.css') }}" rel="stylesheet" type="text/css">
+	<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <div class="Header">
+        <div class="AppTitle">
+            gemjob
+        </div>
+        <div class="Icon">
+
+        </div>
+    </div>
+
+    <div class="Section HighlightedSection">
+        <div class="Text">
+            <h1>Welcome to gemjob</h1>
+            <p>Simply log in with your Upwork Account and improve your chances to get hired as a freelancer or to find the right people for the job as a client.</p>
+        </div>
+    </div>
+    <div class="Section">
+        <div class="Form">
+            <h2>Login with your Upwork Account</h2>
+            <input type="text" name="upwork_email" placeholder="E-Mail" size=50 maxlength=120 value="">
+            <input type="password" name="upwork_password" placeholder="Password" size=50 maxlength=120 value="">
+            <input type="submit" value="Log In" name="submit" class="Button">
+        </div>
+    </div>
+
+</body>
+</html>

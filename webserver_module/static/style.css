@@ -1,0 +1,116 @@
+html, body {
+	font-family: Arial;
+	font-size: 20px;
+	color: black;
+	margin: 0;
+	min-height:630px;
+	min-width: 260px;
+    margin-top: 45px;
+}
+
+h1{
+	margin-top: 15px;
+	margin-bottom: 35px;
+	line-height: 65px;
+	font-size:40px;
+}
+
+h2{
+	margin-top: 25px;
+	margin-bottom: 25px;
+	line-height: 50px;
+	font-size:25px;
+}
+
+input{
+    width: 100%;
+    border: 2px #70ad47 solid;
+    font-size: 20px;
+    line-height: 30px;
+    margin-bottom: 20px;
+}
+
+p{
+    font-size: 20px;
+    line-height: 30px;
+    text-align: justify;
+}
+
+/* Base Elements */
+
+.Header, .Section {
+    display: block;
+    width: 100%;
+}
+
+.Header{
+    position: fixed;
+    top:0;
+    background: #70ad47;
+    height: 90px;
+    padding-left:20px;
+    padding-right:20px;
+    box-shadow: 0px 5px 7px rgba(0, 0, 0, 0.2);
+}
+
+.AppTitle{
+    color: white;
+    line-height: 85px;
+    font-size:42px;
+    text-shadow: 0px 5px 7px rgba(0, 0, 0, 0.6);
+}
+
+.Section{
+    padding-top:3%;
+    padding-bottom:3%;
+}
+
+.HighlightedSection{
+    background: #e2f0d9;
+    box-shadow: 0px 5px 7px rgba(0, 0, 0, 0.2);
+}
+
+.Text{
+    display: block;
+    width: 95%;
+    max-width: 1000px;
+    margin: auto;
+}
+
+/* Form */
+
+.Form{
+    display: block;
+    width: 95%;
+    max-width: 500px;
+    margin: auto;
+}
+
+.Button{
+	float: right;
+	background: #70ad47;
+	color: white;
+	border: none;
+	font-size: 20px;
+	padding: 5px;
+	margin-top: 10px;
+	margin-bottom: 20px;
+	text-align: center;
+	width: 180px;
+	height: 45px;
+	border-bottom: 2px solid #70ad47;
+	border-right: 2px solid #70ad47;
+	cursor: pointer;
+    text-shadow: 0px 3px 7px rgba(0, 0, 0, 0.5);
+}
+.Button:hover{
+	color: #e2f0d9;
+	padding-left: 7px;
+	padding-top: 7px;
+}
+.Button:active{
+	background: #e2f0d9;
+    color: #70ad47;
+	border-bottom: #e2f0d9;
+	border-right: #e2f0d9;
+}
