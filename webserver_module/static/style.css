@@ -26,7 +26,7 @@ form{
     width: 100%;
 }
 
-input{
+input, a.Button{
     width: 100%;
     border: 2px #70ad47 solid;
     font-size: 19px;
@@ -34,12 +34,22 @@ input{
     margin: -3px;
     margin-top: 10px;
     margin-bottom: 10px;
+    text-decoration: none;
 }
 
 p{
     font-size: 19px;
     line-height: 30px;
     text-align: justify;
+}
+
+a, a:visited{
+    color: black;
+    text-decoration: underline;
+}
+a:hover{
+    color: black;
+    text-decoration: none;
 }
 
 /* Base Elements */
@@ -54,15 +64,27 @@ p{
     top:0;
     background: #70ad47;
     height: 80px;
-    padding-left:20px;
-    padding-right:20px;
     box-shadow: 0px 5px 7px rgba(0, 0, 0, 0.2);
 }
 
+.Header a, .Header a:hover{
+    color: white;
+}
+
 .AppTitle{
+    float: left;
+    margin-left: 20px;
     color: white;
     line-height: 75px;
     font-size:36px;
+    text-shadow: 0px 5px 7px rgba(0, 0, 0, 0.6);
+}
+
+.HeaderRight{
+    float: right;
+    margin-right: 20px;
+    color: white;
+    line-height: 75px;
     text-shadow: 0px 5px 7px rgba(0, 0, 0, 0.6);
 }
 
@@ -92,11 +114,10 @@ p{
     margin: auto;
 }
 
-.Button{
+.Button, a.Button{
 	float: right;
 	background: #70ad47;
 	color: white;
-	border: none;
 	font-size: 19px;
 	padding: 5px;
 	margin-top: 10px;
@@ -104,21 +125,34 @@ p{
 	text-align: center;
 	width: 180px;
 	height: 45px;
-	border-bottom: 2px solid #70ad47;
+	border: none;
+    border-bottom: 2px solid #70ad47;
 	border-right: 2px solid #70ad47;
 	cursor: pointer;
     text-shadow: 0px 3px 7px rgba(0, 0, 0, 0.5);
+}
+a.Button{
+    height: 38px;
+    line-height: 38px;
 }
 .Button:hover{
 	color: #e2f0d9;
 	padding-left: 7px;
 	padding-top: 7px;
 }
-.Button:active{
+a.Button:hover{
+    border-bottom: 0px solid #70ad47;
+	border-right: 0px solid #70ad47;
+}
+.Button:active, a.Button:active{
 	background: #e2f0d9;
     color: #70ad47;
 	border-bottom: #e2f0d9;
 	border-right: #e2f0d9;
+}
+
+.ButtonFull, a.ButtonFull{
+    width: 100%;
 }
 
 /* Formatting */
