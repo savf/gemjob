@@ -23,7 +23,9 @@ h2{
 }
 
 form{
+    display: block;
     width: 100%;
+    text-align: right;
 }
 
 input, a.Button{
@@ -31,7 +33,7 @@ input, a.Button{
     border: 2px #70ad47 solid;
     font-size: 19px;
     line-height: 30px;
-    margin: -3px;
+    box-sizing: border-box;
     margin-top: 10px;
     margin-bottom: 10px;
     text-decoration: none;
@@ -80,6 +82,10 @@ a:hover{
     text-shadow: 0px 5px 7px rgba(0, 0, 0, 0.6);
 }
 
+.AppTitle a{
+    text-decoration: none;
+}
+
 .HeaderRight{
     float: right;
     margin-right: 20px;
@@ -89,8 +95,12 @@ a:hover{
 }
 
 .Section{
-    padding-top:3%;
-    padding-bottom:3%;
+    padding-top:30px;
+    padding-bottom:30px;
+}
+
+.TableSection{
+    padding-bottom:0;
 }
 
 .HighlightedSection{
@@ -98,11 +108,23 @@ a:hover{
     box-shadow: 0px 5px 7px rgba(0, 0, 0, 0.2);
 }
 
+.HighlightedSectionDark{
+    background: #c5e0b4;
+    width: 100%;
+    display: block;
+}
+
 .Text{
     display: block;
     width: 95%;
     max-width: 900px;
     margin: auto;
+}
+
+.Text span{
+    width: 46%;
+    margin-right: 2%;
+    display: inline-block;
 }
 
 /* Form */
@@ -114,8 +136,11 @@ a:hover{
     margin: auto;
 }
 
+.Form .Text{
+    width: 100%;
+}
+
 .Button, a.Button{
-	float: right;
 	background: #70ad47;
 	color: white;
 	font-size: 19px;
@@ -132,8 +157,8 @@ a:hover{
     text-shadow: 0px 3px 7px rgba(0, 0, 0, 0.5);
 }
 a.Button{
-    height: 38px;
-    line-height: 38px;
+    height: 45px;
+    line-height: 35px;
 }
 .Button:hover{
 	color: #e2f0d9;
@@ -155,8 +180,17 @@ a.Button:hover{
     width: 100%;
 }
 
+.Disabled{
+    background: gray;
+    border-color: gray;
+}
+
 /* Formatting */
 
 .Warning{
     color: red;
+}
+
+.OK{
+    color: green;
 }

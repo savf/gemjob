@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>gemjob</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="height=device-height,width=device-width,user-scalable=no">
+
+    <link href="{{ url_for('static', filename='reset.css') }}" rel="stylesheet" type="text/css">
+	<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css">
+
+    <script type=text/javascript src="{{ url_for('static', filename='jquery.js') }}"></script>
+    <script type=text/javascript>
+        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    </script>
+    <script type=text/javascript src="{{ url_for('static', filename='script.js') }}"></script>
+
+</head>
+
+<body>
+    <div class="Header">
+        <div class="AppTitle">
+            <a href="/">gemjob</a>
+        </div>
+        <div class="HeaderRight">
+            Admin
+        </div>
+    </div>
+
+    <div class="Section HighlightedSection TableSection">
+        <div class="Text">
+            <h1>Admin</h1>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span>Data-Module:</span> <span id="D">checking ...</span></p>
+        </div></div>
+        <div class="Text">
+            <p><span>Data Mining-Module:</span> <span id="DM">checking ...</span></p>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span>Data Base:</span> <span id="DB">checking ...</span></p>
+        </div></div>
+    </div>
+
+    <div class="Section">
+        <div class="Form">
+            <h2>Get new sample</h2>
+
+            {% if server_message %}
+                <p class="Warning"> {{ server_message }} </p>
+            {% endif %}
+            <form action="." method="POST">
+                <input type="number" min="1" step="1" name="sample_size" placeholder="Sample Size" size=50 maxlength=120 value="">
+                <input type="submit" value="Start" name="submit" class="Button" id="GetSample">
+            </form>
+            <div class="Text">
+                <h2>Response:</h2>
+                <p id="Result">None</p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

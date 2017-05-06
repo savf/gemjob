@@ -1,12 +1,13 @@
 import os
-from flask import Flask, render_template, request, make_response, redirect, session
-import re
+from flask import Flask, render_template, request, make_response, redirect, session, jsonify
 import requests
 import upwork
 import credentials
 
 working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
+
+module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/'}
 
 app = Flask(__name__)
 
@@ -60,7 +61,41 @@ def logout():
     session.clear()
     return redirect("/")
 
+@app.route('/admin')
+def admin():
+    return render_template("admin.html")
+
+@app.route('/get_sample')
+def get_sample():
+    sample_size = request.args.get('sample_size', 0, type=int)
+
+    try:
+        result = requests.get(module_urls['D']+"/update_data/"+str(sample_size))
+    except:
+        result = 'Server not reachable'
+
+    return jsonify(result=result)
+
+@app.route('/is_online')
+def is_online():
+    status = {'D': 'offline', 'DM': 'offline', 'DB': 'offline'}
+    try:
+        requests.get(module_urls['D'])
+        status['D'] = 'online'
+    except:
+        pass
+    try:
+        requests.get(module_urls['DM'])
+        status['DM'] = 'online'
+    except:
+        pass
+    try:
+        requests.get(module_urls['DB'])
+        status['DB'] = 'online'
+    except:
+        pass
+    return jsonify(result=status)
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'
-    app.run(debug=True, host="0.0.0.0")
+    app.run(debug=True, host="0.0.0.0", port=8000)
