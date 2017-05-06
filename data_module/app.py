@@ -56,11 +56,14 @@ def db_setup():
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
     ### get request
-    def get(self, sample_size=5):
+    def get(self, sample_size=5, days_posted=1):
 
         if sample_size < 1:
             return {'api_name': 'Data module REST API', 'success': False, 'sample-size': 0,
                     'exception': 'sample_size too small'}
+        if days_posted < 1:
+            return {'api_name': 'Data module REST API', 'success': False, 'sample-size': sample_size,
+                    'exception': 'Only non-zero and positive values for days posted allowed'}
 
         found_jobs = []
         pages = 1 + (sample_size - 1) / max_request_size
@@ -82,7 +85,8 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                                    oauth_access_token_secret=credentials.oauth_access_token_secret,
                                    timeout=30)
 
-            query_data = {'q': '*', 'category2': 'Data Science & Analytics', 'job_status': 'completed'}
+            query_data = {'q': '*', 'category2': 'Data Science & Analytics',
+                          'job_status': 'completed', 'days_posted': days_posted}
 
             # try to get data until we either got it or we exceed the limit
             for i in range(0, max_tries):
@@ -108,14 +112,14 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             for job in found_jobs:
                 job.update({"requested_on": rdb.now()})
 
-            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="error").run(g.rdb_conn)
+            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
 
-            with open(working_dir + strftime("found_jobs_%d.%m.-%H.json", gmtime()), "a+") as f:
+            with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
                 f.truncate()
                 f.write(found_jobs_json)
             success_criterion = len(found_jobs) == _sample_size and response['inserted'] > 0
             return {'api_name': 'Data module REST API', 'success': success_criterion,
-                    'sample-size': len(found_jobs), 'exception': exception}
+                    'sample-size': len(found_jobs), 'exception': exception, 'database-response': response}
 
         return {'api_name': 'Data module REST API', 'success': False,
                 'sample-size': 0, 'exception': 'Web crawling failed'}
@@ -127,6 +131,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         session = self.get_upwork_page_session()
         if session:
             print 'get_web_content: Login successful'
+            bad_jobs = []
             for job_data in found_jobs:
                 sleep(wait_between_html_extractions)  # wait first, to avoid DOSing Upwork
 
@@ -134,8 +139,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 #get_result = session.get(url, headers={
                 #    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
                 get_result = session.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
-                    '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'})
+                    'User-Agent': credentials.headers['User-Agent']})
                 soup = BeautifulSoup(get_result.text)
 
                 elements = soup.find_all('p', {'class': 'm-xs-bottom'})
@@ -144,12 +148,16 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                         split_text = element.get_text(strip=True).split(':')
                         job_data[split_text[0]] = split_text[1]
                 else:
-                    if any("captcha" in item['src'] for item in soup.find_all('script')):
+                    if any("captcha" in (item['src'] if hasattr(item, 'src') else "")
+                           for item in soup.find_all('script')):
                         print 'get_web_content: Page blocked by captcha'
                     else:
                         print 'get_web_content: Page contains no info'
-                    return None
 
+                    bad_jobs.append(job_data)
+
+            # Only return jobs which have been augmented with data from the web
+            found_jobs[:] = [job for job in found_jobs if job not in bad_jobs]
             return found_jobs
 
         print 'get_web_content: No session'
@@ -165,8 +173,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
         upwork_login_url = 'https://www.upwork.com/ab/account-security/login'
         login_page = self.session_requests.get(upwork_login_url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
-                    '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'})
+                    'User-Agent': credentials.headers['User-Agent']})
 
         soup = BeautifulSoup(login_page.text)
         login_token = soup.find(id="login__token")
@@ -182,8 +189,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             login_response = self.session_requests.post(
                 upwork_login_url,
                 data=payload,
-                headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36'
-                                       '(KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36'}
+                headers={'User-Agent': credentials.headers['User-Agent']}
             )
             if login_response.ok:
                 return self.session_requests
@@ -215,12 +221,12 @@ def teardown_request(exception):
         pass
 
 
-api.add_resource(DataUpdater, '/update_data/', '/update_data/<int:sample_size>')
+api.add_resource(DataUpdater, '/update_data/', '/update_data/<int:sample_size>/<int:days_posted>')
 
 
 @app.route('/')
 def start():
-    last_updated = rdb.table(RDB_TABLE).order_by("requested_on").max().get_field("requested_on").run(g.rdb_conn)
+    last_updated = rdb.table(RDB_TABLE).order_by("requested_on").get_field("requested_on").max().run(g.rdb_conn)
     target_zone = tz.gettz('Europe/Zurich')
     last_updated = last_updated.replace(tzinfo=tz.gettz('UTC'))
     last_updated = last_updated.astimezone(target_zone)
