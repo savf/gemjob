@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>gemjob</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="height=device-height,width=device-width,user-scalable=no">
+
+    <link href="{{ url_for('static', filename='reset.css') }}" rel="stylesheet" type="text/css">
+	<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css">
+</head>
+
+<body>
+    <div class="Header">
+        <div class="AppTitle">
+            <a href="/">gemjob</a>
+        </div>
+        <div class="HeaderRight">
+            <a href="/logout">Log Out</a>
+        </div>
+    </div>
+
+    <div class="Section HighlightedSection TableSection">
+        <div class="Text">
+            <h1>Welcome {{ first_name }} {{ last_name }}</h1>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span>Predicted client rating:</span> <span>...</span></p>
+        </div></div>
+    </div>
+
+    <div class="Section">
+        <div class="Text">
+            <h1>Job Postings</h1>
+            <p>...</p>
+
+            <h1>Drafts</h1>
+            <p>...</p>
+        </div>
+    </div>
+
+</body>
+</html>
