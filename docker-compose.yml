@@ -30,3 +30,12 @@ services:
       - "8001:8080" # Admin interface
     volumes:
       - ./database_module:/data
+  crawler_module:
+    #build: crawler_module/
+    image: savf/xvfb-vnc-selenium-chrome
+    container_name: crawler_module
+    ports:
+      - "5900:5900"
+      - "5002:5000"
+    volumes:
+      - ./crawler_module:/crawler_module
