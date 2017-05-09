@@ -10,7 +10,7 @@ export DISPLAY=:0
 Xvfb $DISPLAY -screen 0 1024x768x24 -ac &
 XVFB_PID=$!
 
-#trap shutdown SIGTERM SIGINT
+trap shutdown SIGTERM SIGINT
 for i in $(seq 1 10)
 do
   xdpyinfo -display $DISPLAY >/dev/null 2>&1
@@ -24,5 +24,7 @@ done
 
 ratpoison &
 x11vnc -display $DISPLAY -bg -nopw -xkb -shared -repeat -loop -forever &
+
+python app.py
 
 wait $XVFB_PID

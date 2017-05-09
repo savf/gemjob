@@ -1,11 +1,13 @@
 import json
 import os
+import subprocess
 from time import sleep
 
 import requests
 from flask import Flask, request
 from flask_restful import Api
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 import credentials
 
@@ -13,7 +15,6 @@ os.environ['DISPLAY'] = ':0'
 
 app = Flask(__name__)
 api = Api(app)
-driver = webdriver.Chrome()
 
 max_tries = 10
 max_request_size = 99
@@ -56,8 +57,6 @@ def get_web_content(found_jobs):
 def upwork_login():
     sleep(wait_between_html_extractions)  # wait first, to avoid DOSing Upwork
 
-    self.session_requests = requests.session()
-
     upwork_login_url = 'https://www.upwork.com/ab/account-security/login'
     # Don't log in again, if already logged in
     if 'upwork' in driver.current_url and \
@@ -68,7 +67,7 @@ def upwork_login():
 
     login_token = driver.find_element_by_id('login__token')
 
-    if login_token != None:
+    if login_token is not None:
         login_token = login_token.get_attribute('value')
         driver.find_element_by_id('login_username').send_keys(credentials.login_username)
         driver.find_element_by_id('login_password').send_keys(credentials.login_password)
@@ -88,12 +87,19 @@ def upwork_login():
 
 @app.route('/', methods=['POST'])
 def index():
-    json_payload = request.json
-    found_jobs = json.loads(json_payload)
-    found_jobs = get_web_content(found_jobs)
+    json_payload = request.get_json(force=True)
+    found_jobs = get_web_content(json_payload)
 
     return json.dumps(found_jobs)
 
 
 if __name__ == '__main__':
+    chrome_options = Options()
+    chrome_options.add_experimental_option('prefs', {
+        'credentials_enable_service': False,
+        'profile': {
+            'password_manager_enabled': False
+        }
+    })
+    driver = webdriver.Chrome(chrome_options=chrome_options)
     app.run(debug=True, use_debugger=False, use_reloader=False, host="0.0.0.0")
