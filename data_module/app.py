@@ -8,14 +8,11 @@
 
 import json
 import os
+from time import strftime, gmtime
 
-from datetime import datetime
-from dateutil import tz
-from time import sleep, strftime, gmtime
-
-import requests
 import rethinkdb as rdb
 import upwork
+from dateutil import tz
 from flask import Flask, g, abort
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
@@ -86,26 +83,20 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                           'job_status': 'completed', 'days_posted': days_posted}
 
             # try to get data until we either got it or we exceed the limit
-            post_payload = []
             for i in range(0, max_tries):
                 try:
                     found_jobs.extend(
                         client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
                                                        page_size=_sample_size))
-                    post_payload.extend({found_jobs[-1]['id'], found_jobs[-1]['url']})
                     print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
                         _sample_size)
+                    exception = "None"
                     break
                 except Exception as e:
                     print 'Num of tries: ' + str(i)
                     print e
                     exception = str(e.code) + ' - ' + e.msg
 
-        #crawled_jobs = requests.post('http://crawler_module:5000/', data=post_payload)
-        #for crawled_job in json.dumps(crawled_jobs):
-        #    for found_job in found_jobs:
-        #        if found_job['id'] == crawled_job['id']:
-        #            found_job.update(crawled_job)
         if found_jobs is not None:
             # data to json
             found_jobs_json = json.dumps(found_jobs)
@@ -119,12 +110,20 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
                 f.truncate()
                 f.write(found_jobs_json)
+
             success_criterion = len(found_jobs) == _sample_size and response['inserted'] > 0
-            return {'api_name': 'Data module REST API', 'success': success_criterion,
-                    'sample-size': len(found_jobs), 'exception': exception, 'database-response': response}
+            if len(found_jobs) != _sample_size:
+                exception = "Only got {} of the requested {} jobs".format(len(found_jobs), _sample_size)
+            if response['inserted'] <= 0:
+                exception = "No new samples were returned by the API"
+            return {'api_name': 'Data module REST API',
+                    'success': success_criterion,
+                    'sample-size': len(found_jobs),
+                    'exception': exception,
+                    'database-response': response}
 
         return {'api_name': 'Data module REST API', 'success': False,
-                'sample-size': 0, 'exception': 'Web crawling failed'}
+                'sample-size': 0, 'exception': exception}
 
     ### get end
 
