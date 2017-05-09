@@ -13,7 +13,7 @@ from time import strftime, gmtime
 import rethinkdb as rdb
 import upwork
 from dateutil import tz
-from flask import Flask, g, abort
+from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
 
@@ -49,28 +49,40 @@ def db_setup():
 ###### class begin
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
-    ### get request
-    def get(self, sample_size=5, days_posted=1):
+    ### post request
+    def post(self):
+        json_data = request.get_json(force=True)
+        sample_size = 10
+        days_posted = 365
+        page_offset = None
 
-        if sample_size < 1:
-            return {'api_name': 'Data module REST API', 'success': False, 'sample-size': 0,
-                    'exception': 'sample_size too small'}
-        if days_posted < 1:
-            return {'api_name': 'Data module REST API', 'success': False, 'sample-size': sample_size,
-                    'exception': 'Only non-zero and positive values for days posted allowed'}
+        if 'sample_size' in json_data:
+            sample_size = json_data['sample_size']
+            if sample_size < 1:
+                return {'api_name': 'Data module REST API', 'success': False, 'sample-size': 0,
+                        'exception': 'sample_size too small'}
+        if 'days_posted' in json_data:
+            days_posted = json_data['days_posted']
+            if days_posted < 1:
+                return {'api_name': 'Data module REST API', 'success': False, 'sample-size': sample_size,
+                        'exception': 'Only non-zero and positive values for days posted allowed'}
+        if 'page_offset' in json_data:
+            page_offset = json_data['page_offset']
+            if page_offset == "None":
+                page_offset = None
 
         found_jobs = []
         pages = 1 + (sample_size - 1) / max_request_size
         print 'pages: ' + str(pages)
         _sample_size = max_request_size
 
-        exception = 'none'
+        exception = "None"
 
         # assemble data in multiple iterations because of maximum number of data we can request
         for p in range(0, pages):
 
             if p == pages - 1:
-                _sample_size = sample_size % max_request_size
+                _sample_size = (sample_size % max_request_size) if (sample_size % max_request_size) != 0 else sample_size
             # print 'paging: ' + str(p * max_request_size) + ';' + str(_sample_size)
 
             # connect to Upwork
@@ -85,9 +97,15 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             # try to get data until we either got it or we exceed the limit
             for i in range(0, max_tries):
                 try:
-                    found_jobs.extend(
-                        client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
-                                                       page_size=_sample_size))
+                    if page_offset is None:
+                        found_jobs.extend(
+                            client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
+                                                           page_size=_sample_size))
+                    else:
+                        found_jobs.extend(
+                            client.provider_v2.search_jobs(data=query_data,
+                                                           page_offset=page_offset + (p * max_request_size),
+                                                           page_size=_sample_size))
                     print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
                         _sample_size)
                     exception = "None"
@@ -111,9 +129,9 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 f.truncate()
                 f.write(found_jobs_json)
 
-            success_criterion = len(found_jobs) == _sample_size and response['inserted'] > 0
-            if len(found_jobs) != _sample_size:
-                exception = "Only got {} of the requested {} jobs".format(len(found_jobs), _sample_size)
+            success_criterion = len(found_jobs) == sample_size and response['inserted'] > 0
+            if len(found_jobs) != sample_size:
+                exception = "Only got {} of the requested {} jobs".format(len(found_jobs), sample_size)
             if response['inserted'] <= 0:
                 exception = "No new samples were returned by the API"
             return {'api_name': 'Data module REST API',
@@ -125,7 +143,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         return {'api_name': 'Data module REST API', 'success': False,
                 'sample-size': 0, 'exception': exception}
 
-    ### get end
+    ### post end
 
 
 ###### class end
@@ -146,7 +164,7 @@ def teardown_request(exception):
         pass
 
 
-api.add_resource(DataUpdater, '/update_data/', '/update_data/<int:sample_size>/<int:days_posted>')
+api.add_resource(DataUpdater, '/update_data/')
 
 
 @app.route('/')
