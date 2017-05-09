@@ -9,7 +9,6 @@
 import json
 import os
 
-from selenium import webdriver
 from datetime import datetime
 from dateutil import tz
 from time import sleep, strftime, gmtime
@@ -17,7 +16,6 @@ from time import sleep, strftime, gmtime
 import requests
 import rethinkdb as rdb
 import upwork
-from bs4 import BeautifulSoup
 from flask import Flask, g, abort
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
@@ -37,8 +35,6 @@ RDB_TABLE = 'jobs'
 
 max_tries = 10
 max_request_size = 99
-
-wait_between_html_extractions = 10  # in seconds
 
 
 def db_setup():
@@ -105,8 +101,6 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                     print e
                     exception = str(e.code) + ' - ' + e.msg
 
-        # get additional info from webpages
-        found_jobs = self.get_web_content(found_jobs)
         #crawled_jobs = requests.post('http://crawler_module:5000/', data=post_payload)
         #for crawled_job in json.dumps(crawled_jobs):
         #    for found_job in found_jobs:
@@ -133,82 +127,6 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 'sample-size': 0, 'exception': 'Web crawling failed'}
 
     ### get end
-
-    ### get info from HTML pages
-    def get_web_content(self, found_jobs):
-        session = self.get_upwork_page_session()
-        if session:
-            print 'get_web_content: Login successful'
-            bad_jobs = []
-            for job_data in found_jobs:
-                sleep(wait_between_html_extractions)  # wait first, to avoid DOSing Upwork
-
-                url = job_data['url']
-                #get_result = session.get(url, headers={
-                #    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:53.0) Gecko/20100101 Firefox/53.0'})
-                get_result = session.get(url, headers={
-                    'User-Agent': credentials.headers['User-Agent']})
-                soup = BeautifulSoup(get_result.text)
-
-                elements = soup.find_all('p', {'class': 'm-xs-bottom'})
-                if len(elements) > 1:
-                    for element in elements:
-                        split_text = element.get_text(strip=True).split(':')
-                        job_data[split_text[0]] = split_text[1]
-                else:
-                    if any("captcha" in (item['src'] if hasattr(item, 'src') else "")
-                           for item in soup.find_all('script')):
-                        print 'get_web_content: Page blocked by captcha'
-                    else:
-                        print 'get_web_content: Page contains no info'
-
-                    bad_jobs.append(job_data)
-
-            # Only return jobs which have been augmented with data from the web
-            found_jobs[:] = [job for job in found_jobs if job not in bad_jobs]
-            return found_jobs
-
-        print 'get_web_content: No session'
-        return None
-
-    ### get_web_content end
-
-    ### login and get session
-    def get_upwork_page_session(self):
-        sleep(wait_between_html_extractions)  # wait first, to avoid DDOSing Upwork
-
-        self.session_requests = requests.session()
-
-        upwork_login_url = 'https://www.upwork.com/ab/account-security/login'
-        login_page = self.session_requests.get(upwork_login_url, headers={
-                    'User-Agent': credentials.headers['User-Agent']})
-
-        soup = BeautifulSoup(login_page.text)
-        login_token = soup.find(id="login__token")
-
-        if login_token != None:
-            login_token = login_token['value']
-            payload = {'login[username]': credentials.login_username,
-                       'login[password]': credentials.login_password,
-                       'login[rememberme]': 1,
-                       'login[_token]': login_token,
-                       'login[iovation]': ''
-                       }
-            login_response = self.session_requests.post(
-                upwork_login_url,
-                data=payload,
-                headers={'User-Agent': credentials.headers['User-Agent']}
-            )
-            if login_response.ok:
-                return self.session_requests
-        else:
-            with open(working_dir + "login_page.html", "a+") as f:
-                f.truncate()
-                f.write(soup.encode("utf-8"))
-            self.session_requests = None
-        print 'get_upwork_page_session: Login failed'
-        return None
-        ### get_upwork_page_session end
 
 
 ###### class end
