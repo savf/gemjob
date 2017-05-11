@@ -1,13 +1,13 @@
 import os
+working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
+os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 from flask import Flask, render_template, request, make_response, redirect, session, jsonify
 import requests
 import upwork
 import credentials
 
-working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
-os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
-
 module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/'}
+# module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/'}
 
 app = Flask(__name__)
 
@@ -67,14 +67,18 @@ def admin():
 
 @app.route('/get_sample')
 def get_sample():
-    sample_size = request.args.get('sample_size', 0, type=int)
+    json_data = request.args.to_dict()
+    for key, value in json_data.items():
+        try:
+            json_data[key] = int(value)
+        except:
+            json_data.pop(key)
 
     try:
-        result = requests.get(module_urls['D']+"/update_data/"+str(sample_size))
+        result = requests.post(module_urls['D']+"update_data/", json=json_data)
+        return jsonify(result=result.content)
     except:
-        result = 'Server not reachable'
-
-    return jsonify(result=result)
+        return jsonify(result='Server not responding')
 
 @app.route('/is_online')
 def is_online():

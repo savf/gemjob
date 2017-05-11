@@ -1,13 +1,13 @@
 # Data Module
 # Request sample to be stored as JSON using:
-# -> http://localhost:5000/update_data/{sample size}
-# e.g.
-# -> http://localhost:5000/update_data/250
-# if sample size is not provided, a default number will be chosen
 # -> http://localhost:5000/update_data/
+# Provide a 'sample_size', 'days_posted' or 'page_offset' in post request
 
 import json
 import os
+working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
+os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
+
 from time import strftime, gmtime
 
 import rethinkdb as rdb
@@ -19,12 +19,11 @@ from rethinkdb.errors import RqlRuntimeError, RqlDriverError
 
 import credentials
 
-working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
-os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 
 app = Flask(__name__)
 api = Api(app)
 
+# RDB_HOST = 'localhost'
 RDB_HOST = 'database_module'
 RDB_PORT = 28015
 RDB_DB = 'datasets'
@@ -169,11 +168,14 @@ api.add_resource(DataUpdater, '/update_data/')
 
 @app.route('/')
 def start():
-    last_updated = rdb.table(RDB_TABLE).order_by("requested_on").get_field("requested_on").max().run(g.rdb_conn)
-    target_zone = tz.gettz('Europe/Zurich')
-    last_updated = last_updated.replace(tzinfo=tz.gettz('UTC'))
-    last_updated = last_updated.astimezone(target_zone)
-    return "<h1>Data Module</h1><p>Last updated: {} </p>".format(last_updated)
+    try:
+        last_updated = rdb.table(RDB_TABLE).order_by("requested_on").get_field("requested_on").max().run(g.rdb_conn)
+        target_zone = tz.gettz('Europe/Zurich')
+        last_updated = last_updated.replace(tzinfo=tz.gettz('UTC'))
+        last_updated = last_updated.astimezone(target_zone)
+        return "<h1>Data Module</h1><p>Last updated: {} </p>".format(last_updated)
+    except Exception as e:
+        return "<h1>Data Module</h1><p>Never updated</p>"
 
 
 if __name__ == '__main__':
