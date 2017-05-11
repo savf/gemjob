@@ -11,9 +11,12 @@ $(document).ready(function() {
             sample_size: $('input[name="sample_size"]').val(),
             days_posted: $('input[name="days_posted"]').val(),
             page_offset: $('input[name="page_offset"]').val()
-        }, function(data) {
+        }).done(function(data) {
             $('#GetSample').prop("disabled",false).removeClass("Disabled");
             $("#Result").text(data.result);
+        }).fail(function( jqxhr, textStatus, error ) {
+            $('#GetSample').prop("disabled",false).removeClass("Disabled");
+            $("#Result").text("Failed");
         });
         e.preventDefault();
         return false;
@@ -27,7 +30,10 @@ $(document).ready(function() {
 });
 
 function check_module_status() {
-    $.getJSON($SCRIPT_ROOT + '/is_online', {}, function (data) {
+    $.getJSON($SCRIPT_ROOT + '/is_online', {}).done( function (data) {
+        $("#WS").text(data.result['WS']);
+        $("#WS").addClass("OK").removeClass("Warning");
+
         $("#D").text(data.result['D']);
         if (data.result['D'] != 'online')
             $("#D").addClass("Warning").removeClass("OK");
@@ -45,5 +51,14 @@ function check_module_status() {
             $("#DB").addClass("Warning").removeClass("OK");
         else
             $("#DB").removeClass("Warning").addClass("OK");
-    });
+    }).fail(function( jqxhr, textStatus, error ) {
+            $("#WS").text('offline');
+            $("#WS").addClass("Warning").removeClass("OK");
+            $("#D").text('offline');
+            $("#D").addClass("Warning").removeClass("OK");
+            $("#DM").text('offline');
+            $("#DM").addClass("Warning").removeClass("OK");
+            $("#DB").text('offline');
+            $("#DB").addClass("Warning").removeClass("OK");
+        });
 }
