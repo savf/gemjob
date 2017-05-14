@@ -82,7 +82,7 @@ def get_sample():
 
 @app.route('/is_online')
 def is_online():
-    status = {'D': 'offline', 'DM': 'offline', 'DB': 'offline'}
+    status = {'D': 'offline', 'DM': 'offline', 'DB': 'offline', 'WS': 'online'}
     try:
         requests.get(module_urls['D'])
         status['D'] = 'online'
