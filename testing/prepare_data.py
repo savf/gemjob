@@ -1,6 +1,7 @@
 import os
 import json
 import pandas as pd
+from pandas2arff import pandas2arff
 
 def printDF(title, df):
     print "##############################\n    "+title+"    \n##############################\n"
@@ -20,8 +21,8 @@ def createDF(file_name):
     data = json.loads(found_jobs)
 
     # normalize because of nested client data
-    df = pd.io.json.json_normalize(data) 
-    df.columns = [c.replace('.', '_') for c in df.columns] # so we can access a column with "data_frame.client_reviews_count" 
+    df = pd.io.json.json_normalize(data)
+    df.columns = [c.replace('.', '_') for c in df.columns] # so we can access a column with "data_frame.client_reviews_count"
     return df
 
 
@@ -30,10 +31,10 @@ data_frame = createDF("found_jobs_4K.json")
 printDF("Before changing data", data_frame)
 
 ### remove unnecessary data
-unnecessary_columns = ["id", "category2", "job_status", "url", "client_payment_verification_status", "date_created"]
+unnecessary_columns = ["id", "category2", "job_status", "url"]
 data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
 
-### handle missing values 
+### handle missing values
 # ( data may change -> do this in a generic way! )
 
 # remove rows that have missing data in columns, which normally only have very few (if any) missing values
@@ -48,3 +49,4 @@ data_frame.ix[data_frame.budget == 0, 'budget'] = None
 
 printDF("After changing data", data_frame)
 
+pandas2arff(data_frame, "jobs.arff", wekaname = "jobs", cleanstringdata=True, cleannan=True)
