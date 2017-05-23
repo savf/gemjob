@@ -28,13 +28,12 @@ def createDF(file_name):
     data = json.loads(found_jobs)
 
     # normalize json because of nested client data
-    df = pd.io.json.json_normalize(data)
-    df.columns = [c.replace('.', '_') for c in df.columns] # so we can access a column with "data_frame.client_reviews_count"
+    df = pd.io.json.json_normalize(data)    
     return df
 
 def prepareData(file_name):
     data_frame = createDF(file_name)
-
+    data_frame.columns = [c.replace('.', '_') for c in data_frame.columns] # so we can access a column with "data_frame.client_reviews_count"
     printDF("Before changing data", data_frame)
 
     ### set id
@@ -54,7 +53,8 @@ def prepareData(file_name):
     
     # declare feedback as missing, if no reviews
     data_frame.ix[data_frame.client_reviews_count == 0, 'client_feedback'] = None
-    # declare budget as missing, if 0 -> good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
+    # declare budget as missing, if 0  
+    # TODO: good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
     # data_frame.ix[data_frame.budget == 0, 'budget'] = None
 
     # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
@@ -68,6 +68,14 @@ def prepareData(file_name):
     data_frame[columns_some_missing] = data_frame[columns_some_missing].fillna((data_frame[columns_some_missing].mean()))
     del df_numeric
     
+    # convert arrays in skills or remove "[", "]" and "," (each skill is one word concatenated with "-")
+    # TODO
+    # print data_frame["skills"][0]
+    # print data_frame["skills"][0][0]
+    # print data_frame["skills"][0][1]
+
+    ### TODO: add additional attributes like text size (how long is the description?) or number of skills?
+
     printDF("After changing data", data_frame)
 
     # pandas2arff(data_frame, "jobs.arff", wekaname = "jobs", cleanstringdata=True, cleannan=True)
@@ -78,6 +86,23 @@ def clusterBasedOnText(text_column):
     cluster_column = []
     # TODO
     return cluster_column
+
+def convertToNumeric(data_frame):
+    
+    # transform nominals client_country, job_type and subcategory2 to numeric
+    cols_to_transform = [ 'client_country', 'job_type', 'subcategory2' ]
+    data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
+
+    # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
+    data_frame.ix[data_frame.workload == "Less than 10 hrs/week", 'workload'] = 5
+    data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 15
+    data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
+    data_frame["workload"] = pd.to_numeric(data_frame["workload"])
+
+    ### do (text-based) clustering: skills(?), snippet, subcategory2(?), title
+    # TODO
+
+    return data_frame
 
 def budgetModel(file_name):
     data_frame = prepareData(file_name)
@@ -92,15 +117,11 @@ def budgetModel(file_name):
 
     ### fill missing workload values with random non-missing values 
     data_frame["workload"].fillna(random.choice(data_frame["workload"].dropna()), inplace=True)
-    print "## Randomly filled Workload: ##"
-    print data_frame['workload'], "\n"
     
-    ### convert everything to numeric (except text)
-    # TODO
+    ### convert everything to numeric
+    data_frame = convertToNumeric(data_frame)
 
-    ### replace text with clusters
-    # TODO
-
+    # print data_frame, "\n"
     printDF("After preparing for model", data_frame)
 
 #run
