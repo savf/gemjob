@@ -16,6 +16,8 @@ def printDF(title, df):
     print df.shape
     print "\n## Missing Values per Column: ##"
     print df.isnull().sum()
+    print "\n## Data Types: ##"
+    print df.dtypes
     # print "\n## Show data: ##"
     # print df[0:5]
     print "############################## \n\n"
@@ -56,7 +58,7 @@ def prepareData(file_name):
     # declare budget as missing, if 0  
     # TODO: good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
     # data_frame.ix[data_frame.budget == 0, 'budget'] = None
-
+    
     # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
     data_frame.rename(columns={'date_created': 'timestamp'}, inplace=True)
     data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(pd.to_datetime(data_frame['timestamp'])).dt.days)
@@ -74,7 +76,9 @@ def prepareData(file_name):
     # print data_frame["skills"][0][0]
     # print data_frame["skills"][0][1]
 
-    ### TODO: add additional attributes like text size (how long is the description?) or number of skills?
+    ### add additional attributes like text size (how long is the description?) or number of skills
+    data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
+    data_frame["skills_number"] = data_frame["skills"].str.len()
 
     printDF("After changing data", data_frame)
 
@@ -101,14 +105,20 @@ def convertToNumeric(data_frame):
 
     ### do (text-based) clustering: skills(?), snippet, subcategory2(?), title
     # TODO
+    # DOES THAT EVEN WORK? CANT REPRODUCE CLUSTERS WITH EVAL DATA/USER DATA
+    # remove text data for now TODO: undo that
+    drop_columns = ["skills", "snippet", "title"]
+    data_frame.drop(labels=drop_columns, axis=1, inplace=True)
 
     return data_frame
 
-def budgetModel(file_name):
-    data_frame = prepareData(file_name)
-
+def prepareDataBudgetModel(data_frame):
     ### remove rows that don't contain budget
     data_frame.dropna(subset=["budget"], how='any', inplace=True)
+
+    ### drop columns where we don't have user data or are unnecessary for budget
+    drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
+    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     ### remove column if too many missing (removes duration)
     min_too_many_missing = _percentage_too_many_missing*data_frame.shape[0]
@@ -123,6 +133,14 @@ def budgetModel(file_name):
 
     # print data_frame, "\n"
     printDF("After preparing for model", data_frame)
+
+    return data_frame
+
+def budgetModel(file_name):
+    data_frame = prepareData(file_name)
+    data_frame = prepareDataBudgetModel(data_frame)
+    
+    
 
 #run
 budgetModel("found_jobs_4K.json")
