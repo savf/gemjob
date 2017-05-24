@@ -23,6 +23,18 @@ def printDF(title, df):
     # print df[0:5]
     print "############################## \n\n"
 
+def printCorr(df, attr=None):
+    corr = df.corr()
+    if attr==None:
+        print "### Corrletaion Matrix ###"
+        print corr
+        plt.matshow(corr)
+        plt.show()
+    else:
+        print "### Corrletaions for " + attr + " ###"
+        print corr[attr].sort_values(ascending=False)
+    print "################################"
+
 def createDF(file_name):
     # load data from json file
     
@@ -137,24 +149,12 @@ def prepareDataBudgetModel(data_frame):
 
     return data_frame
 
-def printCorr(df, attr=None):
-    corr = df.corr()
-    if attr==None:
-        print "### Corrletaion Matrix ###"
-        print corr
-        plt.matshow(corr)
-        plt.show()
-    else:
-        print "### Corrletaions for " + attr + " ###"
-        print corr[attr].sort_values(ascending=False)
-    print "################################"
-
 
 def budgetModel(file_name):
     data_frame = prepareData(file_name)
     data_frame = prepareDataBudgetModel(data_frame)
 
-    printCorr(data_frame, "budget")
+    printCorr(data_frame)
 
 
 
