@@ -88,12 +88,6 @@ def prepareData(file_name):
     columns_some_missing = list(df_numeric.columns[(df_numeric.isnull().sum() < max_some_missing) & (df_numeric.isnull().sum() > 0)])
     data_frame[columns_some_missing] = data_frame[columns_some_missing].fillna((data_frame[columns_some_missing].mean()))
     del df_numeric
-    
-    # convert arrays in skills or remove "[", "]" and "," (each skill is one word concatenated with "-")
-    # TODO
-    # print data_frame["skills"][0]
-    # print data_frame["skills"][0][0]
-    # print data_frame["skills"][0][1]
 
     ### add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
@@ -106,11 +100,12 @@ def prepareData(file_name):
     return data_frame
 
 def cleanText(df, text_column_name, text_is_list):
-    stop_words = set(stopwords.words("english"))
-    ps = PorterStemmer()
+
     if text_is_list:
-        df[text_column_name] = df.apply(lambda row: ' '.join([ps.stem(w).lower() for w in row[text_column_name] if not w in stop_words]), axis=1)
+        df[text_column_name] = df.apply(lambda row: ' '.join([w.lower() for w in row[text_column_name]]), axis=1)
     else:
+        stop_words = set(stopwords.words("english"))
+        ps = PorterStemmer()
         df[text_column_name] = df.apply(lambda row: ' '.join([ps.stem(w).lower() for w in word_tokenize(row[text_column_name]) if not w in stop_words]), axis=1)
 
     return df
@@ -199,7 +194,7 @@ def convertToNumeric(data_frame):
     data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
     data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 
-    ### do (text-based) clustering: skills(?), snippet, subcategory2(?), title
+    ### predictions based on text: skills, snippet, subcategory2(?), title
     # TODO
     # DOES THAT EVEN WORK? CANT REPRODUCE CLUSTERS WITH EVAL DATA/USER DATA
     # remove text data for now TODO: undo that
