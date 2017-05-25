@@ -4,6 +4,12 @@ import pandas as pd
 # from pandas2arff import pandas2arff
 import numpy as np
 import random
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 import matplotlib.pyplot as plt
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -99,10 +105,87 @@ def prepareData(file_name):
 
     return data_frame
 
-def clusterBasedOnText(text_column):
-    cluster_column = []
-    # TODO
-    return cluster_column
+def cleanText(df, text_column_name, text_is_list):
+    stop_words = set(stopwords.words("english"))
+    ps = PorterStemmer()
+    if text_is_list:
+        df[text_column_name] = df.apply(lambda row: ' '.join([ps.stem(w).lower() for w in row[text_column_name] if not w in stop_words]), axis=1)
+    else:
+        df[text_column_name] = df.apply(lambda row: ' '.join([ps.stem(w).lower() for w in word_tokenize(row[text_column_name]) if not w in stop_words]), axis=1)
+
+    return df
+
+def prepareTextTrain(df, text_column_name, max_features, text_is_list=False):
+    df = cleanText(df, text_column_name, text_is_list)
+
+    # bag of words
+    vectorizer = CountVectorizer(analyzer="word", tokenizer=None, preprocessor=None, stop_words=None,
+                                 max_features=max_features)
+    train_data_features = vectorizer.fit_transform(df[text_column_name])
+    train_data_features = train_data_features.toarray()
+
+    return vectorizer, train_data_features
+
+def prepareTextTest(df, text_column_name, vectorizer, text_is_list=False):
+    df = cleanText(df, text_column_name, text_is_list)
+
+    # bag of words
+    test_data_features = vectorizer.transform(df[text_column_name])
+    test_data_features = test_data_features.toarray()
+
+    return test_data_features
+
+
+def textRegressionModel(df, label_name, train_data_features):
+    #TODO
+    model = []
+    return model
+
+def textClassificationModel(df, label_name, train_data_features, n_estimators=100):
+    # random forest classifier
+    forest = RandomForestClassifier(n_estimators=n_estimators)
+    forest = forest.fit(train_data_features, df[label_name])
+    return forest
+
+def testTextMining():
+    print "\n\n### Testing Text Mining ###\n"
+    max_features = 5000
+    text_column_name = 'sentences'
+    df_train = pd.DataFrame({text_column_name: ['This is a very good site. I will recommend it to others.', 'Aweful page, I hate it',
+                                                'good work! keep it up', 'Terrible site, seriously aweful'],
+                       "sentiment": ["pos", "neg", "pos", "neg"]})
+
+    df_test = pd.DataFrame({text_column_name: ['This page is soo good!', 'This is really really good',
+                                               'Your layout is seriously aweful', 'The most terrible site on the interwebs'],
+                             "sentiment": ["pos", "pos", "neg", "neg"]})
+
+    vectorizer, train_data_features = prepareTextTrain(df_train, text_column_name, max_features)
+    test_data_features = prepareTextTest(df_test, text_column_name, vectorizer)
+
+    print "\n## DataFrame: ##\n", df_train
+    print "\n## Shape of Features: ##\n", train_data_features.shape
+    print "\n## Features: ##\n", train_data_features
+    vocab = vectorizer.get_feature_names()
+    print "\n## Vocab: ##\n", vocab
+
+    # Sum up the counts of each vocabulary word
+    dist = np.sum(train_data_features, axis=0)
+    # For each, print the vocabulary word and the number of times it
+    # appears in the training set
+    print "\n## Frequency of words: ##"
+    for tag, count in zip(vocab, dist):
+        print count, tag
+
+    model = textClassificationModel(df_train,"sentiment", train_data_features)
+
+    print "\n## Model: ##\n", model
+
+    predictions = model.predict(test_data_features)
+
+    print "\n## Predictions: ##\n", predictions
+    print "\n## Actual Sentiment: ##\n", df_test["sentiment"].to_dict().values()
+
+    print "##############################"
 
 def convertToNumeric(data_frame):
     
@@ -154,9 +237,10 @@ def budgetModel(file_name):
     data_frame = prepareData(file_name)
     data_frame = prepareDataBudgetModel(data_frame)
 
-    printCorr(data_frame)
-
-
+    printCorr(data_frame, "budget")
 
 #run
-budgetModel("found_jobs_4K.json")
+# budgetModel("found_jobs_4K.json")
+testTextMining()
+
+
