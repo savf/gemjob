@@ -136,7 +136,7 @@ def prepareTextTest(df, text_column_name, vectorizer, text_is_list=False):
     return test_data_features
 
 
-def textRegressionModel(df, text_column_name):
+def textRegressionModel(df, label_name, train_data_features):
     #TODO
     model = []
     return model
