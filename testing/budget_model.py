@@ -38,7 +38,7 @@ def printCorr(df, attr=None):
         plt.show()
     else:
         print "### Corrletaions for " + attr + " ###"
-        print corr[attr].sort_values(ascending=False)
+        print corr[attr].abs().sort_values(ascending=False)
     print "################################"
 
 def createDF(file_name):
@@ -63,6 +63,10 @@ def prepareData(file_name):
     ### remove unnecessary data
     unnecessary_columns = ["category2", "job_status", "url", "client_payment_verification_status"]
     data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
+
+    ### convert total_charge and freelancer_count to number
+    data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
+    data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
 
     ### handle missing values
     # ( data may change -> do this in a generic way! )
@@ -93,7 +97,7 @@ def prepareData(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    printDF("After changing data", data_frame)
+    printDF("After preparing data", data_frame)
 
     # pandas2arff(data_frame, "jobs.arff", wekaname = "jobs", cleanstringdata=True, cleannan=True)
 
@@ -204,8 +208,20 @@ def convertToNumeric(data_frame):
     return data_frame
 
 def prepareDataBudgetModel(data_frame):
-    ### remove rows that don't contain budget
+
+    ### remove rows with missing values
+
+    # rows that don't contain budget
     data_frame.dropna(subset=["budget"], how='any', inplace=True)
+
+    # TODO just remove feedbacks?
+    data_frame.dropna(subset=['feedback_for_client_availability', 'feedback_for_client_communication',
+                              'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+                              'feedback_for_client_quality', 'feedback_for_client_skills',
+                              'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+                              'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+                              'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills'],
+                      how='any', inplace=True)
 
     ### drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
@@ -223,19 +239,21 @@ def prepareDataBudgetModel(data_frame):
     data_frame = convertToNumeric(data_frame)
 
     # print data_frame, "\n"
-    printDF("After preparing for model", data_frame)
+    printDF("After preparing for budget model", data_frame)
 
     return data_frame
 
 
 def budgetModel(file_name):
     data_frame = prepareData(file_name)
+    print data_frame["total_charge"][0:10]
     data_frame = prepareDataBudgetModel(data_frame)
 
-    printCorr(data_frame, "budget")
+    # printCorr(data_frame, "budget")
+    # printCorr(data_frame, "total_charge")
 
 #run
-# budgetModel("found_jobs_4K.json")
-testTextMining()
+budgetModel("found_jobs_4K_extended.json")
+# testTextMining()
 
 
