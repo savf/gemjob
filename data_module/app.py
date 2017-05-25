@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Data Module
 # Request sample to be stored as JSON using:
 # -> http://localhost:5000/update_data/
@@ -10,6 +11,7 @@ os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 
 from time import strftime, gmtime
 
+import sys
 import rethinkdb as rdb
 import upwork
 from dateutil import tz
@@ -47,6 +49,29 @@ def db_setup():
 
 ###### class begin
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
+
+    # Print iterations progress
+    def print_progress(self, iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
+        """
+        Call in a loop to create terminal progress bar
+        @params:
+            iteration   - Required  : current iteration (Int)
+            total       - Required  : total iterations (Int)
+            prefix      - Optional  : prefix string (Str)
+            suffix      - Optional  : suffix string (Str)
+            decimals    - Optional  : positive number of decimals in percent complete (Int)
+            bar_length  - Optional  : character length of bar (Int)
+        """
+        str_format = "{0:." + str(decimals) + "f}"
+        percents = str_format.format(100 * (iteration / float(total)))
+        filled_length = int(round(bar_length * iteration / float(total)))
+        bar = '█' * filled_length + '-' * (bar_length - filled_length)
+
+        sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix)),
+
+        if iteration == total:
+            sys.stdout.write('\n')
+        sys.stdout.flush()
 
     ### post request
     def post(self):
@@ -94,39 +119,91 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                           'job_status': 'completed', 'days_posted': days_posted}
 
             # try to get data until we either got it or we exceed the limit
-            for i in range(0, max_tries):
-                try:
-                    if page_offset is None:
-                        found_jobs.extend(
-                            client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
-                                                           page_size=_sample_size))
-                    else:
-                        found_jobs.extend(
-                            client.provider_v2.search_jobs(data=query_data,
-                                                           page_offset=page_offset + (p * max_request_size),
-                                                           page_size=_sample_size))
-                    print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
-                        _sample_size)
-                    exception = "None"
-                    break
-                except Exception as e:
-                    print 'Num of tries: ' + str(i)
-                    print e
-                    exception = str(e.code) + ' - ' + e.msg
+            # for i in range(0, max_tries):
+            #     try:
+            #         if page_offset is None:
+            #             found_jobs.extend(
+            #                 client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
+            #                                                page_size=_sample_size))
+            #         else:
+            #             found_jobs.extend(
+            #                 client.provider_v2.search_jobs(data=query_data,
+            #                                                page_offset=page_offset + (p * max_request_size),
+            #                                                page_size=_sample_size))
+            #         print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
+            #             _sample_size)
+            #         exception = "None"
+            #         break
+            #     except Exception as e:
+            #         print 'Number of tries for job search: ' + str(i)
+            #         print e
+            #         exception = str(e.code) + ' - ' + e.msg
+        with open(working_dir + 'found_jobs_4K.json') as data_file:
+            found_jobs = json.load(data_file)
 
         if found_jobs is not None:
-            # data to json
-            found_jobs_json = json.dumps(found_jobs)
 
-            # add current time as timestamp to all jobs
+            counter = 0
             for job in found_jobs:
-                job.update({"requested_on": rdb.now()})
+                # Save already found profiles in 10% progress steps
+                if counter % int(round(len(found_jobs)/10)) == 0:
+                    try:
+                        with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                            f.truncate()
+                            f.write(json.dumps(found_jobs))
+                    except Exception as e:
+                        print '\r\n Problems writing to JSON file, aborted.\r\n'
 
-            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
+                for i in range(0, max_tries):
+                    try:
+                        job_profile = client.job.get_job_profile(job["id"].encode('UTF-8'))
+                        counter += 1
+                        self.print_progress(counter, len(found_jobs), prefix = 'Progress:', suffix = 'Complete', bar_length = 50)
+                        assignment_info = job_profile['assignment_info']['info']
+                        # For jobs with only a single freelancer, assignment_info directly contains the info
+                        if not isinstance(assignment_info, list):
+                            assignment_info = [assignment_info]
+                        # Create the divisor to build the average of the individual feedback elements
+                        divisor = float(len(assignment_info))
+                        for info in assignment_info:
+                            if 'feedback_for_buyer' not in info and 'feedback_for_provider' not in info:
+                                divisor -= 1.0
+
+                        total_charge = 0
+                        for info in assignment_info:
+                            total_charge += float(info['total_charge'])
+                            if 'feedback_for_provider' in info:
+                                for feedback in info['feedback_for_provider']['scores']['score']:
+                                    if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in job:
+                                        job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] +=\
+                                            float(feedback['score']) / divisor
+                                    else:
+                                        job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] = \
+                                            float(feedback['score']) / divisor
+                            if 'feedback_for_buyer' in info:
+                                for feedback in info['feedback_for_buyer']['scores']['score']:
+                                    if 'feedback_for_client_{}'.format(feedback['label'].lower()) in job:
+                                        job['feedback_for_client_{}'.format(feedback['label'].lower())] +=\
+                                            float(feedback['score']) / divisor
+                                    else:
+                                        job['feedback_for_client_{}'.format(feedback['label'].lower())] = \
+                                            float(feedback['score']) / divisor
+
+                        job['freelancer_count'] = unicode(len(assignment_info))
+                        job['total_charge'] = unicode(total_charge)
+                        break
+                    except Exception as e:
+                        if hasattr(e, 'code') and e.code == 403:
+                            print '\r\n Profile access denied for job {} \r\n'.format(job['id'])
+                            break
+                        print 'Number of tries for job profile: {}'.format(str(i))
+                        print e
 
             with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
                 f.truncate()
-                f.write(found_jobs_json)
+                f.write(json.dumps(found_jobs))
+
+            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
 
             success_criterion = len(found_jobs) == sample_size and response['inserted'] > 0
             if len(found_jobs) != sample_size:
