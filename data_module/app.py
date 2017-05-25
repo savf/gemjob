@@ -119,27 +119,25 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                           'job_status': 'completed', 'days_posted': days_posted}
 
             # try to get data until we either got it or we exceed the limit
-            # for i in range(0, max_tries):
-            #     try:
-            #         if page_offset is None:
-            #             found_jobs.extend(
-            #                 client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
-            #                                                page_size=_sample_size))
-            #         else:
-            #             found_jobs.extend(
-            #                 client.provider_v2.search_jobs(data=query_data,
-            #                                                page_offset=page_offset + (p * max_request_size),
-            #                                                page_size=_sample_size))
-            #         print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
-            #             _sample_size)
-            #         exception = "None"
-            #         break
-            #     except Exception as e:
-            #         print 'Number of tries for job search: ' + str(i)
-            #         print e
-            #         exception = str(e.code) + ' - ' + e.msg
-        with open(working_dir + 'found_jobs_4K.json') as data_file:
-            found_jobs = json.load(data_file)
+            for i in range(0, max_tries):
+                try:
+                    if page_offset is None:
+                        found_jobs.extend(
+                            client.provider_v2.search_jobs(data=query_data, page_offset=(p * max_request_size),
+                                                           page_size=_sample_size))
+                    else:
+                        found_jobs.extend(
+                            client.provider_v2.search_jobs(data=query_data,
+                                                           page_offset=page_offset + (p * max_request_size),
+                                                           page_size=_sample_size))
+                    print 'Successfully found jobs, page_offset=' + str(p * max_request_size) + ', page_size=' + str(
+                        _sample_size)
+                    exception = "None"
+                    break
+                except Exception as e:
+                    print 'Number of tries for job search: ' + str(i)
+                    print e
+                    exception = str(e.code) + ' - ' + e.msg
 
         if found_jobs is not None:
 
@@ -189,8 +187,8 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                                         job['feedback_for_client_{}'.format(feedback['label'].lower())] = \
                                             float(feedback['score']) / divisor
 
-                        job['freelancer_count'] = unicode(len(assignment_info))
-                        job['total_charge'] = unicode(total_charge)
+                        job['freelancer_count'] = len(assignment_info)
+                        job['total_charge'] = total_charge
                         break
                     except Exception as e:
                         if hasattr(e, 'code') and e.code == 403:
