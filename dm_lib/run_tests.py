@@ -51,6 +51,6 @@ def testTextMining():
     print "##############################"
 
 #run
-budgetModel("data/found_jobs_4K_extended.json")
-# jobTypeModel("data/found_jobs_4K_extended.json")
+# budgetModel("data/found_jobs_4K_extended.json")
+jobTypeModel("data/found_jobs_4K_extended.json")
 # testTextMining()

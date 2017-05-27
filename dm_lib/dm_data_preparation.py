@@ -96,6 +96,10 @@ def convertToNumeric(data_frame):
 
     return data_frame
 
+def convertToNominal(data_frame):
+	# TODO
+	return data_frame
+	
 def splitIntoTestTrainSet(df, size_train_set):
     train_indices = np.random.rand(len(df)) < size_train_set
     train = df[train_indices]
