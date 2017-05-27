@@ -7,8 +7,10 @@ import random
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
+from sklearn import linear_model
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, accuracy_score
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -39,7 +41,13 @@ def printCorr(df, attr=None):
     else:
         print "### Corrletaions for " + attr + " ###"
         print corr[attr].abs().sort_values(ascending=False)
-    print "################################"
+    print "################################ \n\n"
+
+def splitIntoTestTrainSet(df, size_train_set):
+    train_indices = np.random.rand(len(df)) < size_train_set
+    train = df[train_indices]
+    test = df[~train_indices]
+    return train, test
 
 def createDF(file_name):
     # load data from json file
@@ -103,19 +111,40 @@ def prepareData(file_name):
 
     return data_frame
 
-def cleanText(df, text_column_name, text_is_list):
+def evaluateRegression(df, predictions, label_name):
+    print "### Evaluation of " + label_name + " ###"
+    exp_var_sc = explained_variance_score(df[label_name], predictions)
+    print "## Explained variance score (best is 1.0): ", exp_var_sc
+    abs_err = mean_absolute_error(df[label_name], predictions)
+    print "## Mean absolute error: ", abs_err
+    sq_err = mean_squared_error(df[label_name], predictions)
+    print "## Mean squared error: ", abs_err
 
-    if text_is_list:
-        df[text_column_name] = df.apply(lambda row: ' '.join([w.lower() for w in row[text_column_name]]), axis=1)
-    else:
+    return exp_var_sc, abs_err, sq_err
+
+def evaluateClassification(df, predictions, label_name):
+    print "### Evaluation of " + label_name + " ###"
+    accuracy = accuracy_score(df[label_name], predictions)
+    print "## Accuracy as a fraction: ", accuracy
+
+    # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics
+
+    return accuracy
+
+def cleanText(df, text_column_name):
+    isStr = isinstance(df[text_column_name].values[0], basestring)
+    if isStr:
         stop_words = set(stopwords.words("english"))
         ps = PorterStemmer()
-        df[text_column_name] = df.apply(lambda row: ' '.join([ps.stem(w).lower() for w in word_tokenize(row[text_column_name]) if not w in stop_words]), axis=1)
+        df[text_column_name] = df.apply(lambda row: ' '.join(
+            [ps.stem(w).lower() for w in word_tokenize(row[text_column_name]) if not w in stop_words]), axis=1)
+    else:
+        df[text_column_name] = df.apply(lambda row: ' '.join([w.lower() for w in row[text_column_name]]), axis=1)
 
     return df
 
-def prepareTextTrain(df, text_column_name, max_features, text_is_list=False):
-    df = cleanText(df, text_column_name, text_is_list)
+def prepareTextTrain(df, text_column_name, max_features):
+    df = cleanText(df, text_column_name)
 
     # bag of words
     vectorizer = CountVectorizer(analyzer="word", tokenizer=None, preprocessor=None, stop_words=None,
@@ -125,8 +154,8 @@ def prepareTextTrain(df, text_column_name, max_features, text_is_list=False):
 
     return vectorizer, train_data_features
 
-def prepareTextTest(df, text_column_name, vectorizer, text_is_list=False):
-    df = cleanText(df, text_column_name, text_is_list)
+def prepareTextTest(df, text_column_name, vectorizer):
+    df = cleanText(df, text_column_name)
 
     # bag of words
     test_data_features = vectorizer.transform(df[text_column_name])
@@ -136,27 +165,61 @@ def prepareTextTest(df, text_column_name, vectorizer, text_is_list=False):
 
 
 def textRegressionModel(df, label_name, train_data_features):
-    #TODO
-    model = []
-    return model
+    # linear regression
+    regr = linear_model.LinearRegression()
+    regr.fit(train_data_features, df[label_name])
+    return regr
 
 def textClassificationModel(df, label_name, train_data_features, n_estimators=100):
     # random forest classifier
     forest = RandomForestClassifier(n_estimators=n_estimators)
-    forest = forest.fit(train_data_features, df[label_name])
+    forest.fit(train_data_features, df[label_name])
     return forest
+
+def doTextMining(df_train, df_test, label_name, regression, max_features=5000):
+    print "##############################\n    Text Mining for " + label_name + \
+          "    \n##############################\n"
+
+    text_columns=["skills", "title", "snippet"]
+    for text_column_name in text_columns:
+        print "### Predict ", label_name, " with: ", text_column_name, " ###"
+
+        vectorizer, train_data_features = prepareTextTrain(df_train, text_column_name, max_features)
+        test_data_features = prepareTextTest(df_test, text_column_name, vectorizer)
+        if regression:
+            model = textRegressionModel(df_train, label_name, train_data_features)
+        else:
+            model = textClassificationModel(df_train, label_name, train_data_features)
+
+        predictions = model.predict(test_data_features)
+
+        # evaluate
+        if regression:
+            evaluateRegression(df_test, predictions, label_name)
+        else:
+            evaluateClassification(df_test, predictions, label_name)
+
+        print "### Predictions: ###"
+        print predictions[0:4]
+        print "### Actual values: ###"
+        print df_test[label_name][0:4]
+        print "###########"
+
+    print "################################ \n\n"
+    return df_train, df_test
 
 def testTextMining():
     print "\n\n### Testing Text Mining ###\n"
     max_features = 5000
     text_column_name = 'sentences'
+    label_name = "sentiment"
     df_train = pd.DataFrame({text_column_name: ['This is a very good site. I will recommend it to others.', 'Aweful page, I hate it',
                                                 'good work! keep it up', 'Terrible site, seriously aweful'],
-                       "sentiment": ["pos", "neg", "pos", "neg"]})
+                       label_name: ["pos", "neg", "pos", "neg"]})
 
     df_test = pd.DataFrame({text_column_name: ['This page is soo good!', 'This is really really good',
                                                'Your layout is seriously aweful', 'The most terrible site on the interwebs'],
-                             "sentiment": ["pos", "pos", "neg", "neg"]})
+                             label_name: ["pos", "pos", "neg", "neg"]})
 
     vectorizer, train_data_features = prepareTextTrain(df_train, text_column_name, max_features)
     test_data_features = prepareTextTest(df_test, text_column_name, vectorizer)
@@ -175,14 +238,16 @@ def testTextMining():
     for tag, count in zip(vocab, dist):
         print count, tag
 
-    model = textClassificationModel(df_train,"sentiment", train_data_features)
+    model = textClassificationModel(df_train,label_name, train_data_features)
 
     print "\n## Model: ##\n", model
 
     predictions = model.predict(test_data_features)
 
     print "\n## Predictions: ##\n", predictions
-    print "\n## Actual Sentiment: ##\n", df_test["sentiment"].to_dict().values()
+    print "\n## Actual Sentiment: ##\n", df_test[label_name].to_dict().values()
+
+    evaluateClassification(df_test, predictions, label_name)
 
     print "##############################"
 
@@ -202,8 +267,8 @@ def convertToNumeric(data_frame):
     # TODO
     # DOES THAT EVEN WORK? CANT REPRODUCE CLUSTERS WITH EVAL DATA/USER DATA
     # remove text data for now TODO: undo that
-    drop_columns = ["skills", "snippet", "title"]
-    data_frame.drop(labels=drop_columns, axis=1, inplace=True)
+    # drop_columns = ["skills", "snippet", "title"]
+    # data_frame.drop(labels=drop_columns, axis=1, inplace=True)
 
     return data_frame
 
@@ -243,17 +308,32 @@ def prepareDataBudgetModel(data_frame):
 
     return data_frame
 
+def jobTypeModel(file_name):
+    label_name = "job_type"
+    data_frame = prepareData(file_name)
+    # data_frame = prepareDataJobTypeModel(data_frame)
+
+    df_train, df_test = splitIntoTestTrainSet(data_frame, 0.8)
+
+    doTextMining(df_train, df_test, label_name, regression=False, max_features=5000)
+
+    # printCorr(data_frame, label_name)
 
 def budgetModel(file_name):
+    label_name = "budget"
     data_frame = prepareData(file_name)
-    print data_frame["total_charge"][0:10]
     data_frame = prepareDataBudgetModel(data_frame)
 
-    # printCorr(data_frame, "budget")
+    df_train, df_test = splitIntoTestTrainSet(data_frame, 0.8)
+
+    doTextMining(df_train, df_test, label_name, regression=True, max_features=5000)
+
+    # printCorr(data_frame, label_name)
     # printCorr(data_frame, "total_charge")
 
 #run
-budgetModel("found_jobs_4K_extended.json")
+# budgetModel("found_jobs_4K_extended.json")
+jobTypeModel("found_jobs_4K_extended.json")
 # testTextMining()
 
 
