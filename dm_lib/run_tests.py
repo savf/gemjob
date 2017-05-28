@@ -49,11 +49,11 @@ def test_text_mining():
     print "\n## Predictions: ##\n", predictions
     print "\n## Actual Sentiment: ##\n", df_test[label_name].to_dict().values()
 
-    evaluateClassification(df_test, predictions, label_name)
+    evaluate_classification(df_test, predictions, label_name)
 
     print "##############################"
 
 #run
 budget_model("data/found_jobs_4K_extended.json")
-# jobTypeModel("data/found_jobs_4K_extended.json")
-# testTextMining()
+# job_type_model("data/found_jobs_4K_extended.json")
+# test_text_mining()

@@ -90,6 +90,23 @@ def prepare_data(file_name):
     return data_frame
 
 
+def separate_text(data_frame, label_name):
+    """ Separate structured data from text
+
+    :param data_frame: Pandas DataFrame that contains the data
+    :type data_frame: pd.DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :return: Pandas DataFrames once with only numerical attributes and once only text attributes
+    :rtype: pandas.DataFrame
+    """
+    text_data = data_frame[[label_name, "skills", "snippet", "title"]]
+    data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
+
+    return data_frame, text_data
+
+
+
 def convert_to_numeric(data_frame, label_name):
     """ Convert client_country, job_type, subcategory2 and workload to numeric
 
@@ -110,23 +127,21 @@ def convert_to_numeric(data_frame, label_name):
     data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
     data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 
-    ### seperate numerical and text data
-    text_data = data_frame[[label_name, "skills", "snippet", "title"]]
-    data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
-
-    return data_frame, text_data
+    return separate_text(data_frame, label_name)
 
 
-def convert_to_nominal(data_frame):
+def convert_to_nominal(data_frame, label_name):
     """ Convert all attributes in the given data_frame to nominal
 
     :param data_frame: Pandas DataFrame containing all data
     :type data_frame: pd.DataFrame
-    :return: Cleaned Pandas DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :return: Cleaned Pandas DataFrame once with only nominal attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
     # TODO
-    return data_frame
+    return separate_text(data_frame, label_name)
 
 
 def missing_value_limit(data_frame_size):

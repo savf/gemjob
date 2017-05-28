@@ -63,7 +63,7 @@ def evaluate_regression(df, predictions, label_name):
     return exp_var_sc, abs_err, sq_err
 
 
-def evaluateClassification(df, predictions, label_name):
+def evaluate_classification(df, predictions, label_name):
     """ Print accuracy of classification
 
     :param df: Pandas DataFrame containing the data

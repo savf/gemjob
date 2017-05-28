@@ -1,6 +1,6 @@
 import dm_data_preparation
 from dm_data_preparation import *
-from dm_general import evaluate_regression
+from dm_general import evaluate_regression, print_correlations
 from dm_text_mining import do_text_mining
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model
@@ -54,6 +54,7 @@ def prepare_data_budget_model(data_frame, label_name):
     return data_frame, text_data
 
 
+# TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
 def budget_model(file_name):
     """ Learn model for label 'budget' and return it
 
@@ -64,9 +65,6 @@ def budget_model(file_name):
     # label_name = "total_charge"
 
     data_frame = prepare_data(file_name)
-    # TODO step below removes text from data
-    # -> do text mining right before that but after dropping rows without missing values
-    # -> do it in "prepareDataBudgetModel()"
     data_frame, text_data = prepare_data_budget_model(data_frame, label_name)
 
     print "\n\n########## Do Text Mining\n"
@@ -88,4 +86,4 @@ def budget_model(file_name):
     print df_test[label_name][0:8]
     print "###########"
 
-    # printCorr(data_frame, label_name)
+    # print_correlations(data_frame, label_name)

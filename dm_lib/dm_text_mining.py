@@ -1,4 +1,4 @@
-from dm_general import evaluateClassification, evaluate_regression
+from dm_general import evaluate_classification, evaluate_regression
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
@@ -74,7 +74,7 @@ def prepare_text_test(df, text_column_name, vectorizer):
     return test_data_features
 
 
-def textRegressionModel(df, label_name, train_data_features):
+def text_regression_model(df, label_name, train_data_features):
     """ Learn a SVM based regression model for the given target label
 
     :param df: Pandas DataFrame containing the data
@@ -137,7 +137,7 @@ def do_text_mining(df_train, df_test, label_name, regression, max_features=5000)
         vectorizer, train_data_features = prepare_text_train(df_train, text_column_name, max_features)
         test_data_features = prepare_text_test(df_test, text_column_name, vectorizer)
         if regression:
-            model = textRegressionModel(df_train, label_name, train_data_features)
+            model = text_regression_model(df_train, label_name, train_data_features)
         else:
             model = text_classification_model(df_train, label_name, train_data_features)
 
@@ -147,7 +147,7 @@ def do_text_mining(df_train, df_test, label_name, regression, max_features=5000)
         if regression:
             evaluate_regression(df_test, predictions, label_name)
         else:
-            evaluateClassification(df_test, predictions, label_name)
+            evaluate_classification(df_test, predictions, label_name)
 
         print "### Predictions: ###"
         print predictions[0:8]
