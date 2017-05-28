@@ -1,9 +1,12 @@
 import dm_data_preparation
 from dm_data_preparation import *
+from dm_general import evaluateRegression
 from dm_text_mining import doTextMining
+from sklearn import linear_model
+from sklearn import svm
 import random
 
-def prepareDataBudgetModel(data_frame):
+def prepareDataBudgetModel(data_frame, label_name):
     ### remove rows with missing values
 
     # rows that don't contain budget
@@ -31,21 +34,40 @@ def prepareDataBudgetModel(data_frame):
     data_frame["workload"].fillna(random.choice(data_frame["workload"].dropna()), inplace=True)
 
     ### convert everything to numeric
-    data_frame = convertToNumeric(data_frame)
+    data_frame, text_data = convertToNumeric(data_frame, label_name)
 
     # print data_frame, "\n"
     printDF("After preparing for budget model", data_frame)
 
-    return data_frame
+    return data_frame, text_data
 
 def budgetModel(file_name):
     label_name = "budget"
-    data_frame = prepareData(file_name)
-    data_frame = prepareDataBudgetModel(data_frame)
+    # label_name = "total_charge"
 
+    data_frame = prepareData(file_name)
+    # TODO step below removes text from data
+    # -> do text mining right before that but after dropping rows without missing values
+    # -> do it in "prepareDataBudgetModel()"
+    data_frame, text_data = prepareDataBudgetModel(data_frame, label_name)
+
+    print "\n\n########## Do Text Mining\n"
+    text_train, text_test = splitIntoTestTrainSet(text_data, 0.8)
+    doTextMining(text_train, text_test, label_name, regression=True, max_features=5000)
+
+    print "\n\n########## Regression based on all data (except text)\n"
     df_train, df_test = splitIntoTestTrainSet(data_frame, 0.8)
 
-    doTextMining(df_train, df_test, label_name, regression=True, max_features=5000)
+    regr = svm.SVR(kernel='linear') #linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+    regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
+    predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
+
+    evaluateRegression(df_test, predictions, label_name)
+
+    print "### Predictions: ###"
+    print predictions[0:8]
+    print "### Actual values: ###"
+    print df_test[label_name][0:8]
+    print "###########"
 
     # printCorr(data_frame, label_name)
-    # printCorr(data_frame, "total_charge")

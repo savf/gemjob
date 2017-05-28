@@ -3,6 +3,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 from sklearn import linear_model
+from sklearn import svm
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.ensemble import RandomForestClassifier
 
@@ -40,7 +41,7 @@ def prepareTextTest(df, text_column_name, vectorizer):
 
 def textRegressionModel(df, label_name, train_data_features):
     # linear regression
-    regr = linear_model.LinearRegression()
+    regr = svm.SVR(kernel='linear')#linear_model.LinearRegression()
     regr.fit(train_data_features, df[label_name])
     return regr
 
@@ -73,11 +74,11 @@ def doTextMining(df_train, df_test, label_name, regression, max_features=5000):
         else:
             evaluateClassification(df_test, predictions, label_name)
 
-        # print "### Predictions: ###"
-        # print predictions[0:4]
-        # print "### Actual values: ###"
-        # print df_test[label_name][0:4]
-        # print "###########"
+        print "### Predictions: ###"
+        print predictions[0:8]
+        print "### Actual values: ###"
+        print df_test[label_name][0:8]
+        print "###########"
 
     print "################################ \n\n"
     return predictions

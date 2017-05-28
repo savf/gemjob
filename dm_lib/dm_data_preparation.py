@@ -77,7 +77,7 @@ def prepareData(file_name):
     return data_frame
 
 
-def convertToNumeric(data_frame):
+def convertToNumeric(data_frame, label_name):
     # transform nominals client_country, job_type and subcategory2 to numeric
     cols_to_transform = ['client_country', 'job_type', 'subcategory2']
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
@@ -88,13 +88,11 @@ def convertToNumeric(data_frame):
     data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
     data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 
-    ### predictions based on text: skills, snippet, subcategory2(?), title
-    # TODO
-    # remove text data for now TODO: undo that
-    # drop_columns = ["skills", "snippet", "title"]
-    # data_frame.drop(labels=drop_columns, axis=1, inplace=True)
+    ### seperate numerical and text data
+    text_data = data_frame[[label_name, "skills", "snippet", "title"]]
+    data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
 
-    return data_frame
+    return data_frame, text_data
 
 def convertToNominal(data_frame):
 	# TODO
