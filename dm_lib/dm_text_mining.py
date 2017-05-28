@@ -1,4 +1,4 @@
-from dm_general import evaluateClassification, evaluateRegression
+from dm_general import evaluateClassification, evaluate_regression
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
@@ -7,9 +7,19 @@ from sklearn import svm
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.ensemble import RandomForestClassifier
 
-def cleanText(df, text_column_name):
-    isStr = isinstance(df[text_column_name].values[0], basestring)
-    if isStr:
+
+def clean_text(df, text_column_name):
+    """ Perform stemming, stop word removal and lowercasing
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param text_column_name: Column in data frame that contains the text values
+    :type text_column_name: str
+    :return: Cleaned data frame
+    :rtype: pandas.DataFrame
+    """
+    is_str = isinstance(df[text_column_name].values[0], basestring)
+    if is_str:
         stop_words = set(stopwords.words("english"))
         ps = PorterStemmer()
         df[text_column_name] = df.apply(lambda row: ' '.join(
@@ -19,8 +29,20 @@ def cleanText(df, text_column_name):
 
     return df
 
-def prepareTextTrain(df, text_column_name, max_features):
-    df = cleanText(df, text_column_name)
+
+def prepare_text_train(df, text_column_name, max_features):
+    """ Create bag of words of the training dataset
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param text_column_name: Attribute that contains the text values
+    :type text_column_name: str
+    :param max_features: Maximum number of features that will be produced by the vectorizer
+    :type max_features: int
+    :return: Both the vectorizer and the extracted features
+    :rtype: sklearn.feature_extraction.text.CountVectorizer, array
+    """
+    df = clean_text(df, text_column_name)
 
     # bag of words
     vectorizer = CountVectorizer(analyzer="word", tokenizer=None, preprocessor=None, stop_words=None,
@@ -30,8 +52,20 @@ def prepareTextTrain(df, text_column_name, max_features):
 
     return vectorizer, train_data_features
 
-def prepareTextTest(df, text_column_name, vectorizer):
-    df = cleanText(df, text_column_name)
+
+def prepare_text_test(df, text_column_name, vectorizer):
+    """ Create bag of words of the test dataset
+
+        :param df: Pandas DataFrame containing the data
+        :type df: pandas.DataFrame
+        :param text_column_name: Attribute that contains the text values
+        :type text_column_name: str
+        :param max_features: Maximum number of features that will be produced by the vectorizer
+        :type max_features: int
+        :return: The features extracted by the CountVectorizer
+        :rtype: array
+        """
+    df = clean_text(df, text_column_name)
 
     # bag of words
     test_data_features = vectorizer.transform(df[text_column_name])
@@ -39,19 +73,60 @@ def prepareTextTest(df, text_column_name, vectorizer):
 
     return test_data_features
 
+
 def textRegressionModel(df, label_name, train_data_features):
-    # linear regression
+    """ Learn a SVM based regression model for the given target label
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param label_name: Target label to be learned
+    :type label_name: str
+    :param train_data_features: Bag of words
+    :type train_data_features: array
+    :return: Learned regression model
+    :rtype: sklearn.svm.SVR
+    """
     regr = svm.SVR(kernel='linear')#linear_model.LinearRegression()
     regr.fit(train_data_features, df[label_name])
     return regr
 
-def textClassificationModel(df, label_name, train_data_features, n_estimators=100):
+
+def text_classification_model(df, label_name, train_data_features, n_estimators=100):
+    """ Lean a random forest classifier model for the given target label
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param label_name: Target label to be learned
+    :type label_name: str
+    :param train_data_features: Bag of words
+    :type train_data_features: array
+    :param n_estimators: Number of trees in the forest
+    :type n_estimators: int
+    :return: Learned random forest model
+    :rtype: sklearn.ensemble.RandomForestClassifier
+    """
     # random forest classifier
     forest = RandomForestClassifier(n_estimators=n_estimators)
     forest.fit(train_data_features, df[label_name])
     return forest
 
-def doTextMining(df_train, df_test, label_name, regression, max_features=5000):
+
+def do_text_mining(df_train, df_test, label_name, regression, max_features=5000):
+    """ Vectorize the given data frames, learn a regression or classification and print the results
+
+    :param df_train: Pandas DataFrame containing the training data
+    :type df_train: pandas.DataFrame
+    :param df_test: Pandas DataFrame containing the test data
+    :type df_test: pandas.DataFrame
+    :param label_name: Target label to be used for classification or regression
+    :type label_name: str
+    :param regression: Boolean signifying whether regression or classification should be performed
+    :type regression: bool
+    :param max_features: Maximum size for bag of words
+    :type max_features: int
+    :return: Array with information about the prediction
+    :rtype: array
+    """
     print "##############################\n    Text Mining for " + label_name + \
           "    \n##############################\n"
 
@@ -59,18 +134,18 @@ def doTextMining(df_train, df_test, label_name, regression, max_features=5000):
     for text_column_name in text_columns:
         print "### Predict ", label_name, " with: ", text_column_name, " ###"
 
-        vectorizer, train_data_features = prepareTextTrain(df_train, text_column_name, max_features)
-        test_data_features = prepareTextTest(df_test, text_column_name, vectorizer)
+        vectorizer, train_data_features = prepare_text_train(df_train, text_column_name, max_features)
+        test_data_features = prepare_text_test(df_test, text_column_name, vectorizer)
         if regression:
             model = textRegressionModel(df_train, label_name, train_data_features)
         else:
-            model = textClassificationModel(df_train, label_name, train_data_features)
+            model = text_classification_model(df_train, label_name, train_data_features)
 
         predictions = model.predict(test_data_features)
 
         # evaluate
         if regression:
-            evaluateRegression(df_test, predictions, label_name)
+            evaluate_regression(df_test, predictions, label_name)
         else:
             evaluateClassification(df_test, predictions, label_name)
 

@@ -1,16 +1,24 @@
-from dm_general import printDF
+from dm_general import print_data_frame
 import os
 import json
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
 _percentage_some_missing = 0.1
 _percentage_too_many_missing = 0.5
 
-def createDF(file_name):
-    # load data from json file
+
+def create_data_frame(file_name):
+    """ Load data from json file and return as pandas DataFrame
+
+    :param file_name: JSON filename
+    :type file_name: str
+    :return: DataFrame with data from JSON file
+    :rtype: pandas.DataFrame
+    """
 
     with open(_working_dir + file_name, "r") as f:
         found_jobs = f.read()
@@ -21,24 +29,31 @@ def createDF(file_name):
     return df
 
 
-def prepareData(file_name):
-    data_frame = createDF(file_name)
+def prepare_data(file_name):
+    """ Clean data
+
+    :param file_name: File name where data is stored
+    :type file_name: str
+    :return: Cleaned DataFrame
+    :rtype: pandas.DataFrame
+    """
+    data_frame = create_data_frame(file_name)
     data_frame.columns = [c.replace('.', '_') for c in
                           data_frame.columns]  # so we can access a column with "data_frame.client_reviews_count"
-    printDF("Before changing data", data_frame)
+    print_data_frame("Before changing data", data_frame)
 
-    ### set id
+    # set id
     data_frame.set_index("id", inplace=True)
 
-    ### remove unnecessary data
+    # remove unnecessary data
     unnecessary_columns = ["category2", "job_status", "url", "client_payment_verification_status"]
     data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
 
-    ### convert total_charge and freelancer_count to number
+    # convert total_charge and freelancer_count to number
     data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
     data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
 
-    ### handle missing values
+    # handle missing values
     # ( data may change -> do this in a generic way! )
 
     # remove rows that have missing data in columns, which normally only have very few (if any) missing values
@@ -70,14 +85,21 @@ def prepareData(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    printDF("After preparing data", data_frame)
-
-    # pandas2arff(data_frame, "jobs.arff", wekaname = "jobs", cleanstringdata=True, cleannan=True)
+    print_data_frame("After preparing data", data_frame)
 
     return data_frame
 
 
-def convertToNumeric(data_frame, label_name):
+def convert_to_numeric(data_frame, label_name):
+    """ Convert client_country, job_type, subcategory2 and workload to numeric
+
+    :param data_frame: Pandas DataFrame that contains the data
+    :type data_frame: pd.DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :rtype: pandas.DataFrame
+    """
     # transform nominals client_country, job_type and subcategory2 to numeric
     cols_to_transform = ['client_country', 'job_type', 'subcategory2']
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
@@ -94,12 +116,26 @@ def convertToNumeric(data_frame, label_name):
 
     return data_frame, text_data
 
-def convertToNominal(data_frame):
-	# TODO
-	return data_frame
-	
-def splitIntoTestTrainSet(df, size_train_set):
-    train_indices = np.random.rand(len(df)) < size_train_set
-    train = df[train_indices]
-    test = df[~train_indices]
-    return train, test
+
+def convert_to_nominal(data_frame):
+    """ Convert all attributes in the given data_frame to nominal
+
+    :param data_frame: Pandas DataFrame containing all data
+    :type data_frame: pd.DataFrame
+    :return: Cleaned Pandas DataFrame
+    :rtype: pandas.DataFrame
+    """
+    # TODO
+    return data_frame
+
+
+def missing_value_limit(data_frame_size):
+    """ Calculates the amount of missing values that is tolerable
+
+    :param data_frame_size: Total size of data frame
+    :type data_frame_size: int
+    :return: Limit
+    :rtype: int
+    """
+
+    return data_frame_size * _percentage_too_many_missing

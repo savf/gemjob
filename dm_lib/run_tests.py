@@ -1,13 +1,16 @@
 from dm_data_preparation import *
 from dm_text_mining import *
-from dm_jobTypeModel import jobTypeModel
-from dm_budgetModel import budgetModel
+from dm_jobTypeModel import job_type_model
+from dm_budgetModel import budget_model
 import pandas as pd
 import numpy as np
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 
-def testTextMining():
+
+def test_text_mining():
+    """ Perform a sentiment analysis as a demonstration
+    """
     print "\n\n### Testing Text Mining ###\n"
     max_features = 5000
     text_column_name = 'sentences'
@@ -20,8 +23,8 @@ def testTextMining():
                                                'Your layout is seriously aweful', 'The most terrible site on the interwebs'],
                              label_name: ["pos", "pos", "neg", "neg"]})
 
-    vectorizer, train_data_features = prepareTextTrain(df_train, text_column_name, max_features)
-    test_data_features = prepareTextTest(df_test, text_column_name, vectorizer)
+    vectorizer, train_data_features = prepare_text_train(df_train, text_column_name, max_features)
+    test_data_features = prepare_text_test(df_test, text_column_name, vectorizer)
 
     print "\n## DataFrame: ##\n", df_train
     print "\n## Shape of Features: ##\n", train_data_features.shape
@@ -37,7 +40,7 @@ def testTextMining():
     for tag, count in zip(vocab, dist):
         print count, tag
 
-    model = textClassificationModel(df_train,label_name, train_data_features)
+    model = text_classification_model(df_train, label_name, train_data_features)
 
     print "\n## Model: ##\n", model
 
@@ -51,6 +54,6 @@ def testTextMining():
     print "##############################"
 
 #run
-budgetModel("data/found_jobs_4K_extended.json")
+budget_model("data/found_jobs_4K_extended.json")
 # jobTypeModel("data/found_jobs_4K_extended.json")
 # testTextMining()

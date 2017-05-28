@@ -1,13 +1,25 @@
 import dm_data_preparation
 from dm_data_preparation import *
-from dm_general import evaluateRegression
-from dm_text_mining import doTextMining
+from dm_general import evaluate_regression
+from dm_text_mining import do_text_mining
+from sklearn.model_selection import train_test_split
 from sklearn import linear_model
 from sklearn import svm
+from sklearn.preprocessing import LabelEncoder
 import random
 
-def prepareDataBudgetModel(data_frame, label_name):
-    ### remove rows with missing values
+
+def prepare_data_budget_model(data_frame, label_name):
+    """ Clean data specific to the budget model
+
+    :param data_frame: Pandas DataFrame that holds the data
+    :type data_frame: pandas.DataFrame
+    :param label_name: Target label that will be predicted
+    :type label_name: str
+    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :rtype: pandas.DataFrame
+    """
+    # remove rows with missing values
 
     # rows that don't contain budget
     data_frame.dropna(subset=["budget"], how='any', inplace=True)
@@ -21,48 +33,54 @@ def prepareDataBudgetModel(data_frame, label_name):
                               'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills'],
                       how='any', inplace=True)
 
-    ### drop columns where we don't have user data or are unnecessary for budget
+    # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    ### remove column if too many missing (removes duration)
-    min_too_many_missing = dm_data_preparation._percentage_too_many_missing * data_frame.shape[0]
+    # remove column if too many missing (removes duration)
+    min_too_many_missing = dm_data_preparation.missing_value_limit(data_frame.shape[0])
     columns_too_many_missing = list(data_frame.columns[data_frame.isnull().sum() > min_too_many_missing])
     data_frame.drop(labels=columns_too_many_missing, axis=1, inplace=True)
 
-    ### fill missing workload values with random non-missing values
+    # fill missing workload values with random non-missing values
     data_frame["workload"].fillna(random.choice(data_frame["workload"].dropna()), inplace=True)
 
-    ### convert everything to numeric
-    data_frame, text_data = convertToNumeric(data_frame, label_name)
+    # convert everything to numeric
+    data_frame, text_data = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
-    printDF("After preparing for budget model", data_frame)
+    print_data_frame("After preparing for budget model", data_frame)
 
     return data_frame, text_data
 
-def budgetModel(file_name):
+
+def budget_model(file_name):
+    """ Learn model for label 'budget' and return it
+
+    :param file_name: JSON file containing all data
+    :type file_name: str
+    """
     label_name = "budget"
     # label_name = "total_charge"
 
-    data_frame = prepareData(file_name)
+    data_frame = prepare_data(file_name)
     # TODO step below removes text from data
     # -> do text mining right before that but after dropping rows without missing values
     # -> do it in "prepareDataBudgetModel()"
-    data_frame, text_data = prepareDataBudgetModel(data_frame, label_name)
+    data_frame, text_data = prepare_data_budget_model(data_frame, label_name)
 
     print "\n\n########## Do Text Mining\n"
-    text_train, text_test = splitIntoTestTrainSet(text_data, 0.8)
-    doTextMining(text_train, text_test, label_name, regression=True, max_features=5000)
+    text_train, text_test = train_test_split(text_data, train_size=0.8)
+    do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
     print "\n\n########## Regression based on all data (except text)\n"
-    df_train, df_test = splitIntoTestTrainSet(data_frame, 0.8)
+    df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
     regr = svm.SVR(kernel='linear') #linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
     predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
 
-    evaluateRegression(df_test, predictions, label_name)
+    evaluate_regression(df_test, predictions, label_name)
 
     print "### Predictions: ###"
     print predictions[0:8]
