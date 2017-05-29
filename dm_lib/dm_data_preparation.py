@@ -100,7 +100,7 @@ def prepare_data(file_name):
     return data_frame
 
 
-def balance_data_set(data_frame, label_name):
+def balance_data_set(data_frame, label_name, relative_sampling=False):
     """ Balance the data set for classification (ratio of classes 1:1)
 
        :param data_frame: Pandas DataFrame that contains the data
@@ -116,8 +116,15 @@ def balance_data_set(data_frame, label_name):
         value_counts, "\nminimum:", min_target_value_count,"\n ###\n"
 
     samples = []
-    for value_class in value_counts.index:
-        samples.append(data_frame.ix[data_frame[label_name] == value_class].sample(n=min_target_value_count, replace=False, random_state=0))
+    if relative_sampling and len(value_counts) == 2:
+        total_value_count = value_counts.sum()
+        fraction0 = float(value_counts[1]) / float(total_value_count)
+        fraction1 = float(value_counts[0]) / float(total_value_count)
+        samples.append(data_frame.ix[data_frame[label_name] == value_counts.index[0]].sample(frac=fraction0, replace=False, random_state=0))
+        samples.append(data_frame.ix[data_frame[label_name] == value_counts.index[1]].sample(frac=fraction1, replace=False, random_state=0))
+    else:
+        for value_class in value_counts.index:
+            samples.append(data_frame.ix[data_frame[label_name] == value_class].sample(n=min_target_value_count, replace=False, random_state=0))
     data_frame = pd.concat(samples)
 
     print "Value counts:\n", \

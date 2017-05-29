@@ -5,13 +5,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 
-def prepare_data_job_type_model(data_frame, label_name):
+def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     """ Prepare the given data to be used to predict the job type
 
     :param data_frame: Pandas DataFrame containing the data to be prepared
     :type data_frame: pandas.DataFrame
     :param label_name: Target label that will be predicted
     :type label_name: str
+    :param relative_sampling: Relative or 1:1 sampling
+    :type relative_sampling: Boolean
     :return: Cleaned Pandas DataFrames once with only nominal attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
@@ -32,8 +34,8 @@ def prepare_data_job_type_model(data_frame, label_name):
     drop_unnecessary = ["client_feedback", "client_past_hires"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    # balnce datset so ratio of hourly and fixed is 1:1
-    data_frame = balance_data_set(data_frame, label_name)
+    # balance data set so ratio of hourly and fixed is 1:1
+    data_frame = balance_data_set(data_frame, label_name, relative_sampling=True)
 
     ### convert everything to nominal
     data_frame, text_data = convert_to_nominal(data_frame, label_name)
@@ -51,7 +53,7 @@ def job_type_model(file_name):
     """
     label_name = "job_type"
     data_frame = prepare_data(file_name)
-    data_frame, text_data = prepare_data_job_type_model(data_frame, label_name)
+    data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
     print "\n\n########## Do Text Mining\n"
     text_train, text_test = train_test_split(text_data, train_size=0.8)
