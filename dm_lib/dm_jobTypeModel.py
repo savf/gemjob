@@ -5,13 +5,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
 
-def prepare_data_job_type_model(data_frame, label_name):
+def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     """ Prepare the given data to be used to predict the job type
 
     :param data_frame: Pandas DataFrame containing the data to be prepared
     :type data_frame: pandas.DataFrame
     :param label_name: Target label that will be predicted
     :type label_name: str
+    :param relative_sampling: Relative or 1:1 sampling
+    :type relative_sampling: Boolean
     :return: Cleaned Pandas DataFrames once with only nominal attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
@@ -37,9 +39,20 @@ def prepare_data_job_type_model(data_frame, label_name):
     min_target_value_count = min(data_frame[label_name].value_counts().values)
     print "Value counts:\n", \
         data_frame[label_name].value_counts().values, "\nminimum:", min_target_value_count,"\n ###\n"
+    total_value_count = data_frame[label_name].value_counts().sum()
+    fraction_hourly = float(len(data_frame.loc[data_frame[label_name] == 'Fixed'])) / total_value_count
+    fraction_fixed = float(len(data_frame.loc[data_frame[label_name] == 'Hourly'])) / total_value_count
 
-    sample_hourly = data_frame.ix[data_frame[label_name] == "Hourly"].sample(n=min_target_value_count, replace=False, random_state=0)
-    sample_fixed = data_frame.ix[data_frame[label_name] == "Fixed"].sample(n=min_target_value_count, replace=False, random_state=0)
+    if relative_sampling:
+        sample_hourly = data_frame.ix[data_frame[label_name] == "Hourly"].sample(frac=fraction_hourly,
+                                                                                 replace=False, random_state=0)
+        sample_fixed = data_frame.ix[data_frame[label_name] == "Fixed"].sample(frac=fraction_fixed,
+                                                                               replace=False, random_state=0)
+    else:
+        sample_hourly = data_frame.ix[data_frame[label_name] == "Hourly"].sample(n=min_target_value_count, replace=False,
+                                                                                 random_state=0)
+        sample_fixed = data_frame.ix[data_frame[label_name] == "Fixed"].sample(n=min_target_value_count, replace=False,
+                                                                               random_state=0)
     data_frame = pd.concat([sample_hourly, sample_fixed])
 
     print "Value counts:\n", \
@@ -61,7 +74,7 @@ def job_type_model(file_name):
     """
     label_name = "job_type"
     data_frame = prepare_data(file_name)
-    data_frame, text_data = prepare_data_job_type_model(data_frame, label_name)
+    data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
     print "\n\n########## Do Text Mining\n"
     text_train, text_test = train_test_split(text_data, train_size=0.8)
