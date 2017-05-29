@@ -100,6 +100,32 @@ def prepare_data(file_name):
     return data_frame
 
 
+def balance_data_set(data_frame, label_name):
+    """ Balance the data set for classification (ratio of classes 1:1)
+
+       :param data_frame: Pandas DataFrame that contains the data
+       :type data_frame: pd.DataFrame
+       :param label_name: Target label that will be learned
+       :type label_name: str
+       :return: Pandas DataFrame (balanced)
+       :rtype: pandas.DataFrame
+       """
+    value_counts = data_frame[label_name].value_counts()
+    min_target_value_count = min(value_counts.values)
+    print "Value counts:\n", \
+        value_counts, "\nminimum:", min_target_value_count,"\n ###\n"
+
+    samples = []
+    for value_class in value_counts.index:
+        samples.append(data_frame.ix[data_frame[label_name] == value_class].sample(n=min_target_value_count, replace=False, random_state=0))
+    data_frame = pd.concat(samples)
+
+    print "Value counts:\n", \
+        data_frame[label_name].value_counts(), "\nminimum:", min_target_value_count, "\n ###\n"
+
+    return data_frame
+
+
 def separate_text(data_frame, label_name):
     """ Separate structured data from text
 

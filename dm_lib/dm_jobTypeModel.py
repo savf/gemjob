@@ -32,18 +32,8 @@ def prepare_data_job_type_model(data_frame, label_name):
     drop_unnecessary = ["client_feedback", "client_past_hires"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    # TODO duplicate rows until fixed and hourly have the same ratio!
-    # TODO or do weighting like in AADS
-    min_target_value_count = min(data_frame[label_name].value_counts().values)
-    print "Value counts:\n", \
-        data_frame[label_name].value_counts().values, "\nminimum:", min_target_value_count,"\n ###\n"
-
-    sample_hourly = data_frame.ix[data_frame[label_name] == "Hourly"].sample(n=min_target_value_count, replace=False, random_state=0)
-    sample_fixed = data_frame.ix[data_frame[label_name] == "Fixed"].sample(n=min_target_value_count, replace=False, random_state=0)
-    data_frame = pd.concat([sample_hourly, sample_fixed])
-
-    print "Value counts:\n", \
-        data_frame[label_name].value_counts().values, "\nminimum:", min_target_value_count, "\n ###\n"
+    # balnce datset so ratio of hourly and fixed is 1:1
+    data_frame = balance_data_set(data_frame, label_name)
 
     ### convert everything to nominal
     data_frame, text_data = convert_to_nominal(data_frame, label_name)
