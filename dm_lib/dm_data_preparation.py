@@ -107,6 +107,8 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
        :type data_frame: pd.DataFrame
        :param label_name: Target label that will be learned
        :type label_name: str
+       :param relative_sampling: Relative or 1:1 sampling
+       :type relative_sampling: Boolean
        :return: Pandas DataFrame (balanced)
        :rtype: pandas.DataFrame
        """

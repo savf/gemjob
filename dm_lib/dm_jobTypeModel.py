@@ -35,7 +35,7 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # balance data set so ratio of hourly and fixed is 1:1
-    data_frame = balance_data_set(data_frame, label_name, relative_sampling=True)
+    data_frame = balance_data_set(data_frame, label_name, relative_sampling=relative_sampling)
 
     ### convert everything to nominal
     data_frame, text_data = convert_to_nominal(data_frame, label_name)
