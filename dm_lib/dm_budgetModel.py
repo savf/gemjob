@@ -1,4 +1,3 @@
-import dm_data_preparation
 from dm_data_preparation import *
 from dm_general import evaluate_regression, print_correlations
 from dm_text_mining import do_text_mining
@@ -6,7 +5,6 @@ from sklearn.model_selection import train_test_split
 from sklearn import linear_model
 from sklearn import svm
 from sklearn.preprocessing import LabelEncoder
-import random
 
 
 def prepare_data_budget_model(data_frame, label_name):
@@ -37,14 +35,6 @@ def prepare_data_budget_model(data_frame, label_name):
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    # remove column if too many missing (removes duration)
-    min_too_many_missing = dm_data_preparation.missing_value_limit(data_frame.shape[0])
-    columns_too_many_missing = list(data_frame.columns[data_frame.isnull().sum() > min_too_many_missing])
-    data_frame.drop(labels=columns_too_many_missing, axis=1, inplace=True)
-
-    # fill missing workload values with random non-missing values
-    data_frame["workload"].fillna(random.choice(data_frame["workload"].dropna()), inplace=True)
-
     # convert everything to numeric
     data_frame, text_data = convert_to_numeric(data_frame, label_name)
 
@@ -74,7 +64,7 @@ def budget_model(file_name):
     print "\n\n########## Regression based on all data (except text)\n"
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    regr = svm.SVR(kernel='linear') #linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+    regr = svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
     predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
 

@@ -3,7 +3,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+import random
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
@@ -56,6 +56,11 @@ def prepare_data(file_name):
     # handle missing values
     # ( data may change -> do this in a generic way! )
 
+    # remove column if too many missing (removes duration)
+    min_too_many_missing = missing_value_limit(data_frame.shape[0])
+    columns_too_many_missing = list(data_frame.columns[data_frame.isnull().sum() > min_too_many_missing])
+    data_frame.drop(labels=columns_too_many_missing, axis=1, inplace=True)
+
     # remove rows that have missing data in columns, which normally only have very few (if any) missing values
     max_few_missing = _percentage_few_missing * data_frame.shape[0]
     columns_few_missing = list(
@@ -80,6 +85,11 @@ def prepare_data(file_name):
     data_frame[columns_some_missing] = data_frame[columns_some_missing].fillna(
         (data_frame[columns_some_missing].mean()))
     del df_numeric
+
+    # fill missing workload values with random non-missing values
+    filled_workloads = data_frame["workload"].dropna()
+    data_frame["workload"] = data_frame.apply(
+        lambda row: row["workload"] if row["workload"] is not None else random.choice(filled_workloads), axis=1)
 
     ### add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()

@@ -16,14 +16,40 @@ def prepare_data_job_type_model(data_frame, label_name):
     :rtype: pandas.DataFrame
     """
 
-    # TODO duplicate rows until fixed and hourly have the same ratio!
-    # or do weighting like in AADS
+    print "prepareDataJobTypeModel NOT IMPLEMENTED\n"
 
-    # TODO remove unnecessary columns
+    # TODO just remove feedbacks?
+    data_frame.dropna(subset=['feedback_for_client_availability', 'feedback_for_client_communication',
+                              'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+                              'feedback_for_client_quality', 'feedback_for_client_skills',
+                              'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+                              'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+                              'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills',
+                              'budget'],
+                      how='any', inplace=True)
+
+    # drop columns where we don't have user data or are unnecessary
+    drop_unnecessary = ["client_feedback", "client_past_hires"]
+    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+
+    # TODO duplicate rows until fixed and hourly have the same ratio!
+    # TODO or do weighting like in AADS
+    min_target_value_count = min(data_frame[label_name].value_counts().values)
+    print "Value counts:\n", \
+        data_frame[label_name].value_counts().values, "\nminimum:", min_target_value_count,"\n ###\n"
+
+    sample_hourly = data_frame.ix[data_frame[label_name] == "Hourly"].sample(n=min_target_value_count, replace=False, random_state=0)
+    sample_fixed = data_frame.ix[data_frame[label_name] == "Fixed"].sample(n=min_target_value_count, replace=False, random_state=0)
+    data_frame = pd.concat([sample_hourly, sample_fixed])
+
+    print "Value counts:\n", \
+        data_frame[label_name].value_counts().values, "\nminimum:", min_target_value_count, "\n ###\n"
 
     ### convert everything to nominal
     data_frame, text_data = convert_to_nominal(data_frame, label_name)
-    print "prepareDataJobTypeModel NOT IMPLEMENTED"
+
+    # print data_frame, "\n"
+    print_data_frame("After preparing for budget model", data_frame)
     return data_frame, text_data
 
 
