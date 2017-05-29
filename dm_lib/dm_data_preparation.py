@@ -120,10 +120,9 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
     samples = []
     if relative_sampling and len(value_counts) == 2:
         total_value_count = value_counts.sum()
-        fraction0 = float(value_counts[1]) / float(total_value_count)
-        fraction1 = float(value_counts[0]) / float(total_value_count)
-        samples.append(data_frame.ix[data_frame[label_name] == value_counts.index[0]].sample(frac=fraction0, replace=False, random_state=0))
-        samples.append(data_frame.ix[data_frame[label_name] == value_counts.index[1]].sample(frac=fraction1, replace=False, random_state=0))
+        fractions = data_frame[label_name].value_counts().apply(lambda row: float(row) / total_value_count)
+        for value_class in value_counts.index:
+            samples.append(data_frame.loc[data_frame[label_name] == value_class].sample(frac=float(1.0 - fractions[value_class]), replace=False, random_state=0))
     else:
         for value_class in value_counts.index:
             samples.append(data_frame.ix[data_frame[label_name] == value_class].sample(n=min_target_value_count, replace=False, random_state=0))
