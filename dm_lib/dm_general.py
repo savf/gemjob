@@ -2,6 +2,7 @@ from sklearn.metrics import explained_variance_score, mean_squared_error, mean_a
 import matplotlib.pyplot as plt
 
 
+
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
 
@@ -42,6 +43,27 @@ def print_correlations(df, attr=None):
     print "################################ \n\n"
 
 
+def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
+    """ Print predictions next to actual values
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param predictions: Array holding the predictions
+    :type predictions: array
+    :param label_name: Target label
+    :type label_name: str
+    :param num_of_rows: Number of rows to diplay
+    :type num_of_rows: int
+    """
+
+    if len(df) != len(predictions):
+        print "\n### Error: Length of values does not match\n"
+        return
+    print "\n\n### Compare predictions to actual: ###\n"
+    df['predictions'] = predictions
+    print df[["predictions", label_name]][0:num_of_rows]
+    print "###########\n\n"
+
 def evaluate_regression(df, predictions, label_name):
     """ Print explained variance, mean absolute error and mean squared error for given regression results
 
@@ -58,7 +80,7 @@ def evaluate_regression(df, predictions, label_name):
     abs_err = mean_absolute_error(df[label_name], predictions)
     print "## Mean absolute error: ", abs_err
     sq_err = mean_squared_error(df[label_name], predictions)
-    print "## Mean squared error: ", abs_err
+    print "## Mean squared error: ", sq_err
 
     return exp_var_sc, abs_err, sq_err
 

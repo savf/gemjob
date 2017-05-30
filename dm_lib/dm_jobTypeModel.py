@@ -67,10 +67,6 @@ def job_type_model(file_name):
     #
     # evaluate_classification(df_test, predictions, label_name)
     #
-    # print "### Predictions: ###"
-    # print predictions[0:8]
-    # print "### Actual values: ###"
-    # print df_test[label_name][0:8]
-    # print "###########"
+    # print_predictions_comparison(df_test, predictions, label_name)
     #
     # print_correlations(data_frame, label_name)

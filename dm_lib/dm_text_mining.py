@@ -1,4 +1,4 @@
-from dm_general import evaluate_classification, evaluate_regression
+from dm_general import evaluate_classification, evaluate_regression, print_predictions_comparison
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
@@ -155,11 +155,7 @@ def do_text_mining(df_train, df_test, label_name, regression, max_features=5000)
         else:
             evaluate_classification(df_test, predictions, label_name)
 
-        print "### Predictions: ###"
-        print predictions[0:8]
-        print "### Actual values: ###"
-        print df_test[label_name][0:8]
-        print "###########"
+        print_predictions_comparison(df_test, predictions, label_name)
 
     print "################################ \n\n"
     return predictions

@@ -1,5 +1,5 @@
 from dm_data_preparation import *
-from dm_general import evaluate_regression, print_correlations
+from dm_general import evaluate_regression, print_correlations, print_predictions_comparison
 from dm_text_mining import do_text_mining
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model
@@ -71,10 +71,6 @@ def budget_model(file_name):
 
     evaluate_regression(df_test, predictions, label_name)
 
-    print "### Predictions: ###"
-    print predictions[0:8]
-    print "### Actual values: ###"
-    print df_test[label_name][0:8]
-    print "###########"
+    print_predictions_comparison(df_test, predictions, label_name, 20)
 
     # print_correlations(data_frame, label_name)
