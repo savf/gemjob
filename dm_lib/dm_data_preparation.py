@@ -184,7 +184,18 @@ def convert_to_nominal(data_frame, label_name):
     :return: Cleaned Pandas DataFrame once with only nominal attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
+
     # TODO
+    # - budget: categorize (e.g. low, medium, high, very high)
+    # - feedback: round to integers (or remove client_* attributes)?
+    # - other client_* attributes: find good categories
+    # - timestamp: months/weeks instead of days
+    # - feedback_for_*: round to integers
+    # - freelancer_count: no changes
+    # - total_charge: categorize like budget
+    # - snipped_length: remove?
+    # - skills_number: no changes
+
     return separate_text(data_frame, label_name)
 
 

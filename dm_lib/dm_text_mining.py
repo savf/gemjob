@@ -5,7 +5,8 @@ from nltk.stem import PorterStemmer
 from sklearn import linear_model
 from sklearn import svm
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, BaggingRegressor
+from sklearn.naive_bayes import MultinomialNB
 
 
 def clean_text(df, text_column_name):
@@ -86,9 +87,9 @@ def text_regression_model(df, label_name, train_data_features):
     :return: Learned regression model
     :rtype: sklearn.svm.SVR
     """
-    regr = svm.SVR(kernel='linear')#linear_model.LinearRegression()
-    regr.fit(train_data_features, df[label_name])
-    return regr
+    clf = svm.SVR(kernel='linear') #RandomForestRegressor() #BaggingRegressor() #linear_model.LinearRegression()
+    clf.fit(train_data_features, df[label_name])
+    return clf
 
 
 def text_classification_model(df, label_name, train_data_features, n_estimators=100):
@@ -106,9 +107,14 @@ def text_classification_model(df, label_name, train_data_features, n_estimators=
     :rtype: sklearn.ensemble.RandomForestClassifier
     """
     # random forest classifier
-    forest = RandomForestClassifier(n_estimators=n_estimators)
-    forest.fit(train_data_features, df[label_name])
-    return forest
+    clf = RandomForestClassifier(n_estimators=n_estimators)
+    # # naive bayes -> way worse
+    # clf = MultinomialNB()
+    clf.fit(train_data_features, df[label_name])
+    return clf
+
+
+
 
 
 def do_text_mining(df_train, df_test, label_name, regression, max_features=5000):

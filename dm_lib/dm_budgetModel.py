@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import linear_model
 from sklearn import svm
 from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import RandomForestRegressor, BaggingRegressor
 
 
 def prepare_data_budget_model(data_frame, label_name):
@@ -23,13 +24,13 @@ def prepare_data_budget_model(data_frame, label_name):
     data_frame.dropna(subset=["budget"], how='any', inplace=True)
 
     # TODO just remove feedbacks?
-    data_frame.dropna(subset=['feedback_for_client_availability', 'feedback_for_client_communication',
-                              'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
-                              'feedback_for_client_quality', 'feedback_for_client_skills',
-                              'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
-                              'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
-                              'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills'],
-                      how='any', inplace=True)
+    feedbacks = ['feedback_for_client_availability', 'feedback_for_client_communication',
+                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+                 'feedback_for_client_quality', 'feedback_for_client_skills',
+                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
+    data_frame.drop(labels=feedbacks, axis=1, inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
@@ -64,7 +65,7 @@ def budget_model(file_name):
     print "\n\n########## Regression based on all data (except text)\n"
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    regr = svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+    regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
     predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
 

@@ -21,14 +21,13 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     print "prepareDataJobTypeModel NOT IMPLEMENTED\n"
 
     # TODO just remove feedbacks?
-    data_frame.dropna(subset=['feedback_for_client_availability', 'feedback_for_client_communication',
-                              'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
-                              'feedback_for_client_quality', 'feedback_for_client_skills',
-                              'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
-                              'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
-                              'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills',
-                              'budget'],
-                      how='any', inplace=True)
+    feedbacks = ['feedback_for_client_availability', 'feedback_for_client_communication',
+                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+                 'feedback_for_client_quality', 'feedback_for_client_skills',
+                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
+    data_frame.drop(labels=feedbacks, axis=1, inplace=True)
 
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_feedback", "client_past_hires"]
