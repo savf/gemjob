@@ -1,12 +1,19 @@
-from dm_general import evaluate_classification, evaluate_regression
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
-from sklearn import linear_model
+from nltk.tokenize import word_tokenize
 from sklearn import svm
+from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.ensemble import BaggingClassifier, BaggingRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, BaggingRegressor
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import Perceptron
+from sklearn.model_selection import ParameterGrid
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.svm import SVC, SVR
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.utils import check_random_state
+
+from dm_general import evaluate_regression, evaluate_regression_csv, evaluate_classification
 
 
 def clean_text(df, text_column_name):
@@ -114,7 +121,76 @@ def text_classification_model(df, label_name, train_data_features, n_estimators=
     return clf
 
 
+def try_multiple_text_mining_models(df_train, df_test, label_name, regression, max_features=5000):
+    """ Tries different models for either regression or classification including different parameters
 
+    :param df_train: Pandas DataFrame containing training data
+    :type df_train: pandas.DataFrame
+    :param df_test: Pandas DataFrame containing test data
+    :type df_test: pandas.DataFrame
+    :param label_name: The target label
+    :type label_name: str
+    :param regression: Whether to perform regression (True) or classification (False)
+    :type regression: bool
+    :param max_features: Maximum features for the feature extractor
+    :type max_features: int
+    """
+    regression_grid = ParameterGrid({"max_samples": [0.5, 1.0],
+                          "max_features": [0.5, 1.0],
+                          "bootstrap": [True, False],
+                          "bootstrap_features": [True, False]})
+
+    classification_grid = ParameterGrid({"max_samples": [0.5, 1.0],
+                          "max_features": [1, 2, 4],
+                          "bootstrap": [True, False],
+                          "bootstrap_features": [True, False]})
+
+    if regression:
+        grid_keys = ",".join([key for key, value in regression_grid.param_grid[0].iteritems()])
+        print "label,prediction_attribute,model_name,"\
+              + grid_keys + ",explained_variance,mean_absolute_error,mean_squared_error"
+    else:
+        grid_keys = ",".join([key for key, value in classification_grid.param_grid[0].iteritems()])
+        print "label,prediction_attribute,model_name," + grid_keys + ",accuracy"
+
+    text_columns = ["skills", "title", "snippet"]
+    for text_column_name in text_columns:
+
+        vectorizer, train_data_features = prepare_text_train(df_train, text_column_name, max_features)
+        test_data_features = prepare_text_test(df_test, text_column_name, vectorizer)
+        if regression:
+            rng = check_random_state(0)
+
+            for base_estimator in [DummyRegressor(),
+                                   DecisionTreeRegressor(),
+                                   KNeighborsRegressor(),
+                                   SVR()]:
+                for params in regression_grid:
+                    regressor = BaggingRegressor(base_estimator=base_estimator,
+                                                 random_state=rng,
+                                                 **params)
+                    regressor.fit(train_data_features, df_train[label_name])
+                    predictions = regressor.predict(test_data_features)
+
+                    evaluate_regression_csv(df_test, predictions, label_name, text_column_name,
+                                            base_estimator.__class__.__name__, params)
+        else:
+            rng = check_random_state(0)
+
+            for base_estimator in [DummyClassifier(),
+                                   Perceptron(),
+                                   DecisionTreeClassifier(),
+                                   KNeighborsClassifier(),
+                                   SVC()]:
+                for params in classification_grid:
+                    classifier = BaggingClassifier(base_estimator=base_estimator,
+                                                   random_state=rng,
+                                                   **params)
+                    classifier.fit(train_data_features, df_train[label_name])
+                    predictions = classifier.predict(test_data_features)
+
+                    evaluate_regression_csv(df_test, predictions, label_name, text_column_name,
+                                            base_estimator.__class__.__name__, params)
 
 
 def do_text_mining(df_train, df_test, label_name, regression, max_features=5000):
