@@ -18,19 +18,19 @@ def prepare_data_budget_model(data_frame, label_name):
     :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
+    # if we use total charge as budget, 0 values make no sense
+    # (the budget would not be 0, we just didn't find a freelancer here)
+    if label_name == "total_charge":
+        # declare total_charge as missing, if 0
+        data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
+
+        # rows that don't contain total_charge
+        data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
+
     # remove rows with missing values
 
-    # rows that don't contain budget
-    data_frame.dropna(subset=["budget"], how='any', inplace=True)
-
     # TODO just remove feedbacks?
-    feedbacks = ['feedback_for_client_availability', 'feedback_for_client_communication',
-                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
-                 'feedback_for_client_quality', 'feedback_for_client_skills',
-                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
-                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
-                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
-    data_frame.drop(labels=feedbacks, axis=1, inplace=True)
+    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
@@ -38,6 +38,8 @@ def prepare_data_budget_model(data_frame, label_name):
 
     # convert everything to numeric
     data_frame, text_data = convert_to_numeric(data_frame, label_name)
+    ### roughly cluster by rounding
+    # data_frame = coarse_clustering(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for budget model", data_frame)
@@ -55,12 +57,12 @@ def budget_model(file_name):
     label_name = "budget"
     # label_name = "total_charge"
 
-    data_frame = prepare_data(file_name)
+    data_frame = prepare_data(file_name, budget_name=label_name)
     data_frame, text_data = prepare_data_budget_model(data_frame, label_name)
 
-    print "\n\n########## Do Text Mining\n"
-    text_train, text_test = train_test_split(text_data, train_size=0.8)
-    do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
+    # print "\n\n########## Do Text Mining\n"
+    # text_train, text_test = train_test_split(text_data, train_size=0.8)
+    # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
     print "\n\n########## Regression based on all data (except text)\n"
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
