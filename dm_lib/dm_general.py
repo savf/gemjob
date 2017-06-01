@@ -63,7 +63,7 @@ def evaluate_regression(df, predictions, label_name):
     return exp_var_sc, abs_err, sq_err
 
 
-def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribute, model_name, parameters):
+def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribute, model_name, parameters, runtime):
     """ Evaluate the regression and output the evaluation as a CSV line
 
     :param df: Pandas DataFrame containing the data
@@ -78,13 +78,16 @@ def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribut
     :type model_name: str
     :param parameters: Parameters used in the regression model
     :type parameters: dict
+    :param runtime: Runtime of the model in seconds
+    :type runtime: float
     """
     exp_var_sc = explained_variance_score(df[label_name], predictions)
     abs_err = mean_absolute_error(df[label_name], predictions)
     sq_err = mean_squared_error(df[label_name], predictions)
     parameter_string = ",".join([str(value) for key, value in parameters.iteritems()])
 
-    print label_name+","+predicted_with_attribute+","+model_name+","+parameter_string+","+str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)
+    print label_name+","+predicted_with_attribute+","+model_name+","+parameter_string+","\
+        + str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)+","+str(runtime)
 
 
 def evaluate_classification(df, predictions, label_name):

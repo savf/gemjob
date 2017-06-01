@@ -12,6 +12,7 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.utils import check_random_state
+import time
 
 from dm_general import evaluate_regression, evaluate_regression_csv, evaluate_classification
 
@@ -148,10 +149,10 @@ def try_multiple_text_mining_models(df_train, df_test, label_name, regression, m
     if regression:
         grid_keys = ",".join([key for key, value in regression_grid.param_grid[0].iteritems()])
         print "label,prediction_attribute,model_name,"\
-              + grid_keys + ",explained_variance,mean_absolute_error,mean_squared_error"
+              + grid_keys + ",explained_variance,mean_absolute_error,mean_squared_error,time"
     else:
         grid_keys = ",".join([key for key, value in classification_grid.param_grid[0].iteritems()])
-        print "label,prediction_attribute,model_name," + grid_keys + ",accuracy"
+        print "label,prediction_attribute,model_name," + grid_keys + ",accuracy,time"
 
     text_columns = ["skills", "title", "snippet"]
     for text_column_name in text_columns:
@@ -169,11 +170,14 @@ def try_multiple_text_mining_models(df_train, df_test, label_name, regression, m
                     regressor = BaggingRegressor(base_estimator=base_estimator,
                                                  random_state=rng,
                                                  **params)
+                    regression_start = time.time()
                     regressor.fit(train_data_features, df_train[label_name])
                     predictions = regressor.predict(test_data_features)
+                    regression_end = time.time()
 
                     evaluate_regression_csv(df_test, predictions, label_name, text_column_name,
-                                            base_estimator.__class__.__name__, params)
+                                            base_estimator.__class__.__name__, params,
+                                            float(regression_end-regression_start))
         else:
             rng = check_random_state(0)
 
@@ -186,11 +190,14 @@ def try_multiple_text_mining_models(df_train, df_test, label_name, regression, m
                     classifier = BaggingClassifier(base_estimator=base_estimator,
                                                    random_state=rng,
                                                    **params)
+                    classification_start = time.time()
                     classifier.fit(train_data_features, df_train[label_name])
                     predictions = classifier.predict(test_data_features)
+                    classification_end = time.time()
 
                     evaluate_regression_csv(df_test, predictions, label_name, text_column_name,
-                                            base_estimator.__class__.__name__, params)
+                                            base_estimator.__class__.__name__, params,
+                                            float(classification_end-classification_start))
 
 
 def do_text_mining(df_train, df_test, label_name, regression, max_features=5000):
