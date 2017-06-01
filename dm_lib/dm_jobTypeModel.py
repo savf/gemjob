@@ -3,6 +3,7 @@ from dm_text_mining import do_text_mining
 from dm_general import evaluate_classification, print_correlations, print_predictions_comparison
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 
 
 def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
@@ -55,9 +56,10 @@ def job_type_model(file_name):
     print "\n\n########## Classification based on all data (except text)\n"
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    forest = RandomForestClassifier(n_estimators=100)
-    forest.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = forest.predict(df_test.ix[:, df_train.columns != label_name])
+    clf = SVC(kernel='linear')
+    # clf = RandomForestClassifier(n_estimators=100)
+    clf.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
+    predictions = clf.predict(df_test.ix[:, df_train.columns != label_name])
 
     evaluate_classification(df_test, predictions, label_name)
 
