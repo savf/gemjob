@@ -9,7 +9,13 @@ _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
 _percentage_some_missing = 0.1
 _percentage_too_many_missing = 0.5
-
+def get_detailed_feedbacks_names():
+    return ['feedback_for_client_availability', 'feedback_for_client_communication',
+                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+                 'feedback_for_client_quality', 'feedback_for_client_skills',
+                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
 
 def create_data_frame(file_name):
     """ Load data from json file and return as pandas DataFrame
@@ -29,7 +35,7 @@ def create_data_frame(file_name):
     return df
 
 
-def prepare_data(file_name):
+def prepare_data(file_name, budget_name="budget"):
     """ Clean data
 
     :param file_name: File name where data is stored
@@ -69,13 +75,22 @@ def prepare_data(file_name):
 
     # declare feedback as missing, if no reviews
     data_frame.ix[data_frame.client_reviews_count == 0, 'client_feedback'] = None
-    # declare budget as missing, if 0
-    # TODO: good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
-    # data_frame.ix[data_frame.budget == 0, 'budget'] = None
 
-    # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
-    data_frame.rename(columns={'date_created': 'timestamp'}, inplace=True)
-    data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(pd.to_datetime(data_frame['timestamp'])).dt.days)
+    #exlusively work with one budget attribute
+    if budget_name == "budget":
+        # declare budget as missing, if 0
+        # TODO: good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
+        # data_frame.ix[data_frame.budget == 0, 'budget'] = None
+        # rows that don't contain budget
+        data_frame.dropna(subset=["budget"], how='any', inplace=True)
+
+        data_frame.drop(labels=["total_charge"], axis=1, inplace=True)
+    else:
+        data_frame.drop(labels=["budget"], axis=1, inplace=True)
+
+    # remove days and time from date_created to not fit to daily fluctuation
+    data_frame['date_created'] = pd.to_datetime(data_frame['date_created'])
+    data_frame['date_created'] = data_frame['date_created'].apply(lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
 
     # fill missing numeric values with mean, if only some missing
     max_some_missing = _percentage_some_missing * data_frame.shape[0]
@@ -161,8 +176,15 @@ def convert_to_numeric(data_frame, label_name):
     :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
+    # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
+    data_frame.rename(columns={'date_created': 'timestamp'}, inplace=True)
+    data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(data_frame['timestamp']).dt.days)
+
     # transform nominals client_country, job_type and subcategory2 to numeric
-    cols_to_transform = ['client_country', 'job_type', 'subcategory2']
+    if label_name == 'job_type':
+        cols_to_transform = ['client_country', 'subcategory2']
+    else:
+        cols_to_transform = ['client_country', 'job_type', 'subcategory2']
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 
     # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
@@ -174,8 +196,8 @@ def convert_to_numeric(data_frame, label_name):
     return separate_text(data_frame, label_name)
 
 
-def convert_to_nominal(data_frame, label_name):
-    """ Convert all attributes in the given data_frame to nominal
+def coarse_clustering(data_frame, label_name):
+    """ Roughly cluster data by rounding to remove effects of small variations (fluctuation)
 
     :param data_frame: Pandas DataFrame containing all data
     :type data_frame: pd.DataFrame
@@ -185,18 +207,46 @@ def convert_to_nominal(data_frame, label_name):
     :rtype: pandas.DataFrame
     """
 
-    # TODO
+    # TODO does rounding help or does it make things worse?
+
+    # IMPORTANT: no missing values allowed when rounding -> remove those before
+
     # - budget: categorize (e.g. low, medium, high, very high)
-    # - feedback: round to integers (or remove client_* attributes)?
-    # - other client_* attributes: find good categories
-    # - timestamp: months/weeks instead of days
-    # - feedback_for_*: round to integers
+    if "budget" in data_frame.columns:
+        data_frame["budget"] = data_frame["budget"].round(-1)
+
+    # - feedback: round to 1 decimal
+    if "client_feedback" in data_frame.columns:
+        data_frame["client_feedback"] = data_frame["client_feedback"].round(1)
+
+    # - other client_* attributes
+    if "client_jobs_posted" in data_frame.columns:
+        data_frame["client_jobs_posted"] = data_frame["client_jobs_posted"].round(-1)
+    if "client_reviews_count" in data_frame.columns:
+        data_frame["client_reviews_count"] = data_frame["client_reviews_count"].round(-1)
+
+    # - feedback_for_*: round to 1 decimal
+    for fn in get_detailed_feedbacks_names():
+        if fn in data_frame.columns:
+            data_frame[fn] = data_frame[fn].round(1)
+
     # - freelancer_count: no changes
+
     # - total_charge: categorize like budget
-    # - snipped_length: remove?
+    if "total_charge" in data_frame.columns:
+        data_frame["total_charge"] = data_frame["total_charge"].round(-1)
+
+    # - snippet_length: round to 10s
+    if "snippet_length" in data_frame.columns:
+        data_frame["snippet_length"] = data_frame["snippet_length"].round(-1)
+
     # - skills_number: no changes
 
-    return separate_text(data_frame, label_name)
+    # - timestamp: round to 100s
+    if "timestamp" in data_frame.columns:
+        data_frame["timestamp"] = data_frame["timestamp"].round(-10)
+
+    return data_frame
 
 
 def missing_value_limit(data_frame_size):

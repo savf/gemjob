@@ -2,6 +2,7 @@ from dm_data_preparation import *
 from dm_text_mining import *
 from dm_jobTypeModel import job_type_model
 from dm_budgetModel import budget_model
+from dm_feedbackModel import feedback_model
 import pandas as pd
 import numpy as np
 
@@ -55,5 +56,6 @@ def test_text_mining():
 
 #run
 # budget_model("data/found_jobs_4K_extended.json")
-job_type_model("data/found_jobs_4K_extended.json")
+# job_type_model("data/found_jobs_4K_extended.json")
+feedback_model("data/found_jobs_4K_extended.json")
 # test_text_mining()

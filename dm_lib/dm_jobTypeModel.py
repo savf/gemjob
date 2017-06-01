@@ -1,8 +1,9 @@
 from dm_data_preparation import *
 from dm_text_mining import do_text_mining
-from dm_general import evaluate_classification, print_correlations
+from dm_general import evaluate_classification, print_correlations, print_predictions_comparison
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
 
 
 def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
@@ -18,16 +19,8 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     :rtype: pandas.DataFrame
     """
 
-    print "prepareDataJobTypeModel NOT IMPLEMENTED\n"
-
     # TODO just remove feedbacks?
-    feedbacks = ['feedback_for_client_availability', 'feedback_for_client_communication',
-                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
-                 'feedback_for_client_quality', 'feedback_for_client_skills',
-                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
-                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
-                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
-    data_frame.drop(labels=feedbacks, axis=1, inplace=True)
+    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
 
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_feedback", "client_past_hires"]
@@ -36,11 +29,13 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     # balance data set so ratio of hourly and fixed is 1:1
     data_frame = balance_data_set(data_frame, label_name, relative_sampling=relative_sampling)
 
-    ### convert everything to nominal
-    data_frame, text_data = convert_to_nominal(data_frame, label_name)
+    # TODO convert everything to numeric? need taht for quite a lot of classifiers
+    data_frame, text_data = convert_to_numeric(data_frame, label_name)
+    ### roughly cluster by rounding
+    # data_frame = coarse_clustering(data_frame, label_name)
 
     # print data_frame, "\n"
-    print_data_frame("After preparing for budget model", data_frame)
+    print_data_frame("After preparing for job type model", data_frame)
     return data_frame, text_data
 
 
@@ -54,23 +49,20 @@ def job_type_model(file_name):
     data_frame = prepare_data(file_name)
     data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
-    print "\n\n########## Do Text Mining\n"
-    text_train, text_test = train_test_split(text_data, train_size=0.8)
-    do_text_mining(text_train, text_test, label_name, regression=False, max_features=5000)
+    # print "\n\n########## Do Text Mining\n"
+    # text_train, text_test = train_test_split(text_data, train_size=0.8)
+    # do_text_mining(text_train, text_test, label_name, regression=False, max_features=5000)
 
-    # print "\n\n########## Classification based on all data (except text)\n"
-    # df_train, df_test = train_test_split(data_frame, train_size=0.8)
-    #
-    # forest = RandomForestClassifier(n_estimators=100)
-    # forest.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    # predictions = forest.predict(df_test.ix[:, df_train.columns != label_name])
-    #
-    # evaluate_classification(df_test, predictions, label_name)
-    #
-    # print "### Predictions: ###"
-    # print predictions[0:8]
-    # print "### Actual values: ###"
-    # print df_test[label_name][0:8]
-    # print "###########"
-    #
+    print "\n\n########## Classification based on all data (except text)\n"
+    df_train, df_test = train_test_split(data_frame, train_size=0.8)
+
+    clf = SVC(kernel='linear')
+    # clf = RandomForestClassifier(n_estimators=100)
+    clf.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
+    predictions = clf.predict(df_test.ix[:, df_train.columns != label_name])
+
+    evaluate_classification(df_test, predictions, label_name)
+
+    print_predictions_comparison(df_test, predictions, label_name)
+
     # print_correlations(data_frame, label_name)
