@@ -59,7 +59,7 @@ def job_type_model(file_name):
     clf = SVC(kernel='linear')
     # clf = RandomForestClassifier(n_estimators=100)
     clf.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = clf.predict(df_test.ix[:, df_train.columns != label_name])
+    predictions = clf.predict(df_test.ix[:, df_test.columns != label_name])
 
     evaluate_classification(df_test, predictions, label_name)
 
