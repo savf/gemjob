@@ -181,7 +181,7 @@ def convert_to_numeric(data_frame, label_name):
     data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(data_frame['timestamp']).dt.days)
 
     # transform nominals client_country, job_type and subcategory2 to numeric
-    if label_name == 'job_type':
+    if label_name == 'job_type' or 'job_type' not in data_frame.columns:
         cols_to_transform = ['client_country', 'subcategory2']
     else:
         cols_to_transform = ['client_country', 'job_type', 'subcategory2']
