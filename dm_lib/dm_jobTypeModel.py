@@ -47,8 +47,7 @@ def job_type_model(file_name):
     :type file_name: str
     """
     label_name = "job_type"
-    data_frame = prepare_data(file_name)
-
+    data_frame = prepare_data(file_name, budget_name="total_charge") # budget can't be budget here, because budget always 0 if hourly!!
     data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
     # print "\n\n########## Do Text Mining\n"

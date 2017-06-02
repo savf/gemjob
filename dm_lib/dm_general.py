@@ -1,6 +1,6 @@
 from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, accuracy_score
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -54,7 +54,7 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     :param num_of_rows: Number of rows to diplay
     :type num_of_rows: int
     """
-
+    pd.set_option('display.max_rows', num_of_rows)
     if len(df) != len(predictions):
         print "\n### Error: Length of values does not match\n"
         return
@@ -62,6 +62,7 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     df['predictions'] = predictions
     print df[["predictions", label_name]][0:num_of_rows]
     print "###########\n\n"
+    pd.reset_option('display.max_rows')
 
 
 def evaluate_regression(df, predictions, label_name):

@@ -26,11 +26,15 @@ def prepare_data_budget_model(data_frame, label_name):
 
         # rows that don't contain total_charge
         data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
+    elif label_name == "budget":
+        data_frame.drop(labels=["job_type"], axis=1, inplace=True)
 
     # remove rows with missing values
 
     # TODO just remove feedbacks?
     data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
+
+    print_data_frame("After removing job_type", data_frame)
 
     # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
@@ -69,7 +73,7 @@ def budget_model(file_name):
 
     regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
+    predictions = regr.predict(df_test.ix[:, df_test.columns != label_name])
 
     evaluate_regression(df_test, predictions, label_name)
 

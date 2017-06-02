@@ -35,7 +35,7 @@ def create_data_frame(file_name):
     return df
 
 
-def prepare_data(file_name, budget_name="budget"):
+def prepare_data(file_name, budget_name="total_charge"):
     """ Clean data
 
     :param file_name: File name where data is stored
@@ -74,10 +74,10 @@ def prepare_data(file_name, budget_name="budget"):
 
     #exlusively work with one budget attribute
     if budget_name == "budget":
-        # declare budget as missing, if 0
-        # TODO: good idea? would be 588 missing, now it's 2049; imo a budget of 0 is not setting a budget
-        # data_frame.ix[data_frame.budget == 0, 'budget'] = None
-        # rows that don't contain budget
+        # declare budget as missing, if hourly job (because there, we have no budget field)
+        data_frame.ix[data_frame.job_type == "Hourly", 'budget'] = None
+
+        # drop rows that don't contain budget
         data_frame.dropna(subset=["budget"], how='any', inplace=True)
 
         data_frame.drop(labels=["total_charge"], axis=1, inplace=True)
@@ -188,7 +188,7 @@ def convert_to_numeric(data_frame, label_name):
     data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(data_frame['timestamp']).dt.days)
 
     # transform nominals client_country, job_type and subcategory2 to numeric
-    if label_name == 'job_type':
+    if label_name == 'job_type' or 'job_type' not in data_frame.columns:
         cols_to_transform = ['client_country', 'subcategory2']
     else:
         cols_to_transform = ['client_country', 'job_type', 'subcategory2']

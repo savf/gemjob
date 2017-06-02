@@ -61,10 +61,10 @@ def feedback_model(file_name):
 
     regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = regr.predict(df_test.ix[:, df_train.columns != label_name])
+    predictions = regr.predict(df_test.ix[:, df_test.columns != label_name])
 
     evaluate_regression(df_test, predictions, label_name)
 
-    print_predictions_comparison(df_test, predictions, label_name, 20)
+    print_predictions_comparison(df_test, predictions, label_name, len(df_test))
 
-    print_correlations(data_frame, label_name)
+    # print_correlations(data_frame, label_name)
