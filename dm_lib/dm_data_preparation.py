@@ -55,10 +55,6 @@ def prepare_data(file_name, budget_name="budget"):
     unnecessary_columns = ["category2", "job_status", "url", "client_payment_verification_status"]
     data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
 
-    # convert total_charge and freelancer_count to number
-    data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
-    data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
-
     # handle missing values
     # ( data may change -> do this in a generic way! )
 
@@ -92,6 +88,11 @@ def prepare_data(file_name, budget_name="budget"):
     data_frame['date_created'] = pd.to_datetime(data_frame['date_created'])
     data_frame['date_created'] = data_frame['date_created'].apply(lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
 
+    # convert experience level from numeric to categorical
+    experience_levels = ['beginner', 'intermediate', 'expert']
+    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
+                                            labels=experience_levels)
+
     # fill missing numeric values with mean, if only some missing
     max_some_missing = _percentage_some_missing * data_frame.shape[0]
     df_numeric = data_frame.select_dtypes(include=[np.number])
@@ -105,6 +106,12 @@ def prepare_data(file_name, budget_name="budget"):
     filled_workloads = data_frame["workload"].dropna()
     data_frame["workload"] = data_frame.apply(
         lambda row: row["workload"] if row["workload"] is not None else random.choice(filled_workloads), axis=1)
+
+    # fill missing experience levels with random non-missing values
+    filled_experience_levels = data_frame["experience_level"].dropna()
+    data_frame["experience_level"] = data_frame.apply(
+        lambda row: row["experience_level"] if row["experience_level"] is not None
+        else random.choice(filled_experience_levels), axis=1)
 
     ### add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()

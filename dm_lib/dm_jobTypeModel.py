@@ -4,7 +4,7 @@ from dm_general import evaluate_classification, print_correlations, print_predic
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-
+from sklearn import tree
 
 def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     """ Prepare the given data to be used to predict the job type
@@ -29,10 +29,11 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     # balance data set so ratio of hourly and fixed is 1:1
     data_frame = balance_data_set(data_frame, label_name, relative_sampling=relative_sampling)
 
-    # TODO convert everything to numeric? need taht for quite a lot of classifiers
+    # TODO convert everything to numeric? need that for quite a lot of classifiers
     data_frame, text_data = convert_to_numeric(data_frame, label_name)
     ### roughly cluster by rounding
     # data_frame = coarse_clustering(data_frame, label_name)
+    data_frame.drop(labels=["budget"], axis=1, inplace=True)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for job type model", data_frame)
@@ -47,6 +48,7 @@ def job_type_model(file_name):
     """
     label_name = "job_type"
     data_frame = prepare_data(file_name)
+
     data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
     # print "\n\n########## Do Text Mining\n"
@@ -56,13 +58,18 @@ def job_type_model(file_name):
     print "\n\n########## Classification based on all data (except text)\n"
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    clf = SVC(kernel='linear')
-    # clf = RandomForestClassifier(n_estimators=100)
+    #clf = SVC(kernel='linear')
+    #clf = RandomForestClassifier(n_estimators=100)
+    clf = tree.DecisionTreeClassifier()
+
     clf.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = clf.predict(df_test.ix[:, df_train.columns != label_name])
+    predictions = clf.predict(df_test.ix[:, df_test.columns != label_name])
 
     evaluate_classification(df_test, predictions, label_name)
 
     print_predictions_comparison(df_test, predictions, label_name)
+
+    #with open("job_type_tree.dot", 'w') as f:
+    #    f = tree.export_graphviz(clf, feature_names=df_train.columns.values, out_file=f)
 
     # print_correlations(data_frame, label_name)

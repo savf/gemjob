@@ -18,6 +18,7 @@ from dateutil import tz
 from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
+from datetime import datetime
 
 import credentials
 
@@ -29,7 +30,8 @@ api = Api(app)
 RDB_HOST = 'database_module'
 RDB_PORT = 28015
 RDB_DB = 'datasets'
-RDB_TABLE = 'jobs'
+RDB_JOB_TABLE = 'jobs'
+RDB_PROFILE_TABLE = 'job_profiles'
 
 max_tries = 10
 max_request_size = 99
@@ -40,10 +42,12 @@ def db_setup():
     try:
         if not rdb.db_list().contains(RDB_DB).run(connection):
             rdb.db_create(RDB_DB).run(connection)
-        if not rdb.db(RDB_DB).table_list().contains(RDB_TABLE).run(connection):
-            rdb.db(RDB_DB).table_create(RDB_TABLE).run(connection)
+        if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_TABLE).run(connection):
+            rdb.db(RDB_DB).table_create(RDB_JOB_TABLE).run(connection)
+        if not rdb.db(RDB_DB).table_list().contains(RDB_PROFILE_TABLE).run(connection):
+            rdb.db(RDB_DB).table_create(RDB_PROFILE_TABLE).run(connection)
     except RqlRuntimeError:
-        print 'Database {} and table {} already exist.'.format(RDB_DB, RDB_TABLE)
+        print 'Database {} and table {} already exist.'.format(RDB_DB, RDB_JOB_TABLE)
     finally:
         connection.close()
 
@@ -72,6 +76,32 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         if iteration == total:
             sys.stdout.write('\n')
         sys.stdout.flush()
+
+    @staticmethod
+    def median(lst):
+        lst = sorted(lst)
+        if len(lst) < 1:
+            return None
+        if len(lst) % 2 == 1:
+            return lst[((len(lst) + 1) / 2) - 1]
+        else:
+            return float(sum(lst[(len(lst) / 2) - 1:(len(lst) / 2) + 1])) / 2.0
+
+    @staticmethod
+    def is_int(s):
+        try:
+            int(s)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def is_float(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
 
     ### post request
     def post(self):
@@ -141,6 +171,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
         if found_jobs is not None:
 
+            job_profiles = []
             counter = 0
             for job in found_jobs:
                 # Save already found profiles in 10% progress steps
@@ -149,46 +180,86 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                         with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
                             f.truncate()
                             f.write(json.dumps(found_jobs))
+                        with open(working_dir + strftime("job_profiles_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                            f.truncate()
+                            f.write(json.dumps(job_profiles))
                     except Exception as e:
                         print '\r\n Problems writing to JSON file, aborted.\r\n'
 
                 for i in range(0, max_tries):
                     try:
                         job_profile = client.job.get_job_profile(job["id"].encode('UTF-8'))
-                        counter += 1
-                        self.print_progress(counter, len(found_jobs), prefix = 'Progress:', suffix = 'Complete', bar_length = 50)
-                        assignment_info = job_profile['assignment_info']['info']
-                        # For jobs with only a single freelancer, assignment_info directly contains the info
-                        if not isinstance(assignment_info, list):
-                            assignment_info = [assignment_info]
-                        # Create the divisor to build the average of the individual feedback elements
-                        divisor = float(len(assignment_info))
-                        for info in assignment_info:
-                            if 'feedback_for_buyer' not in info and 'feedback_for_provider' not in info:
-                                divisor -= 1.0
+                        if job_profile['ciphertext'] == job['id']:
+                            # Replace the key 'ciphertext' with 'id' to make it easier to use with RethinkDB later
+                            job_profile.pop('ciphertext')
+                            job_profile['id'] = job['id']
 
-                        total_charge = 0
-                        for info in assignment_info:
-                            total_charge += float(info['total_charge'])
-                            if 'feedback_for_provider' in info:
-                                for feedback in info['feedback_for_provider']['scores']['score']:
-                                    if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in job:
-                                        job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] +=\
-                                            float(feedback['score']) / divisor
-                                    else:
-                                        job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] = \
-                                            float(feedback['score']) / divisor
-                            if 'feedback_for_buyer' in info:
-                                for feedback in info['feedback_for_buyer']['scores']['score']:
-                                    if 'feedback_for_client_{}'.format(feedback['label'].lower()) in job:
-                                        job['feedback_for_client_{}'.format(feedback['label'].lower())] +=\
-                                            float(feedback['score']) / divisor
-                                    else:
-                                        job['feedback_for_client_{}'.format(feedback['label'].lower())] = \
-                                            float(feedback['score']) / divisor
+                            job_profiles.append(job_profile)
+                            counter += 1
+                            self.print_progress(counter, len(found_jobs), prefix = 'Progress:', suffix = 'Complete', bar_length = 50)
+                            assignment_info = job_profile['assignment_info']['info']
+                            # For jobs with only a single freelancer, assignment_info directly contains the info
+                            if not isinstance(assignment_info, list):
+                                assignment_info = [assignment_info]
+                            # Create the divisor to build the average of the individual feedback elements
+                            divisor = float(len(assignment_info))
+                            for info in assignment_info:
+                                if 'feedback_for_buyer' not in info and 'feedback_for_provider' not in info:
+                                    divisor -= 1.0
 
-                        job['freelancer_count'] = len(assignment_info)
-                        job['total_charge'] = total_charge
+                            total_charge = 0
+                            total_hours = 0
+                            durations = []
+                            for info in assignment_info:
+                                if 'total_charge' in info and self.is_float(info['total_charge']):
+                                    total_charge += float(info['total_charge'])
+                                if 'tot_hours' in info and self.is_int(info['tot_hours']):
+                                    current_total_hours = int(info['tot_hours'])
+                                    total_hours += current_total_hours
+                                else:
+                                    current_total_hours = None
+                                if 'start_date' in info and 'end_data' in info \
+                                    and self.is_int(info['start_date']) and self.is_int(info['end_data']):
+                                        # duration is captured in weeks
+                                        duration = (datetime.fromtimestamp(int(info['end_data'])/1000) -
+                                                    datetime.fromtimestamp(int(info['start_date'])/1000)).days/7
+                                        if 'workload' in job:
+                                            if job['workload'] == "Less than 10 hrs/week":
+                                                if current_total_hours:
+                                                    duration = max(current_total_hours/10,
+                                                                   min(duration, int(info['tot_hours'])/1))
+                                            elif job['workload'] == "10-30 hrs/week":
+                                                if current_total_hours:
+                                                    duration = max(current_total_hours/30,
+                                                                   min(duration, int(info['tot_hours'])/10))
+                                            elif job['workload'] == "30+ hrs/week":
+                                                if current_total_hours:
+                                                    duration = min(current_total_hours/30,
+                                                                   duration)
+                                        durations.append(duration)
+                                if 'feedback_for_provider' in info:
+                                    for feedback in info['feedback_for_provider']['scores']['score']:
+                                        if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in job:
+                                            job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] +=\
+                                                float(feedback['score']) / divisor
+                                        else:
+                                            job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] = \
+                                                float(feedback['score']) / divisor
+                                if 'feedback_for_buyer' in info:
+                                    for feedback in info['feedback_for_buyer']['scores']['score']:
+                                        if 'feedback_for_client_{}'.format(feedback['label'].lower()) in job:
+                                            job['feedback_for_client_{}'.format(feedback['label'].lower())] +=\
+                                                float(feedback['score']) / divisor
+                                        else:
+                                            job['feedback_for_client_{}'.format(feedback['label'].lower())] = \
+                                                float(feedback['score']) / divisor
+                            if 'op_contractor_tier' in job_profile and self.is_int(job_profile['op_contractor_tier']):
+                                job['experience_level'] = int(job_profile['op_contractor_tier'])
+                            job['freelancer_count'] = len(assignment_info)
+                            job['total_charge'] = total_charge
+                            job['total_hours'] = total_hours
+                            job['duration_weeks_median'] = self.median(durations)
+                            job['duration_weeks_total'] = sum(durations)
                         break
                     except Exception as e:
                         if hasattr(e, 'code') and e.code == 403:
@@ -201,7 +272,12 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 f.truncate()
                 f.write(json.dumps(found_jobs))
 
-            response = rdb.table(RDB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
+            with open(working_dir + strftime("job_profiles_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                f.truncate()
+                f.write(json.dumps(job_profiles))
+
+            response = rdb.table(RDB_JOB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
+            rdb.table(RDB_PROFILE_TABLE).insert(job_profiles, conflict="replace").run(g.rdb_conn)
 
             success_criterion = len(found_jobs) == sample_size and response['inserted'] > 0
             if len(found_jobs) != sample_size:
@@ -244,7 +320,7 @@ api.add_resource(DataUpdater, '/update_data/')
 @app.route('/')
 def start():
     try:
-        last_updated = rdb.table(RDB_TABLE).order_by("requested_on").get_field("requested_on").max().run(g.rdb_conn)
+        last_updated = rdb.table(RDB_JOB_TABLE).order_by("requested_on").get_field("requested_on").max().run(g.rdb_conn)
         target_zone = tz.gettz('Europe/Zurich')
         last_updated = last_updated.replace(tzinfo=tz.gettz('UTC'))
         last_updated = last_updated.astimezone(target_zone)
