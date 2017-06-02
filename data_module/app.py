@@ -255,8 +255,8 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                                                 float(feedback['score']) / divisor
                             if 'op_contractor_tier' in job_profile and self.is_int(job_profile['op_contractor_tier']):
                                 job['experience_level'] = int(job_profile['op_contractor_tier'])
-                            job['freelancer_count'] = len(assignment_info)
-                            job['total_charge'] = total_charge
+                            job['freelancer_count'] = int(len(assignment_info))
+                            job['total_charge'] = float(total_charge)
                             job['total_hours'] = total_hours
                             job['duration_weeks_median'] = self.median(durations)
                             job['duration_weeks_total'] = sum(durations)

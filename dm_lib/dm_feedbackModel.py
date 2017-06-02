@@ -29,6 +29,12 @@ def prepare_data_feedback_model(data_frame, label_name):
     drop_unnecessary = ["client_past_hires"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
+    # fill missing experience levels with random non-missing values
+    filled_experience_levels = data_frame["experience_level"].dropna()
+    data_frame["experience_level"] = data_frame.apply(
+        lambda row: row["experience_level"] if row["experience_level"] is not None
+        else random.choice(filled_experience_levels), axis=1)
+
     # convert everything to numeric
     data_frame, text_data = convert_to_numeric(data_frame, label_name)
     ### roughly cluster by rounding

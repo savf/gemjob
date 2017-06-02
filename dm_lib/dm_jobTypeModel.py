@@ -35,6 +35,12 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     # data_frame = coarse_clustering(data_frame, label_name)
     data_frame.drop(labels=["budget"], axis=1, inplace=True)
 
+    # fill missing experience levels with random non-missing values
+    filled_experience_levels = data_frame["experience_level"].dropna()
+    data_frame["experience_level"] = data_frame.apply(
+        lambda row: row["experience_level"] if row["experience_level"] is not None
+        else random.choice(filled_experience_levels), axis=1)
+
     # print data_frame, "\n"
     print_data_frame("After preparing for job type model", data_frame)
     return data_frame, text_data

@@ -18,6 +18,7 @@ def prepare_data_budget_model(data_frame, label_name):
     :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
+
     # if we use total charge as budget, 0 values make no sense
     # (the budget would not be 0, we just didn't find a freelancer here)
     if label_name == "total_charge":
@@ -39,6 +40,12 @@ def prepare_data_budget_model(data_frame, label_name):
     # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+
+    # fill missing experience levels with random non-missing values
+    filled_experience_levels = data_frame["experience_level"].dropna()
+    data_frame["experience_level"] = data_frame.apply(
+        lambda row: row["experience_level"] if row["experience_level"] is not None
+        else random.choice(filled_experience_levels), axis=1)
 
     # convert everything to numeric
     data_frame, text_data = convert_to_numeric(data_frame, label_name)
