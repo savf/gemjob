@@ -187,9 +187,11 @@ def convert_to_numeric(data_frame, label_name):
 
     # transform nominals client_country, job_type and subcategory2 to numeric
     if label_name == 'job_type' or 'job_type' not in data_frame.columns:
-        cols_to_transform = ['client_country', 'subcategory2']
-    else:
+        cols_to_transform = ['client_country', 'subcategory2', 'experience_level']
+    elif label_name == 'experience_level':
         cols_to_transform = ['client_country', 'job_type', 'subcategory2']
+    else:
+        cols_to_transform = ['client_country', 'job_type', 'subcategory2', 'experience_level']
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 
     # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
