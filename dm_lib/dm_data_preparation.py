@@ -178,7 +178,7 @@ def convert_to_numeric(data_frame, label_name):
     :type data_frame: pd.DataFrame
     :param label_name: Target label that will be learned
     :type label_name: str
-    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :return: Cleaned Pandas DataFrames with everything converted to numeric except text
     :rtype: pandas.DataFrame
     """
     # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
@@ -200,7 +200,7 @@ def convert_to_numeric(data_frame, label_name):
     data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
     data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 
-    return separate_text(data_frame, label_name)
+    return data_frame
 
 
 def coarse_clustering(data_frame, label_name):

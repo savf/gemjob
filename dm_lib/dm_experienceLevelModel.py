@@ -17,7 +17,7 @@ def prepare_data_experience_level_model(data_frame, label_name):
 
     data_frame.dropna(subset=['experience_level'], inplace=True)
 
-    data_frame, text_data = convert_to_numeric(data_frame, label_name)
+    data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for budget model", data_frame)
@@ -37,6 +37,7 @@ def experience_level_model(file_name):
 
     data_frame = prepare_data(file_name)
     data_frame = prepare_data_experience_level_model(data_frame, label_name)
+    data_frame, text_data = separate_text(data_frame, label_name)
 
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
@@ -48,4 +49,4 @@ def experience_level_model(file_name):
 
     evaluate_classification(df_test, predictions, label_name)
 
-    print_predictions_comparison(df_test, predictions, label_name)
+    print_predictions_comparison(df_test, predictions, label_name, 50)

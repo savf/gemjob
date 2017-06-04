@@ -29,21 +29,20 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     # balance data set so ratio of hourly and fixed is 1:1
     data_frame = balance_data_set(data_frame, label_name, relative_sampling=relative_sampling)
 
-    # TODO convert everything to numeric? need that for quite a lot of classifiers
-    data_frame, text_data = convert_to_numeric(data_frame, label_name)
-    ### roughly cluster by rounding
-    # data_frame = coarse_clustering(data_frame, label_name)
-    data_frame.drop(labels=["budget"], axis=1, inplace=True)
-
     # fill missing experience levels with random non-missing values
     filled_experience_levels = data_frame["experience_level"].dropna()
     data_frame["experience_level"] = data_frame.apply(
         lambda row: row["experience_level"] if row["experience_level"] is not None
         else random.choice(filled_experience_levels), axis=1)
 
+    # TODO convert everything to numeric? need that for quite a lot of classifiers
+    data_frame = convert_to_numeric(data_frame, label_name)
+    ### roughly cluster by rounding
+    # data_frame = coarse_clustering(data_frame, label_name)
+
     # print data_frame, "\n"
     print_data_frame("After preparing for job type model", data_frame)
-    return data_frame, text_data
+    return separate_text(data_frame, label_name)
 
 
 def job_type_model(file_name):

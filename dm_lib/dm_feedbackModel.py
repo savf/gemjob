@@ -36,14 +36,14 @@ def prepare_data_feedback_model(data_frame, label_name):
         else random.choice(filled_experience_levels), axis=1)
 
     # convert everything to numeric
-    data_frame, text_data = convert_to_numeric(data_frame, label_name)
+    data_frame = convert_to_numeric(data_frame, label_name)
     ### roughly cluster by rounding
     # data_frame = coarse_clustering(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for rating model", data_frame)
 
-    return data_frame, text_data
+    return separate_text(data_frame, label_name)
 
 
 # TODO: try classification instead of regression
@@ -71,6 +71,6 @@ def feedback_model(file_name):
 
     evaluate_regression(df_test, predictions, label_name)
 
-    print_predictions_comparison(df_test, predictions, label_name, len(df_test))
+    print_predictions_comparison(df_test, predictions, label_name, 50)
 
     # print_correlations(data_frame, label_name)

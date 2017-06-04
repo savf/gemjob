@@ -54,6 +54,8 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     :param num_of_rows: Number of rows to diplay
     :type num_of_rows: int
     """
+    if not isinstance(df, pd.DataFrame):
+        df = pd.DataFrame(df, columns=[label_name])
     pd.set_option('display.max_rows', num_of_rows)
     if len(df) != len(predictions):
         print "\n### Error: Length of values does not match\n"
@@ -75,12 +77,14 @@ def evaluate_regression(df, predictions, label_name):
     :param label_name: Target label
     :type label_name: str
     """
+    if isinstance(df, pd.DataFrame):
+        df = df[label_name]
     print "### Evaluation of " + label_name + " ###"
-    exp_var_sc = explained_variance_score(df[label_name], predictions)
+    exp_var_sc = explained_variance_score(df, predictions)
     print "## Explained variance score (best is 1.0): ", exp_var_sc
-    abs_err = mean_absolute_error(df[label_name], predictions)
+    abs_err = mean_absolute_error(df, predictions)
     print "## Mean absolute error: ", abs_err
-    sq_err = mean_squared_error(df[label_name], predictions)
+    sq_err = mean_squared_error(df, predictions)
     print "## Mean squared error: ", sq_err
 
     return exp_var_sc, abs_err, sq_err
@@ -104,9 +108,11 @@ def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribut
     :param runtime: Runtime of the model in seconds
     :type runtime: float
     """
-    exp_var_sc = explained_variance_score(df[label_name], predictions)
-    abs_err = mean_absolute_error(df[label_name], predictions)
-    sq_err = mean_squared_error(df[label_name], predictions)
+    if isinstance(df, pd.DataFrame):
+        df = df[label_name]
+    exp_var_sc = explained_variance_score(df, predictions)
+    abs_err = mean_absolute_error(df, predictions)
+    sq_err = mean_squared_error(df, predictions)
     parameter_string = ",".join([str(value) for key, value in parameters.iteritems()])
 
     print label_name+","+predicted_with_attribute+","+model_name+","+parameter_string+","\
@@ -122,8 +128,10 @@ def evaluate_classification(df, predictions, label_name):
     :type predictions: array
     :param label_name: Target label
     :type label_name: str"""
+    if isinstance(df, pd.DataFrame):
+        df = df[label_name]
     print "### Evaluation of " + label_name + " ###"
-    accuracy = accuracy_score(df[label_name], predictions)
+    accuracy = accuracy_score(df, predictions)
     print "## Accuracy as a fraction: ", accuracy
 
     # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics

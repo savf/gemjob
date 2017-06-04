@@ -1,6 +1,6 @@
 from dm_data_preparation import *
 from dm_general import evaluate_regression, print_correlations, print_predictions_comparison
-from dm_text_mining import do_text_mining
+from dm_text_mining import do_text_mining, addTextTokensToDF
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model
 from sklearn import svm
@@ -35,8 +35,6 @@ def prepare_data_budget_model(data_frame, label_name):
     # TODO just remove feedbacks?
     data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
 
-    print_data_frame("After removing job_type", data_frame)
-
     # drop columns where we don't have user data or are unnecessary for budget
     drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
@@ -48,14 +46,14 @@ def prepare_data_budget_model(data_frame, label_name):
         else random.choice(filled_experience_levels), axis=1)
 
     # convert everything to numeric
-    data_frame, text_data = convert_to_numeric(data_frame, label_name)
+    data_frame = convert_to_numeric(data_frame, label_name)
     ### roughly cluster by rounding
     # data_frame = coarse_clustering(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for budget model", data_frame)
 
-    return data_frame, text_data
+    return data_frame
 
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
@@ -69,21 +67,36 @@ def budget_model(file_name):
     # label_name = "total_charge"
 
     data_frame = prepare_data(file_name, budget_name=label_name)
-    data_frame, text_data = prepare_data_budget_model(data_frame, label_name)
+
+    # prepare both for model
+    data_frame = prepare_data_budget_model(data_frame, label_name)
+
+    # split
+    df_train, df_test = train_test_split(data_frame, train_size=0.8)
+    df_train, text_train = separate_text(df_train, label_name)
+    df_test, text_test = separate_text(df_test, label_name)
 
     # print "\n\n########## Do Text Mining\n"
-    # text_train, text_test = train_test_split(text_data, train_size=0.8)
     # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
-    print "\n\n########## Regression based on all data (except text)\n"
-    df_train, df_test = train_test_split(data_frame, train_size=0.8)
+    # separate target
+    df_target_train = df_train[label_name]
+    df_train.drop(labels=[label_name], axis=1, inplace=True)
+    df_target_test = df_test[label_name]
+    df_test.drop(labels=[label_name], axis=1, inplace=True)
+
+    print "\n\n########## Regression based on all data\n"
+    # add tokens to data frame
+    df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
+    # print_data_frame("After adding text tokens [TRAIN]", df_train)
+    # print_data_frame("After adding text tokens [TEST]", df_test)
 
     regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
-    regr.fit(df_train.ix[:, df_train.columns != label_name], df_train[label_name])
-    predictions = regr.predict(df_test.ix[:, df_test.columns != label_name])
+    regr.fit(df_train, df_target_train)
+    predictions = regr.predict(df_test)
 
-    evaluate_regression(df_test, predictions, label_name)
+    evaluate_regression(df_target_test, predictions, label_name)
 
-    print_predictions_comparison(df_test, predictions, label_name, 20)
+    print_predictions_comparison(df_target_test, predictions, label_name, 20)
 
     # print_correlations(data_frame, label_name)
