@@ -1,20 +1,24 @@
 from dm_data_preparation import *
-from dm_general import evaluate_regression, print_correlations, print_predictions_comparison
+from dm_general import evaluate_regression, evaluate_classification, print_correlations, print_predictions_comparison
 from dm_text_mining import do_text_mining, addTextTokensToDF
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model
 from sklearn import svm
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import RandomForestRegressor, BaggingRegressor
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
 
 
-def prepare_data_budget_model(data_frame, label_name):
+def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
     """ Clean data specific to the budget model
 
     :param data_frame: Pandas DataFrame that holds the data
     :type data_frame: pandas.DataFrame
     :param label_name: Target label that will be predicted
     :type label_name: str
+    :param budget_classification: Whether to prepare the data for a budget classification
+    :type budget_classification: bool
     :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
@@ -29,6 +33,13 @@ def prepare_data_budget_model(data_frame, label_name):
         data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
     elif label_name == "budget":
         data_frame.drop(labels=["job_type"], axis=1, inplace=True)
+
+        if budget_classification:
+            # Discretize budget into 4 bins
+            budget_levels = ['low', 'medium', 'high', 'ultra']
+            data_frame['budget'] = pd.qcut(data_frame.loc[data_frame['budget'] > 0.0, 'budget'], len(budget_levels),
+                                           labels=budget_levels)
+            data_frame.loc[data_frame['budget'] == 0.0, 'budget'] = 'low'
 
     # remove rows with missing values
 
@@ -69,7 +80,7 @@ def budget_model(file_name):
     data_frame = prepare_data(file_name, budget_name=label_name)
 
     # prepare both for model
-    data_frame = prepare_data_budget_model(data_frame, label_name)
+    data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=True)
 
     # split
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
@@ -85,17 +96,24 @@ def budget_model(file_name):
     df_target_test = df_test[label_name]
     df_test.drop(labels=[label_name], axis=1, inplace=True)
 
-    print "\n\n########## Regression based on all data\n"
+    print "\n\n########## Classification based on all data\n"
     # add tokens to data frame
-    df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
+    # df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
     # print_data_frame("After adding text tokens [TRAIN]", df_train)
     # print_data_frame("After adding text tokens [TEST]", df_test)
 
-    regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
-    regr.fit(df_train, df_target_train)
-    predictions = regr.predict(df_test)
+    #regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+    #regr.fit(df_train, df_target_train)
+    #predictions = regr.predict(df_test)
 
-    evaluate_regression(df_target_test, predictions, label_name)
+    #evaluate_regression(df_target_test, predictions, label_name)
+
+    clf = RandomForestClassifier(n_estimators=100)
+
+    clf.fit(df_train, df_target_train)
+    predictions = clf.predict(df_test)
+
+    evaluate_classification(df_target_test, predictions, label_name)
 
     print_predictions_comparison(df_target_test, predictions, label_name, 20)
 
