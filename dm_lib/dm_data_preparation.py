@@ -40,6 +40,8 @@ def prepare_data(file_name, budget_name="total_charge"):
 
     :param file_name: File name where data is stored
     :type file_name: str
+    :param budget_name: Use either "budget" or "total_charge"
+    :type file_name: str
     :return: Cleaned DataFrame
     :rtype: pandas.DataFrame
     """
@@ -192,6 +194,7 @@ def convert_to_numeric(data_frame, label_name):
         cols_to_transform = ['client_country', 'job_type', 'subcategory2']
     else:
         cols_to_transform = ['client_country', 'job_type', 'subcategory2', 'experience_level']
+    cols_to_transform = set(cols_to_transform).intersection(data_frame.columns)
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 
     # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?

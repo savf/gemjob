@@ -32,13 +32,22 @@ def print_correlations(df, attr=None):
     """
     corr = df.corr()
     if attr==None:
-        print "### Corrletaion Matrix ###"
-        print corr
+        # print "### Corrletaion Matrix ###"
+        # print corr
         plt.matshow(corr)
         plt.show()
     else:
         print "### Correlations for " + attr + " ###"
         print corr[attr].abs().sort_values(ascending=False)
+    print "################################ \n\n"
+
+
+def print_statistics(df):
+    print "\n### Statistics ###\n"
+    for attribute in df._get_numeric_data().columns:
+        print "Stats for: "+attribute
+        print df[attribute].describe(), "###\n"
+
     print "################################ \n\n"
 
 
