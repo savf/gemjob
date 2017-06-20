@@ -108,10 +108,13 @@ def prepare_data(file_name, budget_name="total_charge"):
         (data_frame[columns_some_missing].mean()))
     del df_numeric
 
-    # fill missing workload values with random non-missing values
-    filled_workloads = data_frame["workload"].dropna()
-    data_frame["workload"] = data_frame.apply(
-        lambda row: row["workload"] if row["workload"] is not None else random.choice(filled_workloads), axis=1)
+    # # fill missing workload values with random non-missing values
+    # filled_workloads = data_frame["workload"].dropna()
+    # data_frame["workload"] = data_frame.apply(
+    #     lambda row: row["workload"] if row["workload"] is not None else random.choice(filled_workloads), axis=1)
+
+    # replace missing workloads with "Less than 10 hrs/week" because they are only smaller fixed jobs
+    data_frame["workload"].fillna("Less than 10 hrs/week", inplace=True)
 
     ### add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
