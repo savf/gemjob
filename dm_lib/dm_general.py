@@ -1,6 +1,8 @@
 from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, accuracy_score
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import scipy.stats as stats
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -22,17 +24,33 @@ def print_data_frame(title, df):
     print "############################## \n\n"
 
 
-def print_correlations(df, attr=None):
+def print_correlations(df, attr=None, store=False):
     """ Print attribute correlations for a given Pandas DataFrame
 
     :param df: Pandas DataFrame to analyze
     :type df: pandas.DataFrame
     :param attr: If specified, only print correlations for the given attribute
     :type attr: str
+    :param store: Whether to store the correlations and significance as CSV
+    :type store: bool
     """
     corr = df.corr()
-    if attr==None:
-        # print "### Corrletaion Matrix ###"
+    dropped_columns = list(set(df.columns) - set(corr.columns))
+    df.drop(labels=dropped_columns, axis=1, inplace=True)
+    significance = np.zeros([df.shape[1], df.shape[1]])
+
+    for row in range(df.shape[1]):
+        for column in range(df.shape[1]):
+            row_label = df.columns[row]
+            column_label = df.columns[column]
+            significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+
+    corr_significance = pd.DataFrame(significance)
+    corr_significance.columns = df.columns.values
+    corr_significance.set_index(df.columns.values, inplace=True)
+
+    if attr is None:
+        # print "### Correlation Matrix ###"
         # print corr
         plt.matshow(corr)
         plt.show()
@@ -40,6 +58,13 @@ def print_correlations(df, attr=None):
         print "### Correlations for " + attr + " ###"
         print corr[attr].abs().sort_values(ascending=False)
     print "################################ \n\n"
+    if store:
+        with open('correlations.csv', 'w') as f:
+            f.write(corr.to_csv())
+        f.close()
+        with open('correlation_significances.csv', 'w') as f:
+            f.write(corr_significance.to_csv())
+        f.close()
 
 
 def print_statistics(df):
