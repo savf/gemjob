@@ -51,6 +51,7 @@ def db_setup():
     finally:
         connection.close()
 
+
 ###### class begin
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
@@ -210,6 +211,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                             total_charge = 0
                             total_hours = 0
                             durations = []
+                            feedbacks = {}
                             for info in assignment_info:
                                 if 'total_charge' in info and self.is_float(info['total_charge']):
                                     total_charge += float(info['total_charge'])
@@ -239,22 +241,23 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                                         durations.append(duration)
                                 if 'feedback_for_provider' in info:
                                     for feedback in info['feedback_for_provider']['scores']['score']:
-                                        if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in job:
-                                            job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] +=\
-                                                float(feedback['score']) / divisor
+                                        if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in feedbacks:
+                                            feedbacks['feedback_for_freelancer_{}'.format(feedback['label'].lower())]\
+                                                += float(feedback['score']) / divisor
                                         else:
-                                            job['feedback_for_freelancer_{}'.format(feedback['label'].lower())] = \
-                                                float(feedback['score']) / divisor
+                                            feedbacks['feedback_for_freelancer_{}'.format(feedback['label'].lower())]\
+                                                = float(feedback['score']) / divisor
                                 if 'feedback_for_buyer' in info:
                                     for feedback in info['feedback_for_buyer']['scores']['score']:
-                                        if 'feedback_for_client_{}'.format(feedback['label'].lower()) in job:
-                                            job['feedback_for_client_{}'.format(feedback['label'].lower())] +=\
-                                                float(feedback['score']) / divisor
+                                        if 'feedback_for_client_{}'.format(feedback['label'].lower()) in feedbacks:
+                                            feedbacks['feedback_for_client_{}'.format(feedback['label'].lower())]\
+                                                += float(feedback['score']) / divisor
                                         else:
-                                            job['feedback_for_client_{}'.format(feedback['label'].lower())] = \
-                                                float(feedback['score']) / divisor
+                                            feedbacks['feedback_for_client_{}'.format(feedback['label'].lower())]\
+                                                = float(feedback['score']) / divisor
                             if 'op_contractor_tier' in job_profile and self.is_int(job_profile['op_contractor_tier']):
                                 job['experience_level'] = int(job_profile['op_contractor_tier'])
+                            job.update(feedbacks)
                             job['freelancer_count'] = int(len(assignment_info))
                             job['total_charge'] = float(total_charge)
                             job['total_hours'] = total_hours
