@@ -3,6 +3,7 @@ from dm_data_preparation import *
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy import stats
+from math import log
 
 
 def perc_convert(ser):
@@ -17,7 +18,7 @@ def same_mean(series_1, series_2, significance):
     :param significance: The significance is normally 5%
 
     """
-    result = stats.ttest_rel(series_1, series_2)
+    result = stats.ttest_ind(series_1, series_2)
     if result[1] <= significance:
         return True
     else:
@@ -66,8 +67,7 @@ def explore_data(file_name,budget_name="total_charge"):
         #stats.probplot(data_frame[attr], plot=ax)
         #data_frame.boxplot(column=attr, ax=ax)
         #data_frame.plot.scatter(x='total_charge', y=attr, logx=True)
-        #sns.regplot(x=data_frame['freelancer_count'].apply(lambda count: np.log(count)), y=data_frame[attr].apply(lambda value: np.log(value)), ax=ax, order=0, lowess=True)
-        sns.regplot(x=data_frame['freelancer_count'].apply(lambda count: np.log(count)),
+        sns.regplot(x=data_frame['freelancer_count'],
                     y=data_frame[attr], ax=ax, order=0, lowess=True)
         #sns.residplot(x=data_frame['total_charge'], y=data_frame[attr], ax=ax, order=0, lowess=True)
         ax.set_title("LOWESS for " + attr)

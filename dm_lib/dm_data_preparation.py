@@ -82,7 +82,7 @@ def prepare_data(file_name, budget_name="total_charge"):
     # declare feedback as missing, if no reviews
     data_frame.ix[data_frame.client_reviews_count == 0, 'client_feedback'] = None
 
-    #exlusively work with one budget attribute
+    # exclusively work with one budget attribute
     if budget_name == "budget":
         # declare budget as missing, if hourly job (because there, we have no budget field)
         data_frame.ix[data_frame.job_type == "Hourly", 'budget'] = None
@@ -128,11 +128,13 @@ def prepare_data(file_name, budget_name="total_charge"):
 
     return data_frame
 
+
 def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge"):
     df_train = treat_outliers_deletion(df_train, budget_name)
     df_train = treat_outliers_log_scale(df_train, label_name, budget_name)
     df_test = treat_outliers_log_scale(df_test, label_name, budget_name)
     return df_train, df_test
+
 
 def treat_outliers_deletion(data_frame, budget_name="total_charge"):
     # delete only in training set!!!!
@@ -155,13 +157,12 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
 
 
 def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charge"):
-
-    attributes = [  "total_hours",
-                    "duration_weeks_total",
-                    "duration_weeks_median",
-                    "client_jobs_posted",
-                    "client_reviews_count",
-                    "client_past_hires"]
+    attributes = ["total_hours",
+                  "duration_weeks_total",
+                  "duration_weeks_median",
+                  "client_jobs_posted",
+                  "client_reviews_count",
+                  "client_past_hires"]
 
     # no log for target label (budget or total_charge)
 
@@ -226,7 +227,6 @@ def separate_text(data_frame, label_name):
     data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
 
     return data_frame, text_data
-
 
 
 def convert_to_numeric(data_frame, label_name):
