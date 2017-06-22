@@ -58,9 +58,9 @@ def test_text_mining():
 
 
 #run
-# budget_model("data/found_jobs_4K_extended.json")
+budget_model("data/found_jobs_4K_extended.json")
 # job_type_model("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
-exploreData("data/found_jobs_4K_extended.json")
+# exploreData("data/found_jobs_4K_extended.json")

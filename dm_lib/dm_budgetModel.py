@@ -84,8 +84,12 @@ def budget_model(file_name):
 
     # split
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
+    # separate text
     df_train, text_train = separate_text(df_train, label_name)
     df_test, text_test = separate_text(df_test, label_name)
+
+    # treat outliers
+    # df_train, df_test = treat_outliers(df_train, df_test, label_name, label_name)
 
     # print "\n\n########## Do Text Mining\n"
     # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)

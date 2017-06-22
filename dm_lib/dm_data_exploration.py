@@ -55,6 +55,9 @@ def explore_data(file_name,budget_name="total_charge"):
 
     data_frame = convert_to_numeric(data_frame, "")
 
+    treat_outliers_deletion(data_frame)
+    treat_outliers_log_scale(data_frame)
+
     for attr in ["client_feedback", "timestamp", "freelancer_count", "workload", "total_hours"]:
         # data_frame[attr].plot(kind='hist', legend=True, title=attr)
         # data_frame.hist(column=attr, bins=30)
