@@ -265,12 +265,14 @@ def addTextTokensToDF(df_train, df_test, text_train, text_test, max_features=500
         vectorizer, train_data_features = prepare_text_train(text_train, text_column_name, max_features)
         test_data_features = prepare_text_test(text_test, text_column_name, vectorizer)
 
-        tokens_train = pd.DataFrame(train_data_features, columns=vectorizer.get_feature_names(), index=df_train.index)
+        column_names = ["$token_" + s for s in vectorizer.get_feature_names()]
+
+        tokens_train = pd.DataFrame(train_data_features, columns=column_names, index=df_train.index)
         df_train = pd.concat([df_train, tokens_train], axis=1)
         # print df_train[0:3]
         # print "################################ \n\n"
 
-        tokens_test = pd.DataFrame(test_data_features, columns=vectorizer.get_feature_names(), index=df_test.index)
+        tokens_test = pd.DataFrame(test_data_features, columns=column_names, index=df_test.index)
         df_test = pd.concat([df_test, tokens_test], axis=1)
         # print df_test[0:3]
         # print "################################ \n\n"

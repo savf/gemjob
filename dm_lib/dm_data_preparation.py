@@ -212,7 +212,7 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
     return data_frame
 
 
-def separate_text(data_frame, label_name):
+def separate_text(data_frame, label_name=None):
     """ Separate structured data from text
 
     :param data_frame: Pandas DataFrame that contains the data
@@ -222,7 +222,10 @@ def separate_text(data_frame, label_name):
     :return: Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
-    text_data = data_frame[[label_name, "skills", "snippet", "title"]]
+    if label_name is None:
+        text_data = data_frame[["skills", "snippet", "title"]]
+    else:
+        text_data = data_frame[[label_name, "skills", "snippet", "title"]]
     data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
 
     return data_frame, text_data

@@ -1,5 +1,5 @@
 from dm_data_preparation import *
-from dm_general import evaluate_regression, evaluate_classification, print_correlations, print_predictions_comparison
+from dm_general import *
 from dm_text_mining import do_text_mining, addTextTokensToDF
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model
@@ -66,6 +66,20 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
 
     return data_frame
 
+def create_model(df_train, label_name, budget_classification):
+    # separate target
+    df_target_train = df_train[label_name]
+    df_train.drop(labels=[label_name], axis=1, inplace=True)
+
+    if not budget_classification:
+        regr = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        regr.fit(df_train, df_target_train)
+        return regr
+    else:
+        clf = RandomForestClassifier(n_estimators=100)
+        clf.fit(df_train, df_target_train)
+        return clf
+
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
 def budget_model(file_name):
@@ -75,50 +89,51 @@ def budget_model(file_name):
     :type file_name: str
     """
     label_name = "budget"
+    budget_classification = False
     # label_name = "total_charge"
 
     data_frame = prepare_data(file_name, budget_name=label_name)
 
     # prepare both for model
-    data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=True)
+    data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=budget_classification)
+    # print_correlations(data_frame, label_name)
 
     # split
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
-    # separate text
-    df_train, text_train = separate_text(df_train, label_name)
-    df_test, text_test = separate_text(df_test, label_name)
 
     # treat outliers
-    # df_train, df_test = treat_outliers(df_train, df_test, label_name, label_name)
+    df_train_outl, df_test_outl = treat_outliers(df_train.copy(), df_test.copy(), label_name, label_name)
+
+    # separate text
+    df_train, text_train = separate_text(df_train)
+    df_test, text_test = separate_text(df_test)
+    # separate text after outlier treatment
+    df_train_outl, text_train_outl = separate_text(df_train_outl)
+    df_test_outl, text_test_outl = separate_text(df_test_outl)
 
     # print "\n\n########## Do Text Mining\n"
     # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
-    # separate target
-    df_target_train = df_train[label_name]
-    df_train.drop(labels=[label_name], axis=1, inplace=True)
-    df_target_test = df_test[label_name]
-    df_test.drop(labels=[label_name], axis=1, inplace=True)
+    print "\n\n##### With Outlier Treatment:"
+    print df_train_outl.shape
+    model = create_model(df_train_outl.copy(), label_name, budget_classification)
+    print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
-    print "\n\n########## Classification based on all data\n"
+    print "##### Without Outlier Treatment:"
+    model = create_model(df_train.copy(), label_name, budget_classification)
+    print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
+
+    print "##### With Text Tokens, With Outlier Treatment:"
     # add tokens to data frame
-    # df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
-    # print_data_frame("After adding text tokens [TRAIN]", df_train)
-    # print_data_frame("After adding text tokens [TEST]", df_test)
+    df_train_outl, df_test_outl = addTextTokensToDF(df_train_outl, df_test_outl, text_train_outl, text_test_outl)
+    print df_train_outl.shape
+    model = create_model(df_train_outl, label_name, budget_classification)
+    print_model_evaluation(model, df_test_outl, label_name, budget_classification)
 
-    #regr = BaggingRegressor()#svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
-    #regr.fit(df_train, df_target_train)
-    #predictions = regr.predict(df_test)
+    print "##### With Text Tokens, Without Outlier Treatment:"
+    # add tokens to data frame
+    df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
+    model = create_model(df_train, label_name, budget_classification)
+    print_model_evaluation(model, df_test, label_name, budget_classification)
 
-    #evaluate_regression(df_target_test, predictions, label_name)
 
-    clf = RandomForestClassifier(n_estimators=100)
-
-    clf.fit(df_train, df_target_train)
-    predictions = clf.predict(df_test)
-
-    evaluate_classification(df_target_test, predictions, label_name)
-
-    print_predictions_comparison(df_target_test, predictions, label_name, 20)
-
-    # print_correlations(data_frame, label_name)

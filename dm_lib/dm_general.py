@@ -171,3 +171,27 @@ def evaluate_classification(df, predictions, label_name):
     # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics
 
     return accuracy
+
+
+def print_model_evaluation(model, df_test, label_name, is_classification):
+    """ Print accuracy of model
+
+    :param df_test: Pandas DataFrame containing the test data
+    :type df_test: pandas.DataFrame
+    :param label_name: Target label
+    :type label_name: str
+    :param is_classification: classification or regression?
+    :type is_classification: bool"""
+    print "\n########## Evaluate model\n"
+    # separate target
+    df_target_test = df_test[label_name]
+    df_test.drop(labels=[label_name], axis=1, inplace=True)
+    # predict
+    predictions = model.predict(df_test)
+
+    if is_classification:
+        evaluate_classification(df_target_test, predictions, label_name)
+    else:
+        evaluate_regression(df_target_test, predictions, label_name)
+
+    print_predictions_comparison(df_target_test, predictions, label_name, 20)
