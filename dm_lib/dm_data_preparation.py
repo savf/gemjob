@@ -3,6 +3,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
+from math import log
 import random
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
@@ -54,8 +55,11 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame.set_index("id", inplace=True)
 
     # remove unnecessary data
-    unnecessary_columns = ["category2", "job_status", "url", "client_payment_verification_status"]
+    unnecessary_columns = ["category2", "job_status", "url"]#, "client_payment_verification_status"]
     data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
+
+    # set missing of client_payment_verification_status to unknown (as this is already an option anyway)
+    data_frame["client_payment_verification_status"].fillna("UNKNOWN", inplace=True)
 
     # convert total_charge and freelancer_count to number
     data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
@@ -121,6 +125,55 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
     print_data_frame("After preparing data", data_frame)
+
+    return data_frame
+
+def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge"):
+    df_train = treat_outliers_deletion(df_train, budget_name)
+    df_train = treat_outliers_log_scale(df_train, label_name, budget_name)
+    df_test = treat_outliers_log_scale(df_test, label_name, budget_name)
+    return df_train, df_test
+
+def treat_outliers_deletion(data_frame, budget_name="total_charge"):
+    # delete only in training set!!!!
+
+    budget_thresh = 3000
+    tot_hours_thresh = 1000
+    duration_weeks_tot_thresh = 100
+    duration_weeks_median_thresh = 50
+    total_charge_thresh = 10000
+
+    if budget_name == "total_charge":
+        data_frame = data_frame.drop(data_frame[data_frame.total_charge > total_charge_thresh].index)
+    elif data_frame['budget'].dtype.name != "category":
+        data_frame = data_frame.drop(data_frame[data_frame.budget > budget_thresh].index)
+    data_frame = data_frame.drop(data_frame[data_frame.total_hours > tot_hours_thresh].index)
+    data_frame = data_frame.drop(data_frame[data_frame.duration_weeks_total > duration_weeks_tot_thresh].index)
+    data_frame = data_frame.drop(data_frame[data_frame.duration_weeks_median > duration_weeks_median_thresh].index)
+
+    return data_frame
+
+
+def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charge"):
+
+    attributes = [  "total_hours",
+                    "duration_weeks_total",
+                    "duration_weeks_median",
+                    "client_jobs_posted",
+                    "client_reviews_count",
+                    "client_past_hires"]
+
+    # no log for target label (budget or total_charge)
+
+    if label_name != budget_name:
+        if budget_name == "total_charge":
+            attributes.append("total_charge")
+        else:
+            attributes.append("budget")
+
+    for attr in attributes:
+        if attr in data_frame.columns:
+            data_frame[attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else log(float(row)))
 
     return data_frame
 
@@ -192,11 +245,11 @@ def convert_to_numeric(data_frame, label_name):
 
     # transform nominals client_country, job_type and subcategory2 to numeric
     if label_name == 'job_type' or 'job_type' not in data_frame.columns:
-        cols_to_transform = ['client_country', 'subcategory2', 'experience_level']
+        cols_to_transform = ['client_payment_verification_status', 'client_country', 'subcategory2', 'experience_level']
     elif label_name == 'experience_level':
-        cols_to_transform = ['client_country', 'job_type', 'subcategory2']
+        cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2']
     else:
-        cols_to_transform = ['client_country', 'job_type', 'subcategory2', 'experience_level']
+        cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2', 'experience_level']
     cols_to_transform = set(cols_to_transform).intersection(data_frame.columns)
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 
