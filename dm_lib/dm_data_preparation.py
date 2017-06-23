@@ -129,14 +129,35 @@ def prepare_data(file_name, budget_name="total_charge"):
     return data_frame
 
 
-def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge"):
+def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge", add_to_df=False):
+    """ Delete examples with heavy outliers
+
+    :param df_train: Data Frame containing train data
+    :type df_train: pandas.DataFrame
+    :param df_test: Data Frame containing test data
+    :type df_test: pandas.DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :param budget_name: Use either "budget" or "total_charge"
+    :type file_name: str
+    :param add_to_df: add log scale as new attributes (True) or replace old attributes (False)
+    :type add_to_df: bool
+    """
     df_train = treat_outliers_deletion(df_train, budget_name)
-    df_train = treat_outliers_log_scale(df_train, label_name, budget_name)
-    df_test = treat_outliers_log_scale(df_test, label_name, budget_name)
+    df_train = treat_outliers_log_scale(df_train, label_name, budget_name, add_to_df=add_to_df)
+    df_test = treat_outliers_log_scale(df_test, label_name, budget_name, add_to_df=add_to_df)
     return df_train, df_test
 
 
 def treat_outliers_deletion(data_frame, budget_name="total_charge"):
+    """ Delete examples with heavy outliers
+    delete only in training set!!!!
+
+    :param data_frame: Data Frame
+    :type data_frame: pandas.DataFrame
+    :param budget_name: Use either "budget" or "total_charge"
+    :type file_name: str
+    """
     # delete only in training set!!!!
 
     budget_thresh = 3000
@@ -156,7 +177,18 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
     return data_frame
 
 
-def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charge"):
+def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charge", add_to_df=False):
+    """ Transform attributes with a lot of outliers/strong differences to log scale
+
+    :param data_frame: Data Frame
+    :type data_frame: pandas.DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :param budget_name: Use either "budget" or "total_charge"
+    :type file_name: str
+    :param add_to_df: add as new attributes (True) or replace old attributes (False)
+    :type add_to_df: bool
+    """
     attributes = ["total_hours",
                   "duration_weeks_total",
                   "duration_weeks_median",
@@ -172,9 +204,13 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
         else:
             attributes.append("budget")
 
+    prefix = ""
+    if add_to_df:
+        prefix = "log_"
+
     for attr in attributes:
         if attr in data_frame.columns:
-            data_frame[attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else log(float(row)))
+            data_frame[prefix+attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else log(float(row)))
 
     return data_frame
 
