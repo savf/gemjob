@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import scipy.stats as stats
 
+
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
 
@@ -24,7 +25,7 @@ def print_data_frame(title, df):
     print "############################## \n\n"
 
 
-def print_correlations(df, attr=None, store=False):
+def print_correlations(df, attr=None, store=False, method='spearman'):
     """ Print attribute correlations for a given Pandas DataFrame
 
     :param df: Pandas DataFrame to analyze
@@ -33,8 +34,10 @@ def print_correlations(df, attr=None, store=False):
     :type attr: str
     :param store: Whether to store the correlations and significance as CSV
     :type store: bool
+    :param method: Which correlation method to use: pearson, spearman or kendall
+    :type method: str
     """
-    corr = df.corr()
+    corr = df.corr(method)
     dropped_columns = list(set(df.columns) - set(corr.columns))
     df.drop(labels=dropped_columns, axis=1, inplace=True)
     significance = np.zeros([df.shape[1], df.shape[1]])
@@ -43,7 +46,12 @@ def print_correlations(df, attr=None, store=False):
         for column in range(df.shape[1]):
             row_label = df.columns[row]
             column_label = df.columns[column]
-            significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+            if method == 'pearson':
+                significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+            elif method == 'kendall':
+                significance[row][column] = stats.kendalltau(df[row_label], df[column_label])[1]
+            else:
+                significance[row][column] = stats.spearmanr(df[row_label], df[column_label])[1]
 
     corr_significance = pd.DataFrame(significance)
     corr_significance.columns = df.columns.values

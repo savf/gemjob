@@ -181,7 +181,7 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
     """ Transform attributes with a lot of outliers/strong differences to log scale
 
     :param data_frame: Data Frame
-    :type data_frame: pandas.DataFrame
+    :type data_frame: pandas.NDFrame
     :param label_name: Target label that will be learned
     :type label_name: str
     :param budget_name: Use either "budget" or "total_charge"
