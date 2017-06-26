@@ -2,8 +2,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from scipy.stats.mstats import normaltest
-
+import numpy as np
 from dm_data_preparation import *
+from pandas.core.dtypes.dtypes import CategoricalDtype
 from dm_general import print_statistics, print_correlations
 
 
@@ -38,6 +39,72 @@ def same_mean(series_1, series_2, significance):
         return True
 
 
+def prepare_data_raw(file_name):
+    """ Similar function to prepare_data in dm_data_preparation but without any data modification
+
+    :param file_name: File name where data is stored
+    :type file_name: str
+    :return: DataFrame with raw data
+    :rtype: pandas.DataFrame
+    """
+    data_frame = create_data_frame(file_name)
+    data_frame.columns = [c.replace('.', '_') for c in
+                          data_frame.columns]  # so we can access a column with "data_frame.client_reviews_count"
+    print_data_frame("Before changing data", data_frame)
+
+    # set id
+    data_frame.set_index("id", inplace=True)
+
+    # convert total_charge and freelancer_count to number
+    data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
+    data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
+
+    # convert experience level from numeric to categorical
+    experience_levels = ['beginner', 'intermediate', 'expert']
+    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
+                                            labels=experience_levels)
+
+    return data_frame
+
+
+def get_datatype_safely(dtype):
+    if isinstance(dtype, CategoricalDtype):
+        return np.object_
+    return dtype
+
+
+def plot_value_distributions(data_series, logx=False, logy=False):
+    """ Plot a histogram and a KDE for the given Series
+
+    :param data_series: The data series to be plotted
+    :type data_series: pandas.Series
+    :param logx: Plot the x axis in log scale
+    :type logx: bool
+    :param logy: Plot the y axis in log scale
+    :type logy: bool
+    """
+    # Check if data is numeric or not
+    fig, axarr = plt.subplots(ncols=2)
+
+    if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
+        data_series.hist(bins=30, ax=axarr[0])
+        data_series.plot.density(ax=axarr[1])
+    else:
+        data_series.value_counts().plot(kind='bar', ax=axarr[0])
+        number_of_categories = len(data_series.value_counts().values)
+        if 1 < number_of_categories < 100:
+            data_series.value_counts().plot.density(ax=axarr[1])
+    axarr[0].set_ylabel("Frequency")
+    for ax in axarr:
+        ax.set_yscale('log' if logy else 'linear')
+        ax.set_xscale('log' if logx else 'linear')
+    plt.suptitle('Histogram and KDE for {}'.format(data_series.name))
+
+    plt.savefig("attributes/{}{}{}.pdf".format(data_series.name,
+                                               "_logx" if logx else "",
+                                               "_logy" if logy else ""), dpi=150)
+
+
 def explore_data(file_name,budget_name="total_charge"):
     """ Print some stats and plot some stuff
 
@@ -46,7 +113,10 @@ def explore_data(file_name,budget_name="total_charge"):
     :param budget_name: Use either "budget" or "total_charge"
     :type file_name: str
     """
-    data_frame = prepare_data(file_name, budget_name=budget_name)
+    data_frame = prepare_data_raw(file_name)
+
+    #for attr in data_frame.columns:
+    #    plot_value_distributions(data_frame[attr])
 
     no_missing = data_frame.dropna(subset=['client_payment_verification_status'])
     only_missing = data_frame.loc[data_frame['client_payment_verification_status'].isnull()]
