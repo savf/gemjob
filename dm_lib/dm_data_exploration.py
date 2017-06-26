@@ -1,9 +1,10 @@
-from dm_general import print_statistics, print_correlations
-from dm_data_preparation import *
-import seaborn as sns
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy import stats
-from math import log
+from scipy.stats.mstats import normaltest
+
+from dm_data_preparation import *
+from dm_general import print_statistics, print_correlations
 
 
 def perc_convert(ser):
@@ -11,18 +12,30 @@ def perc_convert(ser):
 
 
 def same_mean(series_1, series_2, significance):
-    """ Make an independent T-Test for two series to check whether their means are the same
+    """ Check the variance and distribution and then make hypothesis test for the mean
+
+    The variance and normal distribution test is needed to check whether a t-test could
+    be used, since these two requirements are needed for the t-test. If these requirements
+    are not met, the Mann-Whitney-Wilcoxon RankSum test is used
 
     :type series_1: pandas.Series
     :type series_2: pandas.Series
     :param significance: The significance is normally 5%
-
     """
-    result = stats.ttest_ind(series_1, series_2)
-    if result[1] <= significance:
-        return True
+    normaltest_series_1 = normaltest(series_1)
+    normaltest_series_2 = normaltest(series_2)
+    if series_1.var() == series_2.var() and\
+        normaltest_series_1[1] <= significance and\
+            normaltest_series_2[1] <= significance:
+        result, p_value = stats.ttest_ind(series_1, series_2)
     else:
+        result, p_value = stats.ranksums(series_1, series_2)
+    # A small p value means the probability that values like the ones occur given that
+    # both series have the same mean is small -> They don't have the same mean
+    if p_value <= significance:
         return False
+    else:
+        return True
 
 
 def explore_data(file_name,budget_name="total_charge"):
