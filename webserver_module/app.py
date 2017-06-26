@@ -5,11 +5,28 @@ from flask import Flask, render_template, request, make_response, redirect, sess
 import requests
 import upwork
 import credentials
-
+import datetime
+from pretty_print import *
 module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/'}
 # module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/'}
 
 app = Flask(__name__)
+
+def get_jobs(client, teams):
+    jobs = []
+    try:
+        for team in teams:
+            ref = team['reference']
+            team_jobs = client.hr.get_jobs(ref, include_sub_teams=1)
+            if 'job' in team_jobs:
+                if isinstance(team_jobs['job'], list):
+                    for j in team_jobs['job']:
+                        jobs.append(j)
+                elif isinstance(team_jobs['job'], dict):
+                    jobs.append(team_jobs['job'])
+    except Exception as err:
+        print err
+    return jobs
 
 @app.route('/')
 def start():
@@ -25,10 +42,16 @@ def start():
         if not user_info:
             user_info = client.auth.get_info()
             session['user_info'] = user_info
-
+        user_info['teams'] = client.hr.get_teams() # get this info everytime, might have changed
+        # pretty_print(user_info)
         first_name = user_info['auth_user']['first_name']
         last_name = user_info['auth_user']['last_name']
-        return render_template("index.html", first_name=first_name, last_name=last_name)
+        profile_pic = user_info['info']['portrait_32_img']
+
+        jobs_list = get_jobs(client, user_info['teams'])
+        print "### Jobs:"
+        pretty_print(jobs_list)
+        return render_template("index.html", first_name=first_name, last_name=last_name, profile_pic=profile_pic, jobs_list=jobs_list)
     except Exception as err:
         print err
         session.clear()
@@ -64,6 +87,28 @@ def logout():
 @app.route('/admin')
 def admin():
     return render_template("admin.html")
+
+@app.route('/job')
+def job():
+    try:
+        user_info = session.get('user_info')
+        profile_pic = user_info['info']['portrait_32_img']
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"))
+    except Exception as err:
+        print err
+        session.clear()
+        return render_template("login.html")
+
+@app.route('/job/id=<string:id>')
+def job_existing(id):
+    try:
+        user_info = session.get('user_info')
+        profile_pic = user_info['info']['portrait_32_img']
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), job_id=id)
+    except Exception as err:
+        print err
+        session.clear()
+        return render_template("login.html")
 
 @app.route('/get_sample')
 def get_sample():

@@ -18,6 +18,7 @@
         </div>
         <div class="HeaderRight">
             <a href="/logout">Log Out</a>
+            <img src="{{ profile_pic }}" alt="" border="0" align="">
         </div>
     </div>
 
@@ -26,17 +27,32 @@
             <h1>Welcome {{ first_name }} {{ last_name }}</h1>
         </div>
         <div class="HighlightedSectionDark"><div class="Text">
-            <p><span>Predicted client rating:</span> <span>...</span></p>
+            <p><span>Predicted client rating:</span> <span>4.8</span></p>
         </div></div>
     </div>
 
     <div class="Section">
         <div class="Text">
-            <h1>Job Postings</h1>
-            <p>...</p>
+            <a href="/job" class="Button ButtonFull" style="margin-top: 25px; margin-bottom: -20px;">Create Job</a>
+        </div>
+    </div>
 
-            <h1>Drafts</h1>
-            <p>...</p>
+    <div class="Section">
+        <div class="Text">
+            <h1>Job Postings</h1>
+
+        {% if jobs_list|count < 1 %}
+            <h2 class="Job">no jobs available</h2>
+        {% else %}
+            {% for job in jobs_list %}
+                <a class="Job" href="job/id={{ job['reference'] }}">
+                    <h2 class="Job">{{ job['title'] }}</h2>
+                    <p>Status: {{ job['status'] }}</p>
+                </a>
+            {% endfor %}
+        {% endif %}
+{#            <h1>Drafts</h1>#}
+{#            <p>...</p>#}
         </div>
     </div>
 

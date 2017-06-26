@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>gemjob</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="height=device-height,width=device-width,user-scalable=no">
+
+    <link href="{{ url_for('static', filename='reset.css') }}" rel="stylesheet" type="text/css">
+	<link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet" type="text/css">
+    <link href="{{ url_for('static', filename='jquery-ui-1.12.1.custom/jquery-ui.min.css') }}" rel="stylesheet" type="text/css">
+
+    <script type=text/javascript src="{{ url_for('static', filename='jquery.js') }}"></script>
+    <script type=text/javascript src="{{ url_for('static', filename='jquery-ui-1.12.1.custom/jquery-ui.min.js') }}"></script>
+
+    <script type=text/javascript>
+        $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
+    </script>
+    <script type=text/javascript src="{{ url_for('static', filename='job_script.js') }}"></script>
+</head>
+
+<body>
+    <div class="Header">
+        <div class="AppTitle">
+            <a href="/">gemjob</a>
+        </div>
+        <div class="HeaderRight">
+            <a href="/logout">Log Out</a>
+            <img src="{{ profile_pic }}" alt="" border="0" align="">
+        </div>
+    </div>
+
+    <div class="Section HighlightedSection TableSection">
+        <div class="Text">
+            <h1>Job Form</h1>
+        </div>
+    </div>
+
+    <div class="Section">
+        <div class="Text">
+            <form action="." method="POST">
+
+                <div class="Label">Category</div><div class="LabeledElement">
+                <select name="category2">
+                    <option value="Data Science & Analytics">Data Science & Analytics</option>
+                </select>
+                </div>
+
+                <div class="Label">Subcategory</div><div class="LabeledElement">
+                <select name="subcategory2">
+                    <option value="A/B Testing">A/B Testing</option>
+                    <option value="Data Visualization">Data Visualization</option>
+                    <option value="Data Extraction / ETL">Data Extraction / ETL</option>
+                    <option value="Data Mining & Management">Data Mining & Management</option>
+                    <option value="Machine Learning">Machine Learning</option>
+                    <option value="Quantitative Analysis">Quantitative Analysis</option>
+                    <option value="Other - Data Science & Analytics">Other - Data Science & Analytics</option>
+
+                </select>
+                </div>
+
+                <div class="Label">Title</div><div class="LabeledElement">
+                <input type="text" name="title" placeholder="Title" size=50 value="">
+                </div>
+
+                <div class="Label">Description</div><div class="LabeledElement">
+                <textarea name="description" placeholder="Description" rows="10" cols="30"></textarea>
+                </div>
+
+{#                <div class="Label">Type of Project</div><div class="LabeledElement">#}
+{#                <select name="category">#}
+{#                    <option value="One-time project">One-time project</option>#}
+{#                    <option value="Ongoing project">Ongoing project</option>#}
+{#                    <option value="I am not sure">I am not sure</option>#}
+{#                </select>#}
+{#                </div>#}
+
+                <div class="Label">Number of Freelancers (will not be sent)</div><div class="LabeledElement">
+                <input type="number" min="1" step="1" name="freelancer_count" size=50 maxlength=120 value="1">
+                </div>
+
+                <div class="Label">Skills</div><div class="LabeledElement">
+                <input type="text" name="skills" placeholder="Add skills" size=50 value="">
+                <h2 class="Job">no skills needed</h2>
+                </div>
+
+                <div class="Label">Start Date</div><div class="LabeledElement">
+                <input id="Datepicker" type="text" name="start_date" size=50 value="{{ current_date }}">
+                </div>
+
+                <div class="Label">Payment Type</div><div class="LabeledElement">
+                <select id="JobType" name="job_type" onchange="jobTypeSwitch()">
+                    <option value="hourly">Pay by the hour</option>
+                    <option value="fixed-price">Fixed price</option>
+                </select>
+                </div>
+
+                <div class="IfFixed" style="display: none"><div class="Label">Budget in $</div><div class="LabeledElement">
+                <input type="number" min="0" step="1" name="budget" size=50 maxlength=120 value="1">
+                </div></div>
+
+                 <div class="IfHourly"><div class="Label">Duration in hours</div><div class="LabeledElement">
+{#                <select name="duration">#}
+{#                    <option value="1">Less than 1 week</option>#}
+{#                    <option value="2">Less than 1 month</option>#}
+{#                    <option value="3">1 to 3 months</option>#}
+{#                    <option value="3">3 to 6 months</option>#}
+{#                    <option value="3">More than 6 months</option>#}
+{#                </select>#}
+                     <input type="number" min="0" step="1" name="duration" size=50 maxlength=120 value="1">
+                </div></div>
+
+                <div class="Label">Workload (will not be sent)</div><div class="LabeledElement">
+                <select name="workload">
+                    <option value="Less than 10 hrs/week">Less than 10 hrs/week</option>
+                    <option value="10-30 hrs/week">10-30 hrs/week</option>
+                    <option value="30+ hrs/week">30+ hrs/week</option>
+                </select>
+                </div>
+
+                <div class="Label">Desired Experience Level (will not be sent)</div><div class="LabeledElement">
+                <select name="experience_level">
+                    <option value="1">Entry Level</option>
+                    <option value="2">Intermediate</option>
+                    <option value="3">Expert</option>
+                </select>
+                </div>
+
+                <div class="Label">Visibility</div><div class="LabeledElement">
+                <select name="visibility">
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                    <option value="invite-only">Invite only</option>
+                </select>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

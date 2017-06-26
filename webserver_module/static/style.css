@@ -13,6 +13,7 @@ h1{
 	margin-bottom: 20px;
 	line-height: 60px;
 	font-size:35px;
+    display: inline-block;
 }
 
 h2{
@@ -28,8 +29,9 @@ form{
     text-align: right;
 }
 
-input, a.Button{
+input, a.Button, select, textarea{
     width: 100%;
+    max-width: 100%;
     border: 2px #70ad47 solid;
     font-size: 19px;
     line-height: 30px;
@@ -37,6 +39,35 @@ input, a.Button{
     margin-top: 10px;
     margin-bottom: 10px;
     text-decoration: none;
+    font-family: Arial;
+	font-size: 19px;
+}
+
+.Label{
+    display: inline-block;
+    margin-top: 10px;
+    max-width: 25%;
+    min-width: 25%;
+    text-align: left;
+    line-height: 30px;
+    vertical-align: top;
+}
+
+.LabeledElement{
+    display: inline-block;
+    max-width: 70%;
+    min-width: 70%;
+    margin-left: 5%;
+    text-align: right;
+    line-height: 30px;
+    vertical-align: top;
+}
+
+input[type=radio]{
+    width: 10px;
+    height: 10px;
+    background: green;
+    line-height: 30px;
 }
 
 p{
@@ -94,6 +125,15 @@ a:hover{
     text-shadow: 0px 5px 7px rgba(0, 0, 0, 0.6);
 }
 
+.HeaderRight img{
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    position: relative;
+    top: 10px;
+    left: 10px;
+}
+
 .Section{
     padding-top:30px;
     padding-bottom:30px;
@@ -125,6 +165,20 @@ a:hover{
     width: 46%;
     margin-right: 2%;
     display: inline-block;
+}
+
+h2.Job{
+    color: #70ad47;
+}
+
+a.Job, a.Job:visited, a.Job:hover{
+    text-decoration: none;
+    display: block;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+a.Job:hover{
+    background: #e2f0d9;
 }
 
 /* Form */
