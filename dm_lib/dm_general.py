@@ -77,9 +77,15 @@ def print_correlations(df, attr=None, store=False, method='spearman'):
 
 def print_statistics(df):
     print "\n### Statistics ###\n"
-    for attribute in df._get_numeric_data().columns:
-        print "Stats for: "+attribute
-        print df[attribute].describe(), "###\n"
+    for attribute in df.columns:
+        with open("attribute_statistics/{}.txt".format(attribute), mode='w') as f:
+            f.write("name: " + attribute + "\n")
+            f.write("missing: {}\n".format(df[attribute].isnull().sum()))
+            values = dict(df[attribute].describe())
+            for key,value in values.iteritems():
+                f.write("{}: {}\n".format(key, value))
+            f.write("type: {}".format(str(df[attribute].dtype)))
+        f.close()
 
     print "################################ \n\n"
 
