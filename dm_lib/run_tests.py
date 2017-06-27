@@ -6,7 +6,8 @@ from dm_feedbackModel import feedback_model
 from dm_experienceLevelModel import experience_level_model
 import pandas as pd
 import numpy as np
-from dm_data_exploration import *
+# from dm_data_exploration import *
+from dm_clustering import do_clustering
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 
@@ -58,9 +59,10 @@ def test_text_mining():
 
 
 #run
-budget_model("data/found_jobs_4K_extended.json")
+# budget_model("data/found_jobs_4K_extended.json")
 # job_type_model("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
+do_clustering("data/found_jobs_4K_extended.json")

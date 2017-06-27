@@ -19,7 +19,7 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     :type label_name: str
     :param budget_classification: Whether to prepare the data for a budget classification
     :type budget_classification: bool
-    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :return: Cleaned Pandas DataFrames with only numerical attributes and the three text attributes
     :rtype: pandas.DataFrame
     """
 

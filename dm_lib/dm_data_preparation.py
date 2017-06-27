@@ -364,3 +364,25 @@ def missing_value_limit(data_frame_size):
     """
 
     return data_frame_size * _percentage_too_many_missing
+
+def get_overall_job_reviews(data_frame, drop_detailed=True):
+    """ Computes overall reviews from review categories
+
+        :param data_frame: Pandas DataFrame with detailed feedbacks
+        :type data_frame: pd.DataFrame
+        :return: Pandas DataFrame with overall feedbacks
+        :rtype: pandas.DataFrame
+        """
+    data_frame["feedback_for_client"] = data_frame[
+        ['feedback_for_client_availability', 'feedback_for_client_communication',
+         'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+         'feedback_for_client_quality', 'feedback_for_client_skills']].mean(axis=1)
+    data_frame["feedback_for_freelancer"] = data_frame[
+        ['feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+         'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+         'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']].mean(axis=1)
+
+    if drop_detailed:
+        data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
+
+    return data_frame
