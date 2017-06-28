@@ -1,6 +1,7 @@
 from dm_data_preparation import *
 from dm_general import *
 from sklearn.cluster import DBSCAN
+from sklearn.cluster import KMeans
 from sklearn import metrics
 import numpy as np
 from dm_text_mining import addTextTokensToWholeDF
@@ -163,3 +164,72 @@ def do_clustering_dbscan(file_name):
 
         else:
             print "No good clustering"
+
+
+def do_clustering_kmeans(file_name):
+    """ Learn model for label 'budget' and return it
+
+    :param file_name: JSON file containing all data
+    :type file_name: str
+    """
+
+    find_best_params = False
+    min_n_clusters = 10
+    max_n_clusters = 500
+
+    data_frame = prepare_data(file_name, budget_name="total_charge")
+    data_frame_original = data_frame.copy()
+
+    # prepare for clustering
+    data_frame, text_data = prepare_data_clustering(data_frame)
+    # print data_frame[0:5]
+
+    if find_best_params:
+        best_silhouette_score = -1000
+        best_k = -1
+        config_num = 1
+
+        for k in range(min_n_clusters, max_n_clusters, 1): # ran it until 250, began to get worse after 98
+            print "\n## Config ", config_num, "---  k=", k, " ##"
+            config_num = config_num+1
+
+            kmeans = KMeans(n_clusters=k).fit(data_frame)
+            labels = kmeans.labels_
+            unique_labels = set(labels)
+
+            silhouette_score = metrics.silhouette_score(data_frame, labels)
+            print "Silhouette Coefficient: ", silhouette_score
+
+            if silhouette_score > best_silhouette_score:
+                best_silhouette_score = silhouette_score
+                best_k = k
+                print "!New Best!"
+        print "\n ### Result: "
+        print "best_k=", best_k, "; best_silhouette_score=", best_silhouette_score
+    else:
+        kmeans = KMeans(n_clusters=98).fit(data_frame)
+        labels = kmeans.labels_
+        unique_labels = set(labels)
+
+        silhouette_score = metrics.silhouette_score(data_frame, labels)
+        print "Silhouette Coefficient: ", silhouette_score
+
+        # cluster the original data frame
+        data_frame["cluster_label"] = labels
+        data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
+
+        data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
+
+        # print_data_frame("Clustered Data Frame", data_frame_original)
+
+        gb = data_frame_original.groupby('cluster_label')
+        clusters = [gb.get_group(x) for x in gb.groups]
+        print "Number of clusters:", len(clusters)
+
+        # TODO look at the clusters and see what we got ...
+        # already difficult with one dataset -> how do we do this with hundreds of clusters?!
+        print "\n\n######################## \nPrint Clusters: \n########################"
+        for cluster in clusters:
+            print "Cluster: "+str(cluster["cluster_label"][0]), " --- Shape: ", cluster.shape
+            # print '\033[94m', cluster[0:5], '\033[0m'
+            print "########################\n"
