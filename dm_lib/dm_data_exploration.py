@@ -1,15 +1,16 @@
+import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import seaborn as sns
+from pandas.core.dtypes.dtypes import CategoricalDtype
 from scipy import stats
 from scipy.stats.mstats import normaltest
-import numpy as np
+
 from dm_data_preparation import *
-from pandas.core.dtypes.dtypes import CategoricalDtype
-from dm_general import print_statistics, print_correlations
+from dm_general import print_correlations
 
 
 def perc_convert(ser):
-  return ser/float(ser[-1])
+    return ser/float(ser[-1])
 
 
 def same_mean(series_1, series_2, significance):
@@ -34,9 +35,9 @@ def same_mean(series_1, series_2, significance):
     # A small p value means the probability that values like the ones occur given that
     # both series have the same mean is small -> They don't have the same mean
     if p_value <= significance:
-        return False
+        return False, result, p_value
     else:
-        return True
+        return True, result, p_value
 
 
 def prepare_data_raw(file_name):
@@ -63,6 +64,7 @@ def prepare_data_raw(file_name):
     experience_levels = ['beginner', 'intermediate', 'expert']
     data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
                                             labels=experience_levels)
+    data_frame['experience_level'] = data_frame['experience_level'].astype(object)
 
     return data_frame
 
@@ -73,36 +75,57 @@ def get_datatype_safely(dtype):
     return dtype
 
 
-def plot_value_distributions(data_series, logx=False, logy=False):
+def plot_value_distributions(data_series, logy=False, second_plot='kde'):
     """ Plot a histogram and a KDE for the given Series
 
     :param data_series: The data series to be plotted
     :type data_series: pandas.Series
-    :param logx: Plot the x axis in log scale
-    :type logx: bool
     :param logy: Plot the y axis in log scale
     :type logy: bool
+    :param second_plot: Second plot can be 'kde' or 'cdf'
+    :type second_plot: str
     """
     # Check if data is numeric or not
-    fig, axarr = plt.subplots(ncols=2)
+    fig = plt.figure()
+    gs = gridspec.GridSpec(nrows=1, ncols=3, width_ratios=[1, 3, 3])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax1 = fig.add_subplot(gs[0, 0], sharey=ax2)
+    ax3 = fig.add_subplot(gs[0, 2])
+    plt.subplots_adjust(wspace=0.55, bottom=0.4)
 
     if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
-        data_series.hist(bins=30, ax=axarr[0])
-        data_series.plot.density(ax=axarr[1])
+        pd.Series({'missing': len(data_series.loc[data_series.isnull()])})\
+            .plot(kind='bar', ax=ax1)
+        toplot = data_series
+        toplot.hist(bins=30, ax=ax2)
+        if second_plot == 'kde':
+            toplot.plot.density(ax=ax3)
+        else:
+            sns.kdeplot(toplot, cumulative=True, ax=ax3)
     else:
-        data_series.value_counts().plot(kind='bar', ax=axarr[0])
+        data_series = data_series.astype(object)
+        ax1.axis('off')
+        toplot = data_series.value_counts()\
+            .append(pd.Series({'missing': len(data_series.loc[data_series.isnull()])}))
+        toplot.plot(kind='bar', ax=ax2)
         number_of_categories = len(data_series.value_counts().values)
         if 1 < number_of_categories < 100:
-            data_series.value_counts().plot.density(ax=axarr[1])
-    axarr[0].set_ylabel("Frequency")
-    for ax in axarr:
-        ax.set_yscale('log' if logy else 'linear')
-        ax.set_xscale('log' if logx else 'linear')
-    plt.suptitle('Histogram and KDE for {}'.format(data_series.name))
+            if second_plot == 'kde':
+                toplot.plot.density(ax=ax3)
+            else:
+                sns.kdeplot(toplot.value_counts(),
+                            cumulative=True, ax=ax3)
 
-    plt.savefig("attributes/{}{}{}.pdf".format(data_series.name,
-                                               "_logx" if logx else "",
-                                               "_logy" if logy else ""), dpi=150)
+    ax1.set_ylabel("Frequency")
+    plt.setp(ax2.get_yticklabels(), visible=True)
+    ax1.set_yscale('log' if logy else 'linear')
+    ax2.set_yscale('log' if logy else 'linear')
+    plt.suptitle('Histogram and {} for {}'.format(second_plot.upper(),
+                                                  data_series.name))
+
+    plt.savefig("attributes/{}{}.pdf".format(data_series.name,
+                                             "_logy" if logy else ""),
+                dpi=150)
 
 
 def explore_data(file_name,budget_name="total_charge"):
@@ -115,8 +138,63 @@ def explore_data(file_name,budget_name="total_charge"):
     """
     data_frame = prepare_data_raw(file_name)
 
-    #for attr in data_frame.columns:
-    #    plot_value_distributions(data_frame[attr])
+    # dont_consider = ['title', 'snippet', 'skills', 'url', 'date_created']
+    #
+    # attributes = set(data_frame.columns).difference(dont_consider)
+    #
+    # for attr in attributes:
+    #     plot_value_distributions(data_frame[attr], logy=True, second_plot='kde')
+
+    # print_statistics(data_frame)
+
+    # feedbacks_for_client = ['feedback_for_client_availability',
+    #                         'feedback_for_client_communication',
+    #                         'feedback_for_client_cooperation',
+    #                         'feedback_for_client_deadlines',
+    #                         'feedback_for_client_quality',
+    #                         'feedback_for_client_skills']
+    #
+    # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
+    #                             'feedback_for_freelancer_communication',
+    #                             'feedback_for_freelancer_cooperation',
+    #                             'feedback_for_freelancer_deadlines',
+    #                             'feedback_for_freelancer_quality',
+    #                             'feedback_for_freelancer_skills']
+    #
+    # for feedback in feedbacks_for_client:
+    #     for feedback2 in feedbacks_for_client:
+    #         result, f_stat, p_value = same_mean(data_frame[feedback].dropna(),
+    #                                             data_frame[feedback2].dropna(),
+    #                                             0.05)
+    #         print "{},{},{},{},{}".format(feedback, feedback2,
+    #                                       result, f_stat, p_value)
+
+    # data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
+    #
+    # feedbacks_for_client = ['feedback_for_client_availability',
+    #                         'feedback_for_client_communication',
+    #                         'feedback_for_client_cooperation',
+    #                         'feedback_for_client_deadlines',
+    #                         'feedback_for_client_quality']
+    #
+    # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
+    #                             'feedback_for_freelancer_communication',
+    #                             'feedback_for_freelancer_cooperation',
+    #                             'feedback_for_freelancer_deadlines',
+    #                             'feedback_for_freelancer_quality',
+    #                             'feedback_for_freelancer_skills']
+    #
+    # for feedback in feedbacks_for_freelancer:
+    #     result, f_stat, p_value = same_mean(data_frame['feedback_for_freelancer'].dropna(),
+    #                                         data_frame[feedback].dropna(), 0.05)
+    #     print "{},{},{},{},{}".format('feedback_for_freelancer', feedback,
+    #                                   result, f_stat, p_value)
+    #
+    # for feedback in feedbacks_for_client:
+    #     result, f_stat, p_value = same_mean(data_frame['feedback_for_client'].dropna(),
+    #                                         data_frame[feedback].dropna(), 0.05)
+    #     print "{},{},{},{},{}".format('feedback_for_client', feedback,
+    #                                   result, f_stat, p_value)
 
     no_missing = data_frame.dropna(subset=['client_payment_verification_status'])
     only_missing = data_frame.loc[data_frame['client_payment_verification_status'].isnull()]
@@ -155,5 +233,4 @@ def explore_data(file_name,budget_name="total_charge"):
         #sns.residplot(x=data_frame['total_charge'], y=data_frame[attr], ax=ax, order=0, lowess=True)
         ax.set_title("LOWESS for " + attr)
         #plt.show()
-    print_statistics(data_frame)
     print_correlations(data_frame, store=True)

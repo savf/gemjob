@@ -6,7 +6,7 @@ from dm_feedbackModel import feedback_model
 from dm_experienceLevelModel import experience_level_model
 import pandas as pd
 import numpy as np
-# from dm_data_exploration import *
+# from dm_data_exploration import explore_data
 from dm_clustering import do_clustering_dbscan
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
