@@ -7,7 +7,7 @@ from dm_experienceLevelModel import experience_level_model
 import pandas as pd
 import numpy as np
 # from dm_data_exploration import *
-from dm_clustering import do_clustering
+from dm_clustering import do_clustering_dbscan
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 
@@ -65,4 +65,4 @@ def test_text_mining():
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
-do_clustering("data/found_jobs_4K_extended.json")
+do_clustering_dbscan("data/found_jobs_4K_extended.json")
