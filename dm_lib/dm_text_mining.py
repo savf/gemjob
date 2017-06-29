@@ -290,8 +290,6 @@ def addTextTokensToWholeDF(df, text, max_features=500):
         :type max_features: int
         :return: Pandas DataFrame containing structured data and text tokens
         :rtype: pandas.DataFrame
-        :return: List containing token names
-        :rtype: list
         """
     text_columns = ["skills", "title", "snippet"]
     for text_column_name in text_columns:
@@ -302,4 +300,4 @@ def addTextTokensToWholeDF(df, text, max_features=500):
         tokens = pd.DataFrame(data_features, columns=column_names, index=df.index)
         df = pd.concat([df, tokens], axis=1)
 
-    return df, column_names
+    return df

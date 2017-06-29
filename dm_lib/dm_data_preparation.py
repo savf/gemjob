@@ -49,7 +49,7 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame = create_data_frame(file_name)
     data_frame.columns = [c.replace('.', '_') for c in
                           data_frame.columns]  # so we can access a column with "data_frame.client_reviews_count"
-    print_data_frame("Before changing data", data_frame)
+    # print_data_frame("Before changing data", data_frame)
 
     # set id
     data_frame.set_index("id", inplace=True)
@@ -124,7 +124,7 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    print_data_frame("After preparing data", data_frame)
+    # print_data_frame("After preparing data", data_frame)
 
     return data_frame
 
@@ -223,7 +223,7 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
        :param label_name: Target label that will be learned
        :type label_name: str
        :param relative_sampling: Relative or 1:1 sampling
-       :type relative_sampling: Boolean
+       :type relative_sampling: bool
        :return: Pandas DataFrame (balanced)
        :rtype: pandas.DataFrame
        """
@@ -279,8 +279,9 @@ def convert_to_numeric(data_frame, label_name):
     :rtype: pandas.DataFrame
     """
     # convert date_created to timestamp as this accounts for changes in economy and prices (important for budget)
-    data_frame.rename(columns={'date_created': 'timestamp'}, inplace=True)
-    data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(data_frame['timestamp']).dt.days)
+    if 'date_created' in data_frame.columns:
+        data_frame.rename(columns={'date_created': 'timestamp'}, inplace=True)
+        data_frame['timestamp'] = pd.to_numeric(pd.to_timedelta(data_frame['timestamp']).dt.days)
 
     # transform nominals client_country, job_type and subcategory2 to numeric
     if label_name == 'job_type' or 'job_type' not in data_frame.columns:
@@ -386,3 +387,120 @@ def get_overall_job_reviews(data_frame, drop_detailed=True):
         data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
 
     return data_frame
+
+
+def normalize_z_score(data_frame, mean=None, std=None):
+    """ Normalize based on mean and std
+
+    :param data_frame: Pandas DataFrame
+    :type data_frame: pd.DataFrame
+    :param mean: mean values (optional)
+    :type mean: pandas.Series
+    :param std: std deviations (optional)
+    :type std: pandas.Series
+    :return: Normalized Pandas DataFrame
+    :rtype: pandas.DataFrame
+    """
+    if mean is None or std is None:
+        mean = data_frame.mean()
+        std = data_frame.std()
+    data_frame = (data_frame - mean) / std
+
+    data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_frame.fillna(0, inplace=True)
+    return data_frame, mean, std
+
+
+def normalize_min_max(data_frame, min=None, max=None):
+    """ Normalize based on min and max values
+
+    :param data_frame: Pandas DataFrame
+    :type data_frame: pd.DataFrame
+    :param min: minimum values (optional)
+    :type min: pandas.Series
+    :param max: maximum values (optional)
+    :type max: pandas.Series
+    :return: Normalized Pandas DataFrame
+    :rtype: pandas.DataFrame
+    """
+    if min is None or max is None:
+        min = data_frame.min()
+        max = data_frame.max()
+    data_frame = (data_frame - min) / (max - min)
+
+    data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_frame.fillna(0, inplace=True)
+    return data_frame, min, max
+
+
+def weight_data(data_frame):
+    """ Weight certain attributes so they have less impact (countries and tokens)
+
+    :param data_frame: Pandas DataFrame
+    :type data_frame: pd.DataFrame
+    :return: Weighted Pandas DataFrame
+    :rtype: pandas.DataFrame
+    """
+
+    # data_frame["client_feedback"] = data_frame["client_feedback"] * 10
+    # data_frame["duration_weeks_total"] = data_frame["duration_weeks_total"] * 10
+    # data_frame["duration_weeks_median"] = data_frame["duration_weeks_median"] * 5
+    # data_frame["freelancer_count"] = data_frame["freelancer_count"] * 10
+    # data_frame["total_charge"] = data_frame["total_charge"] * 20
+    # data_frame["skills_number"] = data_frame["skills_number"] * 5
+    # data_frame["feedback_for_client"] = data_frame["feedback_for_client"] * 20
+    # data_frame["feedback_for_freelancer"] = data_frame["feedback_for_freelancer"] * 10
+    # data_frame["job_type_Fixed"] = data_frame["job_type_Fixed"] * 20
+    # data_frame["job_type_Hourly"] = data_frame["job_type_Hourly"] * 20
+
+    country_columns = [col for col in list(data_frame) if col.startswith('client_country')]
+    data_frame[country_columns] = data_frame[country_columns] / len(country_columns)
+
+    token_names = [col for col in list(data_frame) if col.startswith('$token_')]
+    if len(token_names) > 1:
+        print "Number of text tokens:", len(token_names)
+        # 3 text attributes, should roughly count as three
+        data_frame[token_names] = data_frame[token_names] * 3 / len(token_names)
+
+    data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+    data_frame.fillna(0, inplace=True)
+    return data_frame
+
+def normalize_test_train(df_train, df_test, label_name=None, z_score_norm=False, weighting=True):
+    """ Normalize and optionally weight train and test set (test set normalized based on train set!)
+
+    :param df_train: Pandas DataFrame (train set)
+    :type df_train: pd.DataFrame
+    :param df_test: Pandas DataFrame (test set)
+    :type df_test: pd.DataFrame
+    :param z_score_norm: Use z-score normalization
+    :type z_score_norm: bool
+    :param weighting: Do weighting
+    :type weighting: bool
+    :return: Normalized Pandas DataFrames
+    :rtype: pandas.DataFrame
+    """
+
+    if label_name is not None:
+        # separate target
+        df_target_train = df_train[label_name]
+        df_train.drop(labels=[label_name], axis=1, inplace=True)
+        df_target_test = df_test[label_name]
+        df_test.drop(labels=[label_name], axis=1, inplace=True)
+
+    if z_score_norm:
+        df_train, mean, std = normalize_z_score(df_train)
+        df_test, _, _ = normalize_z_score(df_test, mean, std)
+    else:
+        df_train, min, max = normalize_min_max(df_train)
+        df_test, _, _ = normalize_min_max(df_test, min, max)
+
+    if weighting:
+        df_train = weight_data(df_train)
+        df_test = weight_data(df_test)
+
+    if label_name is not None:
+        df_train = pd.concat([df_train, df_target_train], axis=1)
+        df_test = pd.concat([df_test, df_target_test], axis=1)
+
+    return df_train, df_test

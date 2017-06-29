@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
-
+import os
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -77,6 +77,8 @@ def print_correlations(df, attr=None, store=False, method='spearman'):
 
 def print_statistics(df):
     print "\n### Statistics ###\n"
+    if not os.path.exists("attribute_statistics"):
+        os.makedirs("attribute_statistics")
     for attribute in df.columns:
         with open("attribute_statistics/{}.txt".format(attribute), mode='w') as f:
             f.write("name: " + attribute + "\n")
