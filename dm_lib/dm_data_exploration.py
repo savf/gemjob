@@ -75,53 +75,73 @@ def get_datatype_safely(dtype):
     return dtype
 
 
-def plot_value_distributions(data_series, logy=False, second_plot='kde'):
-    """ Plot a histogram and a KDE for the given Series
+def plot_boxplot(data_series, store=False):
+    """ Create a boxplot and save it as boxplot_attributename.pdf
+
+    :param data_series: Pandas Series containing the data to plot
+    :type data_series: pandas.Series
+    :param store: Whether to store the plot as PDF
+    :type store: bool
+    """
+    fix, ax = plt.subplots()
+
+    if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
+        sns.boxplot(data_series, ax=ax)
+
+        plt.suptitle('Boxplot for {}'.format(data_series.name))
+
+        plt.savefig("attributes/boxplot_{}.pdf".format(data_series.name),
+                    dpi=150)
+
+
+def plot_value_distributions(data_series, x_label=None, logy=False):
+    """ Plot a histogram, a KDE and a CDF for the given Series
 
     :param data_series: The data series to be plotted
     :type data_series: pandas.Series
-    :param logy: Plot the y axis in log scale
+    :param x_label: Label to show on histogram, KDE and CDF x-Axis
+    :type x_label: str
+    :param logy: Plot the y axis for the histogram in log scale
     :type logy: bool
-    :param second_plot: Second plot can be 'kde' or 'cdf'
-    :type second_plot: str
     """
     # Check if data is numeric or not
     fig = plt.figure()
-    gs = gridspec.GridSpec(nrows=1, ncols=3, width_ratios=[1, 3, 3])
+    gs = gridspec.GridSpec(nrows=1, ncols=4, width_ratios=[1, 3, 3, 3])
+    ax1 = fig.add_subplot(gs[0, 0])
     ax2 = fig.add_subplot(gs[0, 1])
-    ax1 = fig.add_subplot(gs[0, 0], sharey=ax2)
+    ax2.set_xlabel(x_label if x_label is not None else data_series.name)
     ax3 = fig.add_subplot(gs[0, 2])
-    plt.subplots_adjust(wspace=0.55, bottom=0.4)
+    ax3.set_xlabel(x_label if x_label is not None else data_series.name)
+    ax4 = fig.add_subplot(gs[0, 3])
+    ax4.set_xlabel(x_label if x_label is not None else data_series.name)
+    plt.subplots_adjust(wspace=0.70, bottom=0.4, left=0.1, right=0.97, top=0.9)
 
     if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
         pd.Series({'missing': len(data_series.loc[data_series.isnull()])})\
             .plot(kind='bar', ax=ax1)
-        toplot = data_series
+        ax1.set_ylabel("Frequency")
+        toplot = data_series.dropna()
         toplot.hist(bins=30, ax=ax2)
-        if second_plot == 'kde':
-            toplot.plot.density(ax=ax3)
-        else:
-            sns.kdeplot(toplot, cumulative=True, ax=ax3)
+        toplot.plot.density(ax=ax3)
+        #sns.kdeplot(toplot, cumulative=True, legend=False, ax=ax4)
+        toplot.hist(cumulative=True, normed=1, bins=100,
+                    histtype='step', linewidth=2, ax=ax4)
+        ax4.set_ylabel("Cumulative Probability")
+
+        plt.suptitle('Histogram, KDE and CDF for {}'.format(data_series.name))
     else:
         data_series = data_series.astype(object)
         ax1.axis('off')
+        ax3.axis('off')
+        ax4.axis('off')
         toplot = data_series.value_counts()\
             .append(pd.Series({'missing': len(data_series.loc[data_series.isnull()])}))
         toplot.plot(kind='bar', ax=ax2)
-        number_of_categories = len(data_series.value_counts().values)
-        if 1 < number_of_categories < 100:
-            if second_plot == 'kde':
-                toplot.plot.density(ax=ax3)
-            else:
-                sns.kdeplot(toplot.value_counts(),
-                            cumulative=True, ax=ax3)
 
-    ax1.set_ylabel("Frequency")
-    plt.setp(ax2.get_yticklabels(), visible=True)
-    ax1.set_yscale('log' if logy else 'linear')
+        plt.suptitle('Histogram for {}'.format(data_series.name))
+
+    ax2.set_ylabel("Frequency{}".format(" (log)" if logy else ""))
     ax2.set_yscale('log' if logy else 'linear')
-    plt.suptitle('Histogram and {} for {}'.format(second_plot.upper(),
-                                                  data_series.name))
 
     plt.savefig("attributes/{}{}.pdf".format(data_series.name,
                                              "_logy" if logy else ""),
@@ -142,17 +162,27 @@ def explore_data(file_name,budget_name="total_charge"):
     #
     # attributes = set(data_frame.columns).difference(dont_consider)
     #
+    # fig, ax = plt.subplots()
+    #
     # for attr in attributes:
-    #     plot_value_distributions(data_frame[attr], logy=True, second_plot='kde')
+    #     #plot_boxplot(data_frame[attr], store=True)
+    #     plot_value_distributions(data_frame[attr], logy=True)
 
-    # print_statistics(data_frame)
+    # detailed_feedbacks_names = get_detailed_feedbacks_names()
+    #
+    # for feedback in detailed_feedbacks_names:
+    #     plot_value_distributions(data_frame[feedback],
+    #                              x_label=feedback.split('_')[3],
+    #                              logy=False)
+    #     plot_value_distributions(data_frame[feedback],
+    #                              x_label=feedback.split('_')[3],
+    #                              logy=True)
 
     # feedbacks_for_client = ['feedback_for_client_availability',
     #                         'feedback_for_client_communication',
     #                         'feedback_for_client_cooperation',
     #                         'feedback_for_client_deadlines',
-    #                         'feedback_for_client_quality',
-    #                         'feedback_for_client_skills']
+    #                         'feedback_for_client_quality']
     #
     # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
     #                             'feedback_for_freelancer_communication',
@@ -171,19 +201,6 @@ def explore_data(file_name,budget_name="total_charge"):
 
     # data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
     #
-    # feedbacks_for_client = ['feedback_for_client_availability',
-    #                         'feedback_for_client_communication',
-    #                         'feedback_for_client_cooperation',
-    #                         'feedback_for_client_deadlines',
-    #                         'feedback_for_client_quality']
-    #
-    # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
-    #                             'feedback_for_freelancer_communication',
-    #                             'feedback_for_freelancer_cooperation',
-    #                             'feedback_for_freelancer_deadlines',
-    #                             'feedback_for_freelancer_quality',
-    #                             'feedback_for_freelancer_skills']
-    #
     # for feedback in feedbacks_for_freelancer:
     #     result, f_stat, p_value = same_mean(data_frame['feedback_for_freelancer'].dropna(),
     #                                         data_frame[feedback].dropna(), 0.05)
@@ -195,6 +212,8 @@ def explore_data(file_name,budget_name="total_charge"):
     #                                         data_frame[feedback].dropna(), 0.05)
     #     print "{},{},{},{},{}".format('feedback_for_client', feedback,
     #                                   result, f_stat, p_value)
+
+    print_correlations(data_frame, store=True, method='pearson')
 
     no_missing = data_frame.dropna(subset=['client_payment_verification_status'])
     only_missing = data_frame.loc[data_frame['client_payment_verification_status'].isnull()]
