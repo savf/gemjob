@@ -65,5 +65,5 @@ def test_text_mining():
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
-# do_clustering_dbscan("data/found_jobs_4K_extended.json")
-do_clustering_kmeans("data/found_jobs_4K_extended.json")
+do_clustering_dbscan("data/found_jobs_4K_extended.json")
+# do_clustering_kmeans("data/found_jobs_4K_extended.json")

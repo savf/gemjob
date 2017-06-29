@@ -76,39 +76,90 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     return data_frame, text_data
 
 
-def explore_clusters(clusters):
+def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     """ Print stats and facts about the clusters
 
     :param clusters: List of clusters in the form of Pandas Data Frames
     :type clusters: list
     """
-    print "\n\n\n#################### Explore clusters ####################\n"
+    selected_nominal_colums = ['client_country', 'experience_level', 'job_type', 'subcategory2']
+    selected_numeric_colums = ['duration_weeks_median', 'duration_weeks_total', 'client_feedback',
+                               'feedback_for_client', 'feedback_for_freelancer', 'total_charge', 'skills_number',
+                               'snippet_length']
+
+    print "\n\n\n#################### Explore clusters: " + name + " ####################\n"
     print "Number of clusters:", len(clusters)
+
+    avg_unique_vals = {}
+    for nom_col in selected_nominal_colums:
+        avg_unique_vals[nom_col] = 0
+
+    avg_std_deviations = {}
+    # all_means = {}
+    for num_col in selected_numeric_colums:
+        avg_std_deviations[num_col] = 0
+        # all_means[num_col] = []
 
     # TODO: store stats for each cluster into a file
     for cluster in clusters:
         print "\n\nCluster: " + str(cluster["cluster_label"][0]), " --- Shape: ", cluster.shape
         # print '\033[94m', cluster[0:5], '\033[0m'
 
-        selected_numeric_colums = ['duration_weeks_median', 'duration_weeks_total', 'client_feedback', 'feedback_for_client', 'feedback_for_freelancer', 'total_charge', 'skills_number', 'snippet_length']
         for num_col in selected_numeric_colums:
-            print num_col, " --- mean:", cluster[num_col].mean(), ", std:", cluster[num_col].std()
+            mean = cluster[num_col].mean()
+            # all_means[num_col].append(mean)
 
+            std = cluster[num_col].std()
+            if np.isnan(std):
+                # all values are nan
+                std = 0
+                mean = 0
+            avg_std_deviations[num_col] = avg_std_deviations[num_col] + std
 
-        selected_nominal_colums = ['client_country', 'experience_level', 'job_type', 'subcategory2']
+            print num_col, " --- mean:", mean, ", std:", std
+
         for nom_col in selected_nominal_colums:
             unique = cluster[nom_col].unique()
             val_counts = cluster[nom_col].value_counts()
 
             print nom_col, " --- unique values:", len(unique)
+            avg_unique_vals[nom_col] = avg_unique_vals[nom_col] + len(unique)
             # print '\033[94m\n', val_counts, '\033[0m\n'
 
-    # TODO Overall analysis:
-        # - average of unique values per nominal column
-        # - average std deviation and std deviation of means for each numerical column
-                # -> how different are means between clusters, how similar is data within cluster (std)
-        # generate final score to easily compare all clustering algorithms and normalizations
+    print "\n\n####### " + name + " - Overall analysis: #######"
+    print "Number of clusters:", len(clusters)
+    print "Silhouette Coefficient: ", silhouette_score, "\n"
+
+    # - average of unique values per nominal column
+    nom_col_score = 0
+    for nom_col in selected_nominal_colums:
+        total_unique =  len(original_data_frame[nom_col].unique())
+        avg_unique_vals[nom_col] = float(avg_unique_vals[nom_col]) / float(len(clusters)) # average unqiue
+        print nom_col, " --- avg unique per cluster:", avg_unique_vals[nom_col], "of total unqiue:", total_unique
+        nom_col_score = nom_col_score + avg_unique_vals[nom_col] / total_unique # for final score, divide by total unique
+
+    print "### Total score nominal (lower is better):", nom_col_score, "\n"
+
+
+    # - average std deviation and std deviation of means for each numerical column
+            # -> how different are means between clusters, how similar is data within cluster (std)
+    num_col_score = 0
+    for num_col in selected_numeric_colums:
+        avg_std_deviations[num_col] = avg_std_deviations[num_col] / float(len(clusters))
+        # std_of_means = np.std(np.array(all_means[num_col]))
+        total_std = original_data_frame[num_col].std()
+        print num_col, " --- average std per cluster:", avg_std_deviations[num_col], ", std of original df:", total_std
+        num_col_score = num_col_score + avg_std_deviations[num_col] / total_std  # for final score, divide by total std
+
+    print "### Total score numerical (lower is better):", num_col_score
+
+    # generate final score to easily compare all clustering algorithms and normalizations
+    final_score = num_col_score + nom_col_score
+    print "\n### Final score (lower is better):", final_score
+
     print "\n##########################################################\n"
+
+    return final_score
 
 
 def do_clustering_dbscan(file_name):
@@ -172,7 +223,6 @@ def do_clustering_dbscan(file_name):
         print "Number of clusters: ", n_clusters
         if n_clusters > min_n_clusters and n_clusters < max_n_clusters:
             silhouette_score = metrics.silhouette_score(data_frame, labels)
-            print "Silhouette Coefficient: ", silhouette_score
 
             # cluster the original data frame
             data_frame["cluster_label"] = labels
@@ -180,15 +230,10 @@ def do_clustering_dbscan(file_name):
 
             data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
-            # print_data_frame("Clustered Data Frame", data_frame_original)
-
             gb = data_frame_original.groupby('cluster_label')
             clusters = [gb.get_group(x) for x in gb.groups]
-            print "Number of clusters:", len(clusters)
 
-            # TODO look at the clusters and see what we got ...
-            # already difficult with one dataset -> how do we do this with hundreds of clusters?!
-            explore_clusters(clusters)
+            explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
         else:
             print "No good clustering"
 
@@ -240,7 +285,6 @@ def do_clustering_kmeans(file_name):
         labels = kmeans.labels_
 
         silhouette_score = metrics.silhouette_score(data_frame, labels)
-        print "Silhouette Coefficient: ", silhouette_score
 
         # cluster the original data frame
         data_frame["cluster_label"] = labels
@@ -248,12 +292,7 @@ def do_clustering_kmeans(file_name):
 
         data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
-        # print_data_frame("Clustered Data Frame", data_frame_original)
-
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
-        print "Number of clusters:", len(clusters)
 
-        # TODO look at the clusters and see what we got ...
-        # already difficult with one dataset -> how do we do this with hundreds of clusters?!
-        explore_clusters(clusters)
+        explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
