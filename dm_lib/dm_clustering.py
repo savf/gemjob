@@ -1,7 +1,6 @@
 from dm_data_preparation import *
 from dm_general import *
-from sklearn.cluster import DBSCAN
-from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN, KMeans, MeanShift, estimate_bandwidth
 from sklearn import metrics
 import numpy as np
 from dm_text_mining import addTextTokensToWholeDF
@@ -195,9 +194,8 @@ def do_clustering_dbscan(file_name):
 
                 db = DBSCAN(eps=eps, min_samples=min_samples).fit(data_frame)
                 labels = db.labels_
-                unique_labels = set(labels)
 
-                n_clusters = len(unique_labels) - (1 if -1 in labels else 0)
+                n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
                 print "Number of clusters: ", n_clusters
                 if n_clusters > min_n_clusters and n_clusters < max_n_clusters:
                     silhouette_score = metrics.silhouette_score(data_frame, labels)
@@ -218,8 +216,7 @@ def do_clustering_dbscan(file_name):
         db = DBSCAN(eps=1.0, min_samples=2).fit(data_frame)  # no text, min-max
         labels = db.labels_
 
-        unique_labels = set(labels)
-        n_clusters = len(unique_labels) - (1 if -1 in labels else 0)
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         print "Number of clusters: ", n_clusters
         if n_clusters > min_n_clusters and n_clusters < max_n_clusters:
             silhouette_score = metrics.silhouette_score(data_frame, labels)
@@ -296,3 +293,66 @@ def do_clustering_kmeans(file_name):
         clusters = [gb.get_group(x) for x in gb.groups]
 
         explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
+
+
+def do_clustering_mean_shift(file_name):
+    """ Cluster using mean-shift algorithm
+    silhouette_score about 0.58 without removing columns
+    silhouette_score about 0.65 WITH removing columns
+    silhouette_score about 0.85 with removing columns WITH z-score BUT only 2 clusters
+
+    :param file_name: JSON file containing all data
+    :type file_name: str
+    """
+
+    find_best_params = False
+
+    data_frame = prepare_data(file_name, budget_name="total_charge")
+    data_frame_original = get_overall_job_reviews(data_frame.copy())
+
+    # prepare for clustering
+    data_frame, text_data = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    # print data_frame[0:5]
+
+    if find_best_params:
+        best_silhouette_score = -1000
+        best_bandwidth = -1
+        config_num = 1
+
+        for bandwidth in np.arange(0.3, 2.0, 0.1):
+            # bandwidth = estimate_bandwidth(data_frame, quantile=q) # doesn't work, probably too much data
+            print "\n## Config ", config_num, "---  bandwidth=", bandwidth, " ##"
+            config_num = config_num+1
+
+            ms = MeanShift(bandwidth=bandwidth, bin_seeding=True).fit(data_frame)
+            labels = ms.labels_
+
+            n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+            print "Number of clusters: ", n_clusters
+            silhouette_score = metrics.silhouette_score(data_frame, labels)
+            print "Silhouette Coefficient: ", silhouette_score
+
+            if silhouette_score > best_silhouette_score:
+                best_silhouette_score = silhouette_score
+                best_bandwidth = bandwidth
+                best_n_clusters = n_clusters
+                print "!New Best!"
+        print "\n ### Result: "
+        print "best_bandwidth=", best_bandwidth, "; best_n_clusters=", best_n_clusters, "; best_silhouette_score=", best_silhouette_score
+    else:
+        ms = MeanShift(bandwidth=0.9, bin_seeding=True).fit(data_frame) # min-max
+        # ms = MeanShift(bandwidth=38.0, bin_seeding=True).fit(data_frame) # z-score
+        labels = ms.labels_
+
+        silhouette_score = metrics.silhouette_score(data_frame, labels)
+
+        # cluster the original data frame
+        data_frame["cluster_label"] = labels
+        data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
+
+        data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
+
+        gb = data_frame_original.groupby('cluster_label')
+        clusters = [gb.get_group(x) for x in gb.groups]
+
+        explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
