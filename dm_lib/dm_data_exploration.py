@@ -4,13 +4,45 @@ import seaborn as sns
 from pandas.core.dtypes.dtypes import CategoricalDtype
 from scipy import stats
 from scipy.stats.mstats import normaltest
+from sklearn.neighbors.kde import KernelDensity
 
 from dm_data_preparation import *
-from dm_general import print_correlations
+from dm_general import print_correlations, print_statistics
 
 
 def perc_convert(ser):
     return ser/float(ser[-1])
+
+
+def replace_missing_with_kde_samples(data_frame, attribute):
+    """ Replace missing values based on samples from KDE function
+
+    :param data_frame: Pandas dataframe holding the attribute
+    :type data_frame: pandas.DataFrame
+    :param attribute: The attribute for which missing values should be replaced
+    :type attribute: str
+    """
+    minimum = data_frame[attribute].min()
+    maximum = data_frame[attribute].max()
+    values = np.array(data_frame[attribute].dropna())
+    kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(
+        values.reshape(-1, 1))
+    missing_values = data_frame.loc[
+        data_frame[attribute].isnull(), attribute]
+    samples = [num for num in
+               kde.sample(n_samples=len(data_frame[attribute].dropna()))
+               if minimum <= num <= maximum]
+    while len(samples) < 2*len(missing_values):
+        samples.extend([num for num in
+                        kde.sample(n_samples=len(data_frame[attribute].dropna()))
+                        if minimum <= num <= maximum])
+    samples = [samples[i] for i in
+               sorted(random.sample(xrange(len(samples)), len(missing_values)))]
+
+    for index, value in enumerate(samples):
+        missing_values[index] = samples[index]
+
+    data_frame.update(pd.DataFrame(missing_values))
 
 
 def from_same_distribution(series1, series2, significance):
@@ -120,7 +152,7 @@ def plot_boxplot(data_series, store=False):
                     dpi=150)
 
 
-def plot_value_distributions(data_series, x_label=None, logy=False):
+def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
     """ Plot a histogram, a KDE and a CDF for the given Series
 
     :param data_series: The data series to be plotted
@@ -129,6 +161,8 @@ def plot_value_distributions(data_series, x_label=None, logy=False):
     :type x_label: str
     :param logy: Plot the y axis for the histogram in log scale
     :type logy: bool
+    :param store: Whether to store the generated plot
+    :type store: bool
     """
     # Check if data is numeric or not
     fig = plt.figure()
@@ -169,9 +203,12 @@ def plot_value_distributions(data_series, x_label=None, logy=False):
     ax2.set_ylabel("Frequency{}".format(" (log)" if logy else ""))
     ax2.set_yscale('log' if logy else 'linear')
 
-    plt.savefig("attributes/{}{}.pdf".format(data_series.name,
-                                             "_logy" if logy else ""),
-                dpi=150)
+    if store:
+        plt.savefig("attributes/{}{}.pdf".format(data_series.name,
+                                                 "_logy" if logy else ""),
+                    dpi=150)
+    else:
+        plt.show()
 
 
 def explore_data(file_name,budget_name="total_charge"):
@@ -183,6 +220,20 @@ def explore_data(file_name,budget_name="total_charge"):
     :type file_name: str
     """
     data_frame = prepare_data_raw(file_name)
+
+    feedbacks_for_client = ['feedback_for_client_availability',
+                            'feedback_for_client_communication',
+                            'feedback_for_client_cooperation',
+                            'feedback_for_client_deadlines',
+                            'feedback_for_client_quality',
+                            'feedback_for_client_skills']
+
+    feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
+                                'feedback_for_freelancer_communication',
+                                'feedback_for_freelancer_cooperation',
+                                'feedback_for_freelancer_deadlines',
+                                'feedback_for_freelancer_quality',
+                                'feedback_for_freelancer_skills']
 
     # dont_consider = ['title', 'snippet', 'skills', 'url', 'date_created']
     #
@@ -204,19 +255,6 @@ def explore_data(file_name,budget_name="total_charge"):
     #                              x_label=feedback.split('_')[3],
     #                              logy=True)
 
-    # feedbacks_for_client = ['feedback_for_client_availability',
-    #                         'feedback_for_client_communication',
-    #                         'feedback_for_client_cooperation',
-    #                         'feedback_for_client_deadlines',
-    #                         'feedback_for_client_quality',
-    #                         'feedback_for_client_skills']
-    #
-    # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
-    #                             'feedback_for_freelancer_communication',
-    #                             'feedback_for_freelancer_cooperation',
-    #                             'feedback_for_freelancer_deadlines',
-    #                             'feedback_for_freelancer_quality',
-    #                             'feedback_for_freelancer_skills']
     #
     # for feedback in feedbacks_for_freelancer:
     #     for feedback2 in feedbacks_for_freelancer:
@@ -256,52 +294,39 @@ def explore_data(file_name,budget_name="total_charge"):
     #     print "{},{},{},{},{}".format('feedback_for_client', feedback,
     #                                   result, f_stat, p_value)
 
-    feedbacks_for_client_frame = data_frame[[col for col
-                                             in data_frame.columns
-                                             if col.startswith('feedback_for_client_')]]
+    # feedbacks_for_client_frame = data_frame[[col for col
+    #                                          in data_frame.columns
+    #                                          if col.startswith('feedback_for_client_')]]
+    #
+    # print_correlations(feedbacks_for_client_frame.dropna(),
+    #                    store=True, method='pearson',
+    #                    xlabels=[col.split('_')[3] for col in
+    #                             feedbacks_for_client_frame.columns],
+    #                    ylabels=[col.split('_')[3] for col in
+    #                             feedbacks_for_client_frame.columns])
 
-    print_correlations(feedbacks_for_client_frame.dropna(),
-                       store=True, method='pearson',
-                       xlabels=[col.split('_')[3] for col in
-                                feedbacks_for_client_frame.columns],
-                       ylabels=[col.split('_')[3] for col in
-                                feedbacks_for_client_frame.columns])
+    data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
 
-    no_missing = data_frame.dropna(subset=['client_payment_verification_status'])
-    only_missing = data_frame.loc[data_frame['client_payment_verification_status'].isnull()]
+    # plot_value_distributions(data_frame['feedback_for_client'], x_label="feedback score", logy=True)
+    # plot_value_distributions(data_frame['feedback_for_freelancer'], x_label="feedback score", logy=True)
+    # plot_boxplot(data_frame['feedback_for_client'], store=True)
+    # plot_boxplot(data_frame['feedback_for_freelancer'], store=True)
 
-    client_feedback_mean_missing = same_mean(no_missing['client_feedback'], only_missing['client_feedback'], 0.05)
-    client_feedback_mean_verified = same_mean(data_frame.loc[data_frame['client_payment_verification_status'] ==
-                                                             'VERIFIED', 'client_feedback'],
-                                              data_frame.loc[data_frame['client_payment_verification_status'] !=
-                                                             'VERIFIED', 'client_feedback'], 0.05)
-    print "Mean of client feedback for missing payment verification and non missing are the same: {}"\
-        .format(client_feedback_mean_missing)
-    print "Mean of client feedback for payment verification status VERIFIED or not are the same: {}"\
-        .format(client_feedback_mean_verified)
+    # print_statistics(data_frame[['feedback_for_client', 'feedback_for_freelancer']])
 
-    print "## crosstab job_type vs experience_level"
-    print pd.crosstab(data_frame["job_type"], data_frame["experience_level"], margins=True).apply(perc_convert, axis=1)
+    # for aggregate_feedback in ['feedback_for_client', 'feedback_for_freelancer']:
+    #     for feedback in feedbacks_for_client if aggregate_feedback ==\
+    #             'feedback_for_client' else feedbacks_for_freelancer:
+    #         print "{},{},{},{}".format(aggregate_feedback, feedback,
+    #                                    data_frame[aggregate_feedback].var(),
+    #                                    data_frame[feedback].var())
 
-    drop_unnecessary = ["client_country"]
-    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+    attribute = 'feedback_for_client'
+    forwardfill = data_frame[attribute].fillna(method='pad')
+    backfill = data_frame[attribute].fillna(method='backfill')
+    kdesamples = data_frame.copy()  # type: pd.DataFrame
+    replace_missing_with_kde_samples(kdesamples, attribute)
 
-    data_frame = convert_to_numeric(data_frame, "")
-
-    treat_outliers_deletion(data_frame)
-    treat_outliers_log_scale(data_frame)
-
-    for attr in ["client_feedback", "timestamp", "freelancer_count", "workload", "total_hours"]:
-        # data_frame[attr].plot(kind='hist', legend=True, title=attr)
-        # data_frame.hist(column=attr, bins=30)
-        chart, ax = plt.subplots()
-        # sns.distplot(data_frame[attr], hist_kws={'cumulative': True}, kde_kws={'cumulative': True}, ax=ax)
-        #stats.probplot(data_frame[attr], plot=ax)
-        #data_frame.boxplot(column=attr, ax=ax)
-        #data_frame.plot.scatter(x='total_charge', y=attr, logx=True)
-        sns.regplot(x=data_frame['freelancer_count'],
-                    y=data_frame[attr], ax=ax, order=0, lowess=True)
-        #sns.residplot(x=data_frame['total_charge'], y=data_frame[attr], ax=ax, order=0, lowess=True)
-        ax.set_title("LOWESS for " + attr)
-        #plt.show()
-    print_correlations(data_frame, store=True)
+    print from_same_distribution(data_frame[attribute].dropna(), forwardfill, 0.05)
+    print from_same_distribution(data_frame[attribute].dropna(), backfill, 0.05)
+    print from_same_distribution(data_frame[attribute].dropna(), kdesamples[attribute], 0.05)
