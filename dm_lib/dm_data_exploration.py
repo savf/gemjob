@@ -13,6 +13,28 @@ def perc_convert(ser):
     return ser/float(ser[-1])
 
 
+def from_same_distribution(series1, series2, significance):
+    """ Check whether two series stem from the same distribution
+
+    :param series1: Pandas Series for first attribute
+    :type series1: pandas.Series
+    :param series2: Pandas Series for second attribute
+    :type series2: pandas.Series
+    :param significance: Test significance (normally 5%)
+    :type significance: float
+    :return: Whether same distribution, K-S Statistic and p-Value
+    :rtype: bool, float, float
+    """
+    ks_statistic, p_value = stats.ks_2samp(series1, series2)
+
+    # Small p-value means reject the null-hypothesis that the samples have the
+    # same distribution
+    if p_value <= significance:
+        return False, ks_statistic, p_value
+    else:
+        return True, ks_statistic, p_value
+
+
 def same_mean(series_1, series_2, significance):
     """ Check the variance and distribution and then make hypothesis test for the mean
 
@@ -20,9 +42,13 @@ def same_mean(series_1, series_2, significance):
     be used, since these two requirements are needed for the t-test. If these requirements
     are not met, the Mann-Whitney-Wilcoxon RankSum test is used
 
+    :param series1: Pandas Series for first attribute
     :type series_1: pandas.Series
+    :param series2: Pandas Series for second attribute
     :type series_2: pandas.Series
-    :param significance: The significance is normally 5%
+    :param significance: Test significance (normally 5%)
+    :type significance: float
+    :rtype: bool
     """
     normaltest_series_1 = normaltest(series_1)
     normaltest_series_2 = normaltest(series_2)
@@ -182,7 +208,8 @@ def explore_data(file_name,budget_name="total_charge"):
     #                         'feedback_for_client_communication',
     #                         'feedback_for_client_cooperation',
     #                         'feedback_for_client_deadlines',
-    #                         'feedback_for_client_quality']
+    #                         'feedback_for_client_quality',
+    #                         'feedback_for_client_skills']
     #
     # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
     #                             'feedback_for_freelancer_communication',
@@ -191,15 +218,31 @@ def explore_data(file_name,budget_name="total_charge"):
     #                             'feedback_for_freelancer_quality',
     #                             'feedback_for_freelancer_skills']
     #
-    # for feedback in feedbacks_for_client:
-    #     for feedback2 in feedbacks_for_client:
-    #         result, f_stat, p_value = same_mean(data_frame[feedback].dropna(),
-    #                                             data_frame[feedback2].dropna(),
-    #                                             0.05)
+    # for feedback in feedbacks_for_freelancer:
+    #     for feedback2 in feedbacks_for_freelancer:
+    #         result, ks_statistic, p_value = from_same_distribution(
+    #             data_frame[feedback], data_frame[feedback2], 0.05)
     #         print "{},{},{},{},{}".format(feedback, feedback2,
-    #                                       result, f_stat, p_value)
-
-    # data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
+    #                                       result, ks_statistic, p_value)
+    #
+    # data_frame["feedback_for_client"] = data_frame[
+    #     ['feedback_for_client_availability',
+    #      'feedback_for_client_cooperation',
+    #      'feedback_for_client_deadlines']].mean(axis=1)
+    # data_frame["feedback_for_freelancer"] = data_frame[
+    #     ['feedback_for_freelancer_availability',
+    #      'feedback_for_freelancer_cooperation',
+    #      'feedback_for_freelancer_quality',
+    #      'feedback_for_freelancer_skills']].mean(axis=1)
+    #
+    # feedbacks_for_client = ['feedback_for_client_availability',
+    #                         'feedback_for_client_cooperation',
+    #                         'feedback_for_client_deadlines']
+    #
+    # feedbacks_for_freelancer = ['feedback_for_freelancer_availability',
+    #                             'feedback_for_freelancer_cooperation',
+    #                             'feedback_for_freelancer_quality',
+    #                             'feedback_for_freelancer_skills']
     #
     # for feedback in feedbacks_for_freelancer:
     #     result, f_stat, p_value = same_mean(data_frame['feedback_for_freelancer'].dropna(),
@@ -213,7 +256,16 @@ def explore_data(file_name,budget_name="total_charge"):
     #     print "{},{},{},{},{}".format('feedback_for_client', feedback,
     #                                   result, f_stat, p_value)
 
-    print_correlations(data_frame, store=True, method='pearson')
+    feedbacks_for_client_frame = data_frame[[col for col
+                                             in data_frame.columns
+                                             if col.startswith('feedback_for_client_')]]
+
+    print_correlations(feedbacks_for_client_frame.dropna(),
+                       store=True, method='pearson',
+                       xlabels=[col.split('_')[3] for col in
+                                feedbacks_for_client_frame.columns],
+                       ylabels=[col.split('_')[3] for col in
+                                feedbacks_for_client_frame.columns])
 
     no_missing = data_frame.dropna(subset=['client_payment_verification_status'])
     only_missing = data_frame.loc[data_frame['client_payment_verification_status'].isnull()]

@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import scipy.stats as stats
+import seaborn as sns
 import os
+from matplotlib.colors import ListedColormap
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -25,7 +27,8 @@ def print_data_frame(title, df):
     print "############################## \n\n"
 
 
-def print_correlations(df, attr=None, store=False, method='spearman'):
+def print_correlations(df, attr=None, store=False, method='spearman',
+                       xlabels=None, ylabels=None):
     """ Print attribute correlations for a given Pandas DataFrame
 
     :param df: Pandas DataFrame to analyze
@@ -36,6 +39,10 @@ def print_correlations(df, attr=None, store=False, method='spearman'):
     :type store: bool
     :param method: Which correlation method to use: pearson, spearman or kendall
     :type method: str
+    :param xlabels: List with labels for the x-axis tick marks
+    :type xlabels: list(str)
+    :param ylabels: List with labels for the y-axis tick marks
+    :type ylabels: list(str)
     """
     corr = df.corr(method)
     dropped_columns = list(set(df.columns) - set(corr.columns))
@@ -58,10 +65,20 @@ def print_correlations(df, attr=None, store=False, method='spearman'):
     corr_significance.set_index(df.columns.values, inplace=True)
 
     if attr is None:
-        # print "### Correlation Matrix ###"
-        # print corr
-        plt.matshow(corr)
-        plt.show()
+        fig1, ax1 = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        plt.subplots_adjust(left=0.1, bottom=0.2)
+        green_to_red = ["#30d43f", "#49ff61", "#ff8787", "#ff4545", "#ff0000"]
+        custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
+        sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
+        sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
+        if xlabels is not None:
+            ax1.set_xticklabels(xlabels)
+            ax2.set_xticklabels(xlabels, rotation=90)
+        if ylabels is not None:
+            ax1.set_yticklabels(ylabels[::-1])
+            ax2.set_yticklabels(ylabels[::-1], rotation=0)
+
     else:
         print "### Correlations for " + attr + " ###"
         print corr[attr].abs().sort_values(ascending=False)
