@@ -279,7 +279,7 @@ def addTextTokensToDF(df_train, df_test, text_train, text_test, max_features=500
 
     return df_train, df_test
 
-def addTextTokensToWholeDF(df, text, max_features=500):
+def addTextTokensToWholeDF(df, text, max_features=500, vectorizers={}):
     """ Add tokenized text to data frame
 
         :param df: Pandas DataFrame containing the structured data
@@ -288,16 +288,23 @@ def addTextTokensToWholeDF(df, text, max_features=500):
         :type text: pandas.DataFrame
         :param max_features: Maximum size for bag of words
         :type max_features: int
-        :return: Pandas DataFrame containing structured data and text tokens
+        :param vectorizers: Vectorizers, if already given (optional)
+        :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
+        :return: Pandas DataFrame containing structured data and text tokens, as well as the vectorizers
         :rtype: pandas.DataFrame
         """
     text_columns = ["skills", "title", "snippet"]
     for text_column_name in text_columns:
-        vectorizer, data_features = prepare_text_train(text, text_column_name, max_features)
+        if vectorizers.has_key(text_column_name):
+            vectorizer = vectorizers[text_column_name]
+            data_features = prepare_text_test(text, text_column_name, vectorizer)
+        else:
+            vectorizer, data_features = prepare_text_train(text, text_column_name, max_features)
+            vectorizers[text_column_name] = vectorizer
 
         column_names = ["$token_" + text_column_name + "_" + s for s in vectorizer.get_feature_names()]
 
         tokens = pd.DataFrame(data_features, columns=column_names, index=df.index)
         df = pd.concat([df, tokens], axis=1)
 
-    return df
+    return df, vectorizers

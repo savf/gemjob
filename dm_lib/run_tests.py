@@ -7,10 +7,10 @@ from dm_experienceLevelModel import experience_level_model
 import pandas as pd
 import numpy as np
 # from dm_data_exploration import explore_data
-from dm_clustering import do_clustering_dbscan, do_clustering_kmeans, do_clustering_mean_shift
+from dm_clustering import test_clustering
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
-
+pd.set_option('display.max_columns', 200)
 
 def test_text_mining():
     """ Perform a sentiment analysis as a demonstration
@@ -65,6 +65,4 @@ def test_text_mining():
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
-# do_clustering_dbscan("data/found_jobs_4K_extended.json")
-# do_clustering_kmeans("data/found_jobs_4K_extended.json")
-do_clustering_mean_shift("data/found_jobs_4K_extended.json")
+test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")

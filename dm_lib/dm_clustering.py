@@ -4,7 +4,8 @@ from sklearn.cluster import DBSCAN, KMeans, MeanShift, estimate_bandwidth
 from sklearn import metrics
 import numpy as np
 from dm_text_mining import addTextTokensToWholeDF
-pd.set_option('display.max_columns', 200)
+from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import euclidean_distances
 
 def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weighting=True):
     """ Clean and prepare data specific to clustering
@@ -17,7 +18,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     :type add_text: bool
     :param weighting: Do weighting
     :type weighting: bool
-    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :return: Cleaned Pandas DataFrame with only numerical attributes and either min/max or mean/std, if text added also vectorizers
     :rtype: pandas.DataFrame
     """
 
@@ -57,13 +58,15 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     # handle text
     data_frame, text_data = separate_text(data_frame)
     if add_text:
-        data_frame = addTextTokensToWholeDF(data_frame, text_data)
+        data_frame, vectorizers = addTextTokensToWholeDF(data_frame, text_data)
+    else:
+        vectorizers = {}
 
     # normalize
     if z_score_norm:
-        data_frame, _, _ = normalize_z_score(data_frame)
+        data_frame, mean, std = normalize_z_score(data_frame)
     else:
-        data_frame, _, _ = normalize_min_max(data_frame)
+        data_frame, min, max = normalize_min_max(data_frame)
 
     if weighting:
         data_frame = weight_data(data_frame)
@@ -72,7 +75,10 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     # print_data_frame("After preparing for clustering", data_frame)
     # print_statistics(data_frame)
 
-    return data_frame, text_data
+    if z_score_norm:
+        return data_frame, mean, std, vectorizers
+    else:
+        return data_frame, min, max, vectorizers
 
 
 def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
@@ -127,7 +133,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
 
     print "\n\n####### " + name + " - Overall analysis: #######"
     print "Number of clusters:", len(clusters)
-    print "Silhouette Coefficient: ", silhouette_score, "\n"
+    print "Silhouette Coefficient: ", silhouette_score, "\n" # http://scikit-learn.org/stable/modules/clustering.html#silhouette-coefficient
 
     # - average of unique values per nominal column
     nom_col_score = 0
@@ -153,6 +159,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     print "### Total score numerical (lower is better):", num_col_score
 
     # generate final score to easily compare all clustering algorithms and normalizations
+        # more or less based on homogenity of clusters (but not completeness) http://scikit-learn.org/stable/modules/clustering.html#homogeneity-completeness-and-v-measure
     final_score = num_col_score + nom_col_score
     print "\n### Final score (lower is better):", final_score
 
@@ -161,25 +168,29 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     return final_score
 
 
-def do_clustering_dbscan(file_name):
+def do_clustering_dbscan(data_frame, find_best_params=False):
     """ Cluster using DBSCAN algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.64 WITH removing columns
 
-    :param file_name: JSON file containing all data
-    :type file_name: str
+    :param data_frame: Pandas DataFrame holding non-normalized data
+    :type data_frame: pandas.DataFrame
+    :param find_best_params: Find best parameters for clustering
+    :type find_best_params: bool
     """
 
-    find_best_params = False
     min_n_clusters = 10
     max_n_clusters = 500
 
-    data_frame = prepare_data(file_name, budget_name="total_charge")
     data_frame_original = get_overall_job_reviews(data_frame.copy())
+    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
+    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
-    data_frame, text_data = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
+
+    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -215,45 +226,49 @@ def do_clustering_dbscan(file_name):
         # db = DBSCAN(eps=38.5, min_samples=2).fit(data_frame) # weighted, z-score
         db = DBSCAN(eps=1.0, min_samples=2).fit(data_frame)  # no text, min-max
         labels = db.labels_
+        centroids = pd.DataFrame(db.cluster_centers_, columns=data_frame.columns)
 
         n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
         print "Number of clusters: ", n_clusters
-        if n_clusters > min_n_clusters and n_clusters < max_n_clusters:
-            silhouette_score = metrics.silhouette_score(data_frame, labels)
+        silhouette_score = metrics.silhouette_score(data_frame, labels)
 
-            # cluster the original data frame
-            data_frame["cluster_label"] = labels
-            data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
+        # cluster the original data frame
+        data_frame["cluster_label"] = labels
+        data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
 
-            data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
+        data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
-            gb = data_frame_original.groupby('cluster_label')
-            clusters = [gb.get_group(x) for x in gb.groups]
+        gb = data_frame_original.groupby('cluster_label')
+        clusters = [gb.get_group(x) for x in gb.groups]
 
-            explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
-        else:
-            print "No good clustering"
+        explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
+
+        return db, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_kmeans(file_name):
+def do_clustering_kmeans(data_frame, find_best_params=False):
     """ Cluster using k-means algorithm
     silhouette_score about 0.54 (0.25 with z-score) without removing columns
     silhouette_score about 0.60 WITH removing columns
 
-    :param file_name: JSON file containing all data
-    :type file_name: str
+    :param data_frame: Pandas DataFrame holding non-normalized data
+    :type data_frame: pandas.DataFrame
+    :param find_best_params: Find best parameters for clustering
+    :type find_best_params: bool
     """
 
-    find_best_params = False
     min_n_clusters = 10
     max_n_clusters = 500
 
-    data_frame = prepare_data(file_name, budget_name="total_charge")
     data_frame_original = get_overall_job_reviews(data_frame.copy())
+    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
+    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
-    data_frame, text_data = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
+
+    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -280,6 +295,7 @@ def do_clustering_kmeans(file_name):
         # kmeans = KMeans(n_clusters=98).fit(data_frame) # without text, min-max scaling
         kmeans = KMeans(n_clusters=93).fit(data_frame)  # with text, min-max scaling
         labels = kmeans.labels_
+        centroids = pd.DataFrame(kmeans.cluster_centers_, columns=data_frame.columns)
 
         silhouette_score = metrics.silhouette_score(data_frame, labels)
 
@@ -294,25 +310,30 @@ def do_clustering_kmeans(file_name):
 
         explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
 
+        return kmeans, clusters, centroids, min, max, vectorizers
 
-def do_clustering_mean_shift(file_name):
+
+def do_clustering_mean_shift(data_frame, find_best_params=False):
     """ Cluster using mean-shift algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.65 WITH removing columns
     silhouette_score about 0.85 with removing columns WITH z-score BUT only 2 clusters
 
-    :param file_name: JSON file containing all data
-    :type file_name: str
+    :param data_frame: Pandas DataFrame holding non-normalized data
+    :type data_frame: pandas.DataFrame
+    :param find_best_params: Find best parameters for clustering
+    :type find_best_params: bool
     """
 
-    find_best_params = False
-
-    data_frame = prepare_data(file_name, budget_name="total_charge")
     data_frame_original = get_overall_job_reviews(data_frame.copy())
+    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
+    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
-    data_frame, text_data = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
+
+    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -343,6 +364,7 @@ def do_clustering_mean_shift(file_name):
         ms = MeanShift(bandwidth=0.9, bin_seeding=True).fit(data_frame) # min-max
         # ms = MeanShift(bandwidth=38.0, bin_seeding=True).fit(data_frame) # z-score
         labels = ms.labels_
+        centroids = pd.DataFrame(ms.cluster_centers_, columns=data_frame.columns)
 
         silhouette_score = metrics.silhouette_score(data_frame, labels)
 
@@ -356,3 +378,162 @@ def do_clustering_mean_shift(file_name):
         clusters = [gb.get_group(x) for x in gb.groups]
 
         explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
+
+        return ms, clusters, centroids, min, max, vectorizers
+
+
+def prepare_test_data(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+    """ Clean and prepare data specific to clustering
+
+    :param data_frame: Pandas DataFrame that holds the data
+    :type data_frame: pandas.DataFrame
+    :param cluster_columns: Columns of cluster data
+    :type cluster_columns: list
+    :param min: minimum values
+    :type min: pandas.Series
+    :param max: maximum values
+    :type max: pandas.Series
+    :param vectorizers: Vectorizers for adding text tokens (text not added if not given!)
+    :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
+    :param weighting: Do weighting
+    :type weighting: bool
+    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :rtype: pandas.DataFrame
+    """
+
+    # drop columns that are unnecessary for clustering: are they?
+        # idea: we don't want to predict anymore, we just want to cluster based on interesting attributes provided by user
+    drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
+    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+
+    # declare total_charge as missing, if 0
+    data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
+
+    # rows that don't contain total_charge
+    data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
+
+    # overall feedbacks
+    data_frame = get_overall_job_reviews(data_frame)
+
+    # declare feedbacks as missing, if 0
+    data_frame.ix[data_frame.client_feedback == 0, 'client_feedback'] = None
+
+    # remove rows with missing values
+
+    # feedbacks
+    data_frame['feedback_for_client'].dropna(how='any', inplace=True)
+    data_frame['feedback_for_freelancer'].dropna(how='any', inplace=True)
+    data_frame['client_feedback'].dropna(how='any', inplace=True)
+
+    # experience level
+    data_frame["experience_level"].dropna(how='any', inplace=True)
+
+    # convert everything to numeric
+    data_frame = convert_to_numeric(data_frame, label_name="")
+
+    # handle text
+    data_frame, text_data = separate_text(data_frame)
+    if vectorizers is not None:
+        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
+
+    # add missing columns (dummies, that were not in this data set)
+    for col in cluster_columns:
+        if col not in data_frame.columns:
+            data_frame[col] = 0
+    # remove columns not existing in clusters
+    for col in data_frame.columns:
+        if col not in cluster_columns:
+            data_frame.drop(labels=[col], axis=1, inplace=True)
+    # normalize
+    data_frame, _, _ = normalize_min_max(data_frame, min, max)
+
+    if weighting:
+        data_frame = weight_data(data_frame)
+
+    # print data_frame, "\n"
+    print_data_frame("After preparing for clustering", data_frame)
+    # print_statistics(data_frame)
+
+    return data_frame
+
+
+def predict(model, unnormalized_data, normalized_data, clusters, centroids, target_columns):
+    """ Predict columns based on clusters
+
+    :param model: Trained cluster model
+    :type model: sklearn.cluster.MeanShift or similar
+    :param unnormalized_data: Pandas DataFrames holding non-normalized data
+    :type unnormalized_data: pandas.DataFrame
+    :param normalized_data: Pandas DataFrames holding normalized data
+    :type normalized_data: pandas.DataFrame
+    :param clusters: List of Pandas DataFrames holding non-normalized data
+    :type clusters: pandas.DataFrame
+    :param centroids: minimum values
+    :type centroids: pandas.DataFrame
+    :param target_columns: columns to predict
+    :type target_columns: list
+    """
+    predicted_the_same = 0
+
+    # get actual target_columns (dummies)
+    actual_cols = []
+    for tc in target_columns:
+        actual_cols = actual_cols + [col for col in list(normalized_data) if col.startswith(tc)]
+
+    # TODO: "predict" predicts always the same cluster for every row -> why?
+    # set columns to predict to 0
+    normalized_data[actual_cols] = 0
+    # use model to predict cluster
+    predicted_clusters = model.predict(normalized_data)
+    print "\n\n### Predictions:"
+    print predicted_clusters
+
+    # drop target columns in centroids and in normalized_data so distance not based on them
+    centroids.drop(labels=actual_cols, axis=1, inplace=True)
+    normalized_data.drop(labels=actual_cols, axis=1, inplace=True)
+
+    # TODO: This also predicts always the same cluster for every row -> why?
+    # find nearest centroid for each row of the given data
+    print "\n\n### Predictions:\n"
+    for index, row in normalized_data.iterrows():
+        distances = euclidean_distances(centroids, row)
+        cluster_index = np.array(distances).argmin()
+
+        print "\n# Current row:", index, ", Cluster found:", cluster_index
+        for tc in target_columns:
+            print "Predict label:", tc
+            print "Actucal value:", unnormalized_data.loc[index][tc]
+            print "Cluster values:", clusters[cluster_index][tc]
+            # TODO: handle nominal and numerical attributes differently --> abs_distance to mean for numerical
+
+
+
+
+
+
+def test_clustering(file_name, method="Mean-Shift"):
+    """ Test clustering for predictions (with test and train set)
+
+    :param file_name: JSON file containing all data
+    :type file_name: str
+    :param method: Clustering Method to use: "Mean-Shift", "K-Means" or "DBSCAN"
+    :type method: str
+    """
+
+    data_frame = prepare_data(file_name, budget_name="total_charge")
+    df_train, df_test = train_test_split(data_frame, train_size=0.8)
+
+    data_frame_original_test = get_overall_job_reviews(df_test.copy())
+
+    if method == "Mean-Shift":
+        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False)
+    elif method == "K-Means":
+        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False)
+    # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
+    elif method == "DBSCAN":
+        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False)
+
+    # prepare test data
+    df_test = prepare_test_data(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
+
+    predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
