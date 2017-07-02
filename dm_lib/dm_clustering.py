@@ -47,10 +47,10 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     data_frame['client_feedback'].fillna(data_frame['client_feedback'].mean(), inplace=True)
 
     # fill missing experience levels with random non-missing values
-    filled_experience_levels = data_frame["experience_level"].dropna()
-    data_frame["experience_level"] = data_frame.apply(
-        lambda row: row["experience_level"] if row["experience_level"] is not None
-        else random.choice(filled_experience_levels), axis=1)
+    # filled_experience_levels = data_frame["experience_level"].dropna()
+    # data_frame["experience_level"] = data_frame.apply(
+    #     lambda row: row["experience_level"] if row["experience_level"] is not None
+    #     else random.choice(filled_experience_levels), axis=1)
 
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name="")
@@ -71,7 +71,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     if weighting:
         data_frame = weight_data(data_frame)
 
-    # print data_frame, "\n"
+    # print data_frame[0:5], "\n"
     # print_data_frame("After preparing for clustering", data_frame)
     # print_statistics(data_frame)
 
@@ -79,6 +79,85 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
         return data_frame, mean, std, vectorizers
     else:
         return data_frame, min, max, vectorizers
+
+
+def prepare_test_data(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+    """ Clean and prepare data specific to clustering
+
+    :param data_frame: Pandas DataFrame that holds the data
+    :type data_frame: pandas.DataFrame
+    :param cluster_columns: Columns of cluster data
+    :type cluster_columns: list
+    :param min: minimum values
+    :type min: pandas.Series
+    :param max: maximum values
+    :type max: pandas.Series
+    :param vectorizers: Vectorizers for adding text tokens (text not added if not given!)
+    :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
+    :param weighting: Do weighting
+    :type weighting: bool
+    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
+    :rtype: pandas.DataFrame
+    """
+
+    # drop columns that are unnecessary for clustering: are they?
+        # idea: we don't want to predict anymore, we just want to cluster based on interesting attributes provided by user
+    drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
+    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+
+    # declare total_charge as missing, if 0
+    data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
+
+    # rows that don't contain total_charge
+    data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
+
+    # overall feedbacks
+    data_frame = get_overall_job_reviews(data_frame)
+
+    # declare feedbacks as missing, if 0
+    data_frame.ix[data_frame.client_feedback == 0, 'client_feedback'] = None
+
+    # remove rows with missing values
+
+    # feedbacks
+    data_frame['feedback_for_client'].dropna(how='any', inplace=True)
+    data_frame['feedback_for_freelancer'].dropna(how='any', inplace=True)
+    data_frame['client_feedback'].dropna(how='any', inplace=True)
+
+    # experience level
+    # data_frame["experience_level"].dropna(how='any', inplace=True)
+
+    # convert everything to numeric
+    data_frame = convert_to_numeric(data_frame, label_name="")
+
+    # handle text
+    data_frame, text_data = separate_text(data_frame)
+    if vectorizers is not None:
+        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
+
+    # add missing columns (dummies, that were not in this data set)
+    for col in cluster_columns:
+        if col not in data_frame.columns:
+            data_frame[col] = 0
+    # remove columns not existing in clusters
+    for col in data_frame.columns:
+        if col not in cluster_columns:
+            data_frame.drop(labels=[col], axis=1, inplace=True)
+    # normalize
+    data_frame, _, _ = normalize_min_max(data_frame, min, max)
+
+    if weighting:
+        data_frame = weight_data(data_frame)
+
+    # order acording to cluster_columns (important!!! scikit does not look at labels!)
+    # print data_frame[0:5], "\n"
+    data_frame = data_frame.reindex_axis(cluster_columns, axis=1)
+    # print "\n\n\n###############################\n\n\n"
+    # print data_frame[0:5], "\n"
+    # print_data_frame("After preparing for clustering", data_frame)
+    # print_statistics(data_frame)
+
+    return data_frame
 
 
 def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
@@ -168,7 +247,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     return final_score
 
 
-def do_clustering_dbscan(data_frame, find_best_params=False):
+def do_clustering_dbscan(data_frame, find_best_params=False, explore_clusters=True):
     """ Cluster using DBSCAN algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.64 WITH removing columns
@@ -177,20 +256,18 @@ def do_clustering_dbscan(data_frame, find_best_params=False):
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
+    :param explore_clusters: Print stats about clusters
+    :type explore_clusters: bool
     """
 
     min_n_clusters = 10
     max_n_clusters = 500
 
     data_frame_original = get_overall_job_reviews(data_frame.copy())
-    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
-    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
-
-    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -241,12 +318,13 @@ def do_clustering_dbscan(data_frame, find_best_params=False):
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
+        if explore_clusters:
+            explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
 
         return db, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_kmeans(data_frame, find_best_params=False):
+def do_clustering_kmeans(data_frame, find_best_params=False, explore_clusters=True):
     """ Cluster using k-means algorithm
     silhouette_score about 0.54 (0.25 with z-score) without removing columns
     silhouette_score about 0.60 WITH removing columns
@@ -255,20 +333,18 @@ def do_clustering_kmeans(data_frame, find_best_params=False):
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
+    :param explore_clusters: Print stats about clusters
+    :type explore_clusters: bool
     """
 
     min_n_clusters = 10
     max_n_clusters = 500
 
     data_frame_original = get_overall_job_reviews(data_frame.copy())
-    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
-    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
-
-    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -308,12 +384,13 @@ def do_clustering_kmeans(data_frame, find_best_params=False):
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
+        if explore_clusters:
+            explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
 
         return kmeans, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_mean_shift(data_frame, find_best_params=False):
+def do_clustering_mean_shift(data_frame, find_best_params=False, explore_clusters=True):
     """ Cluster using mean-shift algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.65 WITH removing columns
@@ -323,17 +400,15 @@ def do_clustering_mean_shift(data_frame, find_best_params=False):
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
+    :param explore_clusters: Print stats about clusters
+    :type explore_clusters: bool
     """
 
     data_frame_original = get_overall_job_reviews(data_frame.copy())
-    data_frame_original.ix[data_frame_original.total_charge == 0, 'total_charge'] = None
-    data_frame_original.dropna(subset=["total_charge"], how='any', inplace=True)
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
     # print data_frame[0:5]
-
-    assert data_frame.shape[0] == data_frame_original.shape[0]
 
     if find_best_params:
         best_silhouette_score = -1000
@@ -377,84 +452,21 @@ def do_clustering_mean_shift(data_frame, find_best_params=False):
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
+        if explore_clusters:
+            explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
+
+
+        # # See if we get correct clusters for training set when removing a column
+        # cols_to_set_0 = [col for col in list(data_frame) if col.startswith("experience_level")]
+        # data_frame[cols_to_set_0] = 0
+        # for index, row in data_frame.drop(labels=["cluster_label"], axis=1)[0:10].iterrows():
+        #     distances = euclidean_distances(centroids.drop(labels=cols_to_set_0, axis=1), row.drop(labels=cols_to_set_0).values.reshape(1, -1))
+        #     cluster_index = np.array(distances).argmin()
+        #     print "Predicted:", ms.predict(row.values.reshape(1, -1))[0]
+        #     print "Distance based:", cluster_index
+        #     print "Actual:", data_frame.loc[index]["cluster_label"]
 
         return ms, clusters, centroids, min, max, vectorizers
-
-
-def prepare_test_data(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
-    """ Clean and prepare data specific to clustering
-
-    :param data_frame: Pandas DataFrame that holds the data
-    :type data_frame: pandas.DataFrame
-    :param cluster_columns: Columns of cluster data
-    :type cluster_columns: list
-    :param min: minimum values
-    :type min: pandas.Series
-    :param max: maximum values
-    :type max: pandas.Series
-    :param vectorizers: Vectorizers for adding text tokens (text not added if not given!)
-    :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
-    :param weighting: Do weighting
-    :type weighting: bool
-    :return: Cleaned Pandas DataFrames once with only numerical attributes and once only text attributes
-    :rtype: pandas.DataFrame
-    """
-
-    # drop columns that are unnecessary for clustering: are they?
-        # idea: we don't want to predict anymore, we just want to cluster based on interesting attributes provided by user
-    drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
-    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
-
-    # declare total_charge as missing, if 0
-    data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
-
-    # rows that don't contain total_charge
-    data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
-
-    # overall feedbacks
-    data_frame = get_overall_job_reviews(data_frame)
-
-    # declare feedbacks as missing, if 0
-    data_frame.ix[data_frame.client_feedback == 0, 'client_feedback'] = None
-
-    # remove rows with missing values
-
-    # feedbacks
-    data_frame['feedback_for_client'].dropna(how='any', inplace=True)
-    data_frame['feedback_for_freelancer'].dropna(how='any', inplace=True)
-    data_frame['client_feedback'].dropna(how='any', inplace=True)
-
-    # experience level
-    data_frame["experience_level"].dropna(how='any', inplace=True)
-
-    # convert everything to numeric
-    data_frame = convert_to_numeric(data_frame, label_name="")
-
-    # handle text
-    data_frame, text_data = separate_text(data_frame)
-    if vectorizers is not None:
-        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
-
-    # add missing columns (dummies, that were not in this data set)
-    for col in cluster_columns:
-        if col not in data_frame.columns:
-            data_frame[col] = 0
-    # remove columns not existing in clusters
-    for col in data_frame.columns:
-        if col not in cluster_columns:
-            data_frame.drop(labels=[col], axis=1, inplace=True)
-    # normalize
-    data_frame, _, _ = normalize_min_max(data_frame, min, max)
-
-    if weighting:
-        data_frame = weight_data(data_frame)
-
-    # print data_frame, "\n"
-    print_data_frame("After preparing for clustering", data_frame)
-    # print_statistics(data_frame)
-
-    return data_frame
 
 
 def predict(model, unnormalized_data, normalized_data, clusters, centroids, target_columns):
@@ -485,29 +497,82 @@ def predict(model, unnormalized_data, normalized_data, clusters, centroids, targ
     normalized_data[actual_cols] = 0
     # use model to predict cluster
     predicted_clusters = model.predict(normalized_data)
-    print "\n\n### Predictions:"
-    print predicted_clusters
+    # print "\n\n### Predictions:"
+    # print predicted_clusters
+
+    predicted_clusters = pd.DataFrame(predicted_clusters, columns=["prediction_model"], index=normalized_data.index)
+    predicted_clusters["prediction_euclidean"] = 0
 
     # drop target columns in centroids and in normalized_data so distance not based on them
     centroids.drop(labels=actual_cols, axis=1, inplace=True)
     normalized_data.drop(labels=actual_cols, axis=1, inplace=True)
 
+    # get predictions based on euclidean distance
+    for index, row in normalized_data.iterrows():
+        distances = euclidean_distances(centroids, row.values.reshape(1, -1))
+        cluster_index = np.array(distances).argmin()
+        predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
+
+
     # TODO: This also predicts always the same cluster for every row -> why?
     # find nearest centroid for each row of the given data
     print "\n\n### Predictions:\n"
-    for index, row in normalized_data.iterrows():
-        distances = euclidean_distances(centroids, row)
-        cluster_index = np.array(distances).argmin()
+    numeric_columns = clusters[0]._get_numeric_data().columns
 
-        print "\n# Current row:", index, ", Cluster found:", cluster_index
-        for tc in target_columns:
-            print "Predict label:", tc
-            print "Actucal value:", unnormalized_data.loc[index][tc]
-            print "Cluster values:", clusters[cluster_index][tc]
-            # TODO: handle nominal and numerical attributes differently --> abs_distance to mean for numerical
+    for tc in target_columns:
 
+        print "\n\n\n\n##### Predict label:", tc
+        correct_predict = 0
+        correct_euclidean = 0
+        abs_err_predict = 0
+        abs_err_euclidean = 0
 
-
+        for index, row in normalized_data.iterrows():
+            print "\n#### Current row:", index
+            cluster_index_euc = predicted_clusters["prediction_euclidean"].loc[index]
+            print "### Euclidean Distance:", "Cluster found:", cluster_index_euc
+            cluster_index_pred = predicted_clusters["prediction_model"].loc[index]
+            print "### Model Prediction:", "Cluster found:", cluster_index_pred
+            actual = unnormalized_data.loc[index][tc]
+            print "## Actucal value:", actual
+            print "## Cluster values:"
+            if tc in numeric_columns:
+                mean = clusters[cluster_index_euc][tc].mean()
+                abs_err = abs(actual - mean)
+                abs_err_euclidean = abs_err_euclidean + abs_err
+                print "# Euclidean Distance:", mean, "Error:", abs_err
+                mean = clusters[cluster_index_pred][tc].mean()
+                abs_err = abs(actual - mean)
+                abs_err_predict = abs_err_predict + abs_err
+                print "# Model Prediction:", mean, "Error:", abs_err
+            else:
+                print "# Euclidean Distance:"
+                print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
+                value_counts = clusters[cluster_index_euc][tc].value_counts()
+                if len(value_counts) > 0:
+                    majority = value_counts.idxmax(axis=1)
+                else:
+                    majority = np.NaN
+                if majority == actual:
+                    correct_euclidean = correct_euclidean + 1
+                print "Majority voting:", majority
+                print "# Model Prediction:"
+                print "Cluster shape:", clusters[cluster_index_pred][tc].shape[0]
+                value_counts = clusters[cluster_index_pred][tc].value_counts()
+                if len(value_counts) > 0:
+                    majority = value_counts.idxmax(axis=1)
+                else:
+                    majority = np.NaN
+                if majority == actual:
+                    correct_predict = correct_predict + 1
+                print "Majority voting:", majority
+        if tc in numeric_columns:
+            print "\n\n#### Abs Error Euclidean:", abs_err_euclidean / float(normalized_data.shape[0])
+            print "\n\n#### Abs Error Model:", abs_err_predict / float(normalized_data.shape[0])
+        else:
+            print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
+            print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
+            print "#### Number of rows:", normalized_data.shape[0]
 
 
 
@@ -526,14 +591,18 @@ def test_clustering(file_name, method="Mean-Shift"):
     data_frame_original_test = get_overall_job_reviews(df_test.copy())
 
     if method == "Mean-Shift":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, explore_clusters=False)
     elif method == "K-Means":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, explore_clusters=False)
     # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
     elif method == "DBSCAN":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, explore_clusters=False)
+
+    # balance data set so ratio of hourly and fixed is 1:1
+    df_test = balance_data_set(df_test, "job_type", relative_sampling=False)
 
     # prepare test data
     df_test = prepare_test_data(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
-    predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
+    predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['job_type'])
+    # predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['job_type', 'experience_level'])
