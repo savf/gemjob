@@ -91,8 +91,10 @@ def prepare_data(file_name, budget_name="total_charge"):
         data_frame.dropna(subset=["budget"], how='any', inplace=True)
 
         data_frame.drop(labels=["total_charge"], axis=1, inplace=True)
-    else:
+    elif budget_name == "total_charge":
         data_frame.drop(labels=["budget"], axis=1, inplace=True)
+    else:
+        data_frame.budget.fillna(0, inplace=True)
 
     # remove days and time from date_created to not fit to daily fluctuation
     data_frame['date_created'] = pd.to_datetime(data_frame['date_created'])

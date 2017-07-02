@@ -107,7 +107,7 @@ def budget_model(file_name):
     """
     label_name = "budget"
     budget_classification = False
-    do_cross_val = True
+    do_cross_val = False
     # label_name = "total_charge"
 
     data_frame = prepare_data(file_name, budget_name=label_name)

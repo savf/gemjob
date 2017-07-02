@@ -59,10 +59,10 @@ def test_text_mining():
 
 
 #run
-# budget_model("data/found_jobs_4K_extended.json")
+budget_model("data/found_jobs_4K_extended.json")
 # job_type_model("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
-test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
+# test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")

@@ -537,14 +537,14 @@ def predict(model, unnormalized_data, normalized_data, clusters, centroids, targ
             print "## Actucal value:", actual
             print "## Cluster values:"
             if tc in numeric_columns:
-                mean = clusters[cluster_index_euc][tc].mean()
-                abs_err = abs(actual - mean)
+                median = clusters[cluster_index_euc][tc].median()
+                abs_err = abs(actual - median)
                 abs_err_euclidean = abs_err_euclidean + abs_err
-                print "# Euclidean Distance:", mean, "Error:", abs_err
-                mean = clusters[cluster_index_pred][tc].mean()
-                abs_err = abs(actual - mean)
+                print "# Euclidean Distance:", median, "Error:", abs_err
+                median = clusters[cluster_index_pred][tc].median()
+                abs_err = abs(actual - median)
                 abs_err_predict = abs_err_predict + abs_err
-                print "# Model Prediction:", mean, "Error:", abs_err
+                print "# Model Prediction:", median, "Error:", abs_err
             else:
                 print "# Euclidean Distance:"
                 print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
@@ -568,7 +568,7 @@ def predict(model, unnormalized_data, normalized_data, clusters, centroids, targ
                 print "Majority voting:", majority
         if tc in numeric_columns:
             print "\n\n#### Abs Error Euclidean:", abs_err_euclidean / float(normalized_data.shape[0])
-            print "\n\n#### Abs Error Model:", abs_err_predict / float(normalized_data.shape[0])
+            print "#### Abs Error Model:", abs_err_predict / float(normalized_data.shape[0])
         else:
             print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
             print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
@@ -585,7 +585,7 @@ def test_clustering(file_name, method="Mean-Shift"):
     :type method: str
     """
 
-    data_frame = prepare_data(file_name, budget_name="total_charge")
+    data_frame = prepare_data(file_name, budget_name="")
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
     data_frame_original_test = get_overall_job_reviews(df_test.copy())
@@ -598,11 +598,15 @@ def test_clustering(file_name, method="Mean-Shift"):
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, explore_clusters=False)
 
-    # balance data set so ratio of hourly and fixed is 1:1
-    df_test = balance_data_set(df_test, "job_type", relative_sampling=False)
+    # # balance data set for experience_level or job_type
+    # df_test = balance_data_set(df_test, "experience_level", relative_sampling=False)
+
+    # remove rows without budget to predict budget
+    df_test.ix[data_frame.budget == 0, 'budget'] = None
+    df_test.dropna(subset=["budget"], how='any', inplace=True)
 
     # prepare test data
     df_test = prepare_test_data(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
-    predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['job_type'])
+    predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
     # predict(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['job_type', 'experience_level'])
