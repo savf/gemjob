@@ -229,6 +229,7 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
        :return: Pandas DataFrame (balanced)
        :rtype: pandas.DataFrame
        """
+    print "### Balancing data:"
     value_counts = data_frame[label_name].value_counts()
     min_target_value_count = min(value_counts.values)
     print "Value counts:\n", \

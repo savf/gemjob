@@ -247,7 +247,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     return final_score
 
 
-def do_clustering_dbscan(data_frame, find_best_params=False, explore_clusters=True):
+def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
     """ Cluster using DBSCAN algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.64 WITH removing columns
@@ -256,8 +256,8 @@ def do_clustering_dbscan(data_frame, find_best_params=False, explore_clusters=Tr
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
-    :param explore_clusters: Print stats about clusters
-    :type explore_clusters: bool
+    :param do_explore: Print stats about clusters
+    :type do_explore: bool
     """
 
     min_n_clusters = 10
@@ -318,13 +318,13 @@ def do_clustering_dbscan(data_frame, find_best_params=False, explore_clusters=Tr
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        if explore_clusters:
+        if do_explore:
             explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
 
         return db, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_kmeans(data_frame, find_best_params=False, explore_clusters=True):
+def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
     """ Cluster using k-means algorithm
     silhouette_score about 0.54 (0.25 with z-score) without removing columns
     silhouette_score about 0.60 WITH removing columns
@@ -333,8 +333,8 @@ def do_clustering_kmeans(data_frame, find_best_params=False, explore_clusters=Tr
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
-    :param explore_clusters: Print stats about clusters
-    :type explore_clusters: bool
+    :param do_explore: Print stats about clusters
+    :type do_explore: bool
     """
 
     min_n_clusters = 10
@@ -384,13 +384,13 @@ def do_clustering_kmeans(data_frame, find_best_params=False, explore_clusters=Tr
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        if explore_clusters:
+        if do_explore:
             explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
 
         return kmeans, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_mean_shift(data_frame, find_best_params=False, explore_clusters=True):
+def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True):
     """ Cluster using mean-shift algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.65 WITH removing columns
@@ -400,8 +400,8 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, explore_cluster
     :type data_frame: pandas.DataFrame
     :param find_best_params: Find best parameters for clustering
     :type find_best_params: bool
-    :param explore_clusters: Print stats about clusters
-    :type explore_clusters: bool
+    :param do_explore: Print stats about clusters
+    :type do_explore: bool
     """
 
     data_frame_original = get_overall_job_reviews(data_frame.copy())
@@ -452,7 +452,7 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, explore_cluster
         gb = data_frame_original.groupby('cluster_label')
         clusters = [gb.get_group(x) for x in gb.groups]
 
-        if explore_clusters:
+        if do_explore:
             explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
 
 
@@ -591,12 +591,12 @@ def test_clustering(file_name, method="Mean-Shift"):
     data_frame_original_test = get_overall_job_reviews(df_test.copy())
 
     if method == "Mean-Shift":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, explore_clusters=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, do_explore=False)
     elif method == "K-Means":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, explore_clusters=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, do_explore=False)
     # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
     elif method == "DBSCAN":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, explore_clusters=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
 
     # # balance data set for experience_level or job_type
     # df_test = balance_data_set(df_test, "experience_level", relative_sampling=False)
