@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 # from dm_data_exploration import explore_data
 from dm_clustering import test_clustering
+from dm_knn import test_knn
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
@@ -59,10 +60,11 @@ def test_text_mining():
 
 
 #run
-budget_model("data/found_jobs_4K_extended.json")
+# budget_model("data/found_jobs_4K_extended.json")
 # job_type_model("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
 # explore_data("data/found_jobs_4K_extended.json")
 # test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
+test_knn("data/found_jobs_4K_extended.json")
