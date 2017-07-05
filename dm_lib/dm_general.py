@@ -31,6 +31,9 @@ def print_correlations(df, attr=None, store=False, method='spearman',
                        xlabels=None, ylabels=None):
     """ Print attribute correlations for a given Pandas DataFrame
 
+    Spearman and kendall are robust in regards to outliers whereas pearson
+    can be affected by them and can give the wrong correlation as a result
+
     :param df: Pandas DataFrame to analyze
     :type df: pandas.DataFrame
     :param attr: If specified, only print correlations for the given attribute

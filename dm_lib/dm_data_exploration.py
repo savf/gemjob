@@ -321,12 +321,58 @@ def explore_data(file_name,budget_name="total_charge"):
     #                                    data_frame[aggregate_feedback].var(),
     #                                    data_frame[feedback].var())
 
-    attribute = 'feedback_for_client'
-    forwardfill = data_frame[attribute].fillna(method='pad')
-    backfill = data_frame[attribute].fillna(method='backfill')
-    kdesamples = data_frame.copy()  # type: pd.DataFrame
-    replace_missing_with_kde_samples(kdesamples, attribute)
+    # attribute = 'feedback_for_freelancer'
+    # forwardfill = data_frame[attribute].fillna(method='pad')
+    # backfill = data_frame[attribute].fillna(method='backfill')
+    # kdesamples = data_frame.copy()  # type: pd.DataFrame
+    # replace_missing_with_kde_samples(kdesamples, attribute)
+    # meanfill = data_frame[attribute].fillna(data_frame[attribute].mean())
+    #
+    # print "{} {}:\r\n{}".format(attribute, "forwardfill", forwardfill.describe())
+    # print "{} {}:\r\n{}".format(attribute, "backfill", backfill.describe())
+    # print "{} {}:\r\n{}".format(attribute, "kdesamples", kdesamples[attribute].describe())
+    # print "{} {}:\r\n{}".format(attribute, "meanfill", meanfill.describe())
+    #
+    # print from_same_distribution(data_frame[attribute].dropna(), forwardfill, 0.05)
+    # print from_same_distribution(data_frame[attribute].dropna(), backfill, 0.05)
+    # print from_same_distribution(data_frame[attribute].dropna(), kdesamples[attribute], 0.05)
+    # print from_same_distribution(data_frame[attribute].dropna(), meanfill, 0.05)
 
-    print from_same_distribution(data_frame[attribute].dropna(), forwardfill, 0.05)
-    print from_same_distribution(data_frame[attribute].dropna(), backfill, 0.05)
-    print from_same_distribution(data_frame[attribute].dropna(), kdesamples[attribute], 0.05)
+    # pd.set_option('display.float_format', lambda x: '%.6f' % x)
+    #
+    # data_frame.loc[data_frame['client_payment_verification_status'].isnull(),
+    #                'client_payment_verification_status'] = "UNKNOWN"
+    # verified = data_frame.loc[data_frame['client_payment_verification_status'] == "VERIFIED"]
+    # allelse = data_frame.loc[data_frame['client_payment_verification_status'] != "VERIFIED"]
+    #
+    # for attribute in ["budget", "total_charge", "client_feedback"]:
+    #     print "{} SameMean: {}".format(attribute, same_mean(verified[attribute].dropna(),
+    #                                                         allelse[attribute].dropna(),
+    #                                                         0.05))
+    #     print "{} SameDistribution: {}".format(attribute,
+    #                                            from_same_distribution(verified[attribute].dropna(),
+    #                                                                   allelse[attribute].dropna(),
+    #                                                                   0.05))
+    #     print "verified:"
+    #     print verified[attribute].describe()
+    #     print "allelse:"
+    #     print allelse[attribute].describe()
+    #     print "\r\n"
+    #
+    # cleandf = data_frame[["duration_weeks_total", "duration_weeks_median"]].dropna()
+    # for method in ["spearman", "kendall", "pearson"]:
+    #     print cleandf.corr(method=method)
+    # print stats.spearmanr(cleandf['duration_weeks_total'],
+    #                        cleandf['duration_weeks_median'])
+    # print stats.kendalltau(cleandf['duration_weeks_total'],
+    #                        cleandf['duration_weeks_median'])
+    # print stats.pearsonr(cleandf['duration_weeks_total'],
+    #                        cleandf['duration_weeks_median'])
+    #
+    # q1 = data_frame.quantile(0.25)
+    # q3 = data_frame.quantile(0.75)
+    # iqr = q3 - q1
+    #
+    # print ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr))).sum()
+
+    print data_frame.loc[data_frame['job_type'] == 'Hourly'].isnull().sum()
