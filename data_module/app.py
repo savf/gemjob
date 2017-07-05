@@ -104,6 +104,12 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         except ValueError:
             return False
 
+    @staticmethod
+    def safe_modulo(first, second):
+        if second == 0:
+            return 0
+        return first % second
+
     ### post request
     def post(self):
         json_data = request.get_json(force=True)
@@ -176,7 +182,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             counter = 0
             for job in found_jobs:
                 # Save already found profiles in 10% progress steps
-                if counter % int(round(len(found_jobs)/10)) == 0:
+                if self.safe_modulo(counter, int(round(len(found_jobs)/10))) == 0:
                     try:
                         with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
                             f.truncate()

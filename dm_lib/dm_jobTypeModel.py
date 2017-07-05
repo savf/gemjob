@@ -19,9 +19,6 @@ def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     :rtype: pandas.DataFrame
     """
 
-    # TODO just remove feedbacks?
-    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
-
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_feedback", "client_past_hires"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
@@ -52,7 +49,9 @@ def job_type_model(file_name):
     :type file_name: str
     """
     label_name = "job_type"
-    data_frame = prepare_data(file_name, budget_name="total_charge") # budget can't be budget here, because budget always 0 if hourly!!
+
+    #data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db()
     data_frame, text_data = prepare_data_job_type_model(data_frame, label_name, relative_sampling=False)
 
     # print "\n\n########## Do Text Mining\n"

@@ -5,11 +5,15 @@ import pandas as pd
 import numpy as np
 from math import log
 import random
+import rethinkdb as rdb
+from rethinkdb import RqlDriverError, RqlRuntimeError
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
 _percentage_some_missing = 0.1
 _percentage_too_many_missing = 0.5
+
+
 def get_detailed_feedbacks_names():
     return ['feedback_for_client_availability', 'feedback_for_client_communication',
                  'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
@@ -17,6 +21,7 @@ def get_detailed_feedbacks_names():
                  'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
                  'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
                  'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
+
 
 def create_data_frame(file_name):
     """ Load data from json file and return as pandas DataFrame
@@ -36,12 +41,76 @@ def create_data_frame(file_name):
     return df
 
 
-def prepare_data(file_name, budget_name="total_charge"):
-    """ Clean data
+def db_setup(file_name):
+    """ Create DB and table if they don't exist, then insert jobs
+
+    The database_module needs to be running and the host variable
+    should be configured to the local host. For standard Docker
+    installations, 'localhost' should work.
 
     :param file_name: File name where data is stored
     :type file_name: str
-    :param budget_name: Use either "budget" or "total_charge"
+    """
+    host = '192.168.99.100'
+    port = '28015'
+    database = 'datasets'
+    prepared_jobs_table = 'jobs_optimized'
+
+    connection = rdb.connect(host, port)
+    try:
+        if not rdb.db_list().contains(database).run(connection):
+            rdb.db_create(database).run(connection)
+        if not rdb.db(database).table_list().contains(prepared_jobs_table).run(
+                connection):
+            rdb.db(database).table_create(prepared_jobs_table).run(connection)
+            data_frame = prepare_data(file_name)
+            data_frame.date_created = data_frame.date_created.apply(
+                lambda time: time.to_pydatetime().replace(
+                    tzinfo=rdb.make_timezone("+02:00"))
+            )
+            data_frame['id'] = data_frame.index
+            rdb.db(database).table(prepared_jobs_table).insert(
+                data_frame.to_dict('records'), conflict="replace").run(connection)
+    except RqlRuntimeError:
+        print 'Database {} and table {} already exist.'.format(database,
+                                                               prepared_jobs_table)
+    finally:
+        connection.close()
+
+
+def load_data_frame_from_db():
+    """ Load a prepared data_frame directly from the RethinkDB
+
+    :return: Prepared DataFrame
+    :rtype: pandas.DataFrame
+    """
+    host = '192.168.99.100'
+    port = '28015'
+    database = 'datasets'
+    prepared_jobs_table = 'jobs_optimized'
+
+    try:
+        connection = rdb.connect(host, port)
+
+        jobs_cursor = rdb.db(database).table(prepared_jobs_table).run(connection)
+        jobs = list(jobs_cursor)
+        data_frame = pd.DataFrame(jobs)
+        data_frame.set_index('id', inplace=True)
+        data_frame['date_created'] = data_frame['date_created'].apply(
+            lambda timestamp: pd.Timestamp(timestamp.replace(tzinfo=None))
+        )
+
+        return data_frame
+    except RqlDriverError:
+        return None
+    except RqlRuntimeError:
+        return None
+
+
+def prepare_data(file_name):
+    """ Clean data
+
+    :param file_name: File name where data is stored
     :type file_name: str
     :return: Cleaned DataFrame
     :rtype: pandas.DataFrame
@@ -49,52 +118,44 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame = create_data_frame(file_name)
     data_frame.columns = [c.replace('.', '_') for c in
                           data_frame.columns]  # so we can access a column with "data_frame.client_reviews_count"
-    # print_data_frame("Before changing data", data_frame)
 
     # set id
     data_frame.set_index("id", inplace=True)
 
-    # remove unnecessary data
-    unnecessary_columns = ["category2", "job_status", "url"]#, "client_payment_verification_status"]
+    # convert total_charge and freelancer_count to number
+    data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
+    data_frame["freelancer_count"] = pd.to_numeric(
+        data_frame["freelancer_count"])
+
+    # TODO: client_payment_verification_status may be static as well (or practically static)
+    # Remove static and key attributes
+    unnecessary_columns = ["category2", "job_status", "url"]
     data_frame.drop(labels=unnecessary_columns, axis=1, inplace=True)
+
+    # generate aggregate feedback for client and freelancer and fill missings
+    data_frame = get_overall_job_reviews(data_frame, drop_detailed=True)
+    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
+    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
 
     # set missing of client_payment_verification_status to unknown (as this is already an option anyway)
     data_frame["client_payment_verification_status"].fillna("UNKNOWN", inplace=True)
 
-    # convert total_charge and freelancer_count to number
-    data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
-    data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
+    # remove duration and duration_weeks_total since duration_weeks_median is enough
+    data_frame.drop(labels=['duration', 'duration_weeks_total'],
+                    axis=1, inplace=True)
 
-    # handle missing values
-    # ( data may change -> do this in a generic way! )
+    # replace all workloads for fixed jobs with 30+ hrs/week to align the
+    # missing ones and the ones which already were 30+ hrs/week
+    data_frame.loc[
+        data_frame['job_type'] == 'Fixed', 'workload'] = "30+ hrs/week"
+    data_frame.dropna(subset=['workload'], how='any', inplace=True)
 
-    # remove column if too many missing (removes duration)
-    min_too_many_missing = missing_value_limit(data_frame.shape[0])
-    columns_too_many_missing = list(data_frame.columns[data_frame.isnull().sum() > min_too_many_missing])
-    data_frame.drop(labels=columns_too_many_missing, axis=1, inplace=True)
+    # declare budget as missing, if hourly job (because there, we have no budget field)
+    data_frame.loc[data_frame.job_type == "Hourly", 'budget'] = None
 
-    # remove rows that have missing data in columns, which normally only have very few (if any) missing values
-    max_few_missing = _percentage_few_missing * data_frame.shape[0]
-    columns_few_missing = list(
-        data_frame.columns[(data_frame.isnull().sum() < max_few_missing) & (data_frame.isnull().sum() > 0)])
-    data_frame.dropna(subset=columns_few_missing, how='any', inplace=True)
-
-    # declare feedback as missing, if no reviews
-    data_frame.ix[data_frame.client_reviews_count == 0, 'client_feedback'] = None
-
-    # exclusively work with one budget attribute
-    if budget_name == "budget":
-        # declare budget as missing, if hourly job (because there, we have no budget field)
-        data_frame.ix[data_frame.job_type == "Hourly", 'budget'] = None
-
-        # drop rows that don't contain budget
-        data_frame.dropna(subset=["budget"], how='any', inplace=True)
-
-        data_frame.drop(labels=["total_charge"], axis=1, inplace=True)
-    elif budget_name == "total_charge":
-        data_frame.drop(labels=["budget"], axis=1, inplace=True)
-    else:
-        data_frame.budget.fillna(0, inplace=True)
+    # Fill with 0 since only hourly jobs have no budget and all non-missing
+    # budgets for hourly jobs are set to 0
+    data_frame.budget.fillna(0, inplace=True)
 
     # remove days and time from date_created to not fit to daily fluctuation
     data_frame['date_created'] = pd.to_datetime(data_frame['date_created'])
@@ -105,24 +166,15 @@ def prepare_data(file_name, budget_name="total_charge"):
     data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
                                             labels=experience_levels)
 
-    # fill missing numeric values with mean, if only some missing
-    max_some_missing = _percentage_some_missing * data_frame.shape[0]
-    df_numeric = data_frame.select_dtypes(include=[np.number])
-    columns_some_missing = list(
-        df_numeric.columns[(df_numeric.isnull().sum() < max_some_missing) & (df_numeric.isnull().sum() > 0)])
-    data_frame[columns_some_missing] = data_frame[columns_some_missing].fillna(
-        (data_frame[columns_some_missing].mean()))
-    del df_numeric
+    # fill missing experience levels with forward filling
+    data_frame['experience_level'].fillna(method='ffill', inplace=True)
 
-    # # fill missing workload values with random non-missing values
-    # filled_workloads = data_frame["workload"].dropna()
-    # data_frame["workload"] = data_frame.apply(
-    #     lambda row: row["workload"] if row["workload"] is not None else random.choice(filled_workloads), axis=1)
+    # drop missing values for total_hours, freelancer_count, duration_weeks_median
+    data_frame.dropna(subset=["total_hours", "freelancer_count",
+                              "duration_weeks_median"],
+                      how='any', inplace=True)
 
-    # replace missing workloads with "Less than 10 hrs/week" because they are only smaller fixed jobs
-    data_frame["workload"].fillna("Less than 10 hrs/week", inplace=True)
-
-    ### add additional attributes like text size (how long is the description?) or number of skills
+    # add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
@@ -162,19 +214,24 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
     """
     # delete only in training set!!!!
 
-    budget_thresh = 3000
-    tot_hours_thresh = 1000
-    duration_weeks_tot_thresh = 100
-    duration_weeks_median_thresh = 50
-    total_charge_thresh = 10000
+    q1 = data_frame.quantile(0.25)
+    q3 = data_frame.quantile(0.75)
+    iqr = q3 - q1
+
+    outliers = ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr)))
+
+    attributes_to_consider = ['total_hours', 'duration_weeks_median']
 
     if budget_name == "total_charge":
-        data_frame = data_frame.drop(data_frame[data_frame.total_charge > total_charge_thresh].index)
+        attributes_to_consider.append('total_charge')
     elif data_frame['budget'].dtype.name != "category":
-        data_frame = data_frame.drop(data_frame[data_frame.budget > budget_thresh].index)
-    data_frame = data_frame.drop(data_frame[data_frame.total_hours > tot_hours_thresh].index)
-    data_frame = data_frame.drop(data_frame[data_frame.duration_weeks_total > duration_weeks_tot_thresh].index)
-    data_frame = data_frame.drop(data_frame[data_frame.duration_weeks_median > duration_weeks_median_thresh].index)
+        attributes_to_consider.append('budget')
+
+    # TODO: Not very efficient -> maybe something with apply and any?
+    outlier_indices = [idx for idx in data_frame.index if
+                       outliers[attributes_to_consider].loc[idx].any()]
+    del outliers
+    data_frame.drop(outlier_indices, inplace=True)
 
     return data_frame
 
@@ -220,15 +277,15 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
 def balance_data_set(data_frame, label_name, relative_sampling=False):
     """ Balance the data set for classification (ratio of classes 1:1)
 
-       :param data_frame: Pandas DataFrame that contains the data
-       :type data_frame: pd.DataFrame
-       :param label_name: Target label that will be learned
-       :type label_name: str
-       :param relative_sampling: Relative or 1:1 sampling
-       :type relative_sampling: bool
-       :return: Pandas DataFrame (balanced)
-       :rtype: pandas.DataFrame
-       """
+    :param data_frame: Pandas DataFrame that contains the data
+    :type data_frame: pd.DataFrame
+    :param label_name: Target label that will be learned
+    :type label_name: str
+    :param relative_sampling: Relative or 1:1 sampling
+    :type relative_sampling: bool
+    :return: Pandas DataFrame (balanced)
+    :rtype: pandas.DataFrame
+    """
     print "### Balancing data:"
     value_counts = data_frame[label_name].value_counts()
     min_target_value_count = min(value_counts.values)
@@ -296,11 +353,12 @@ def convert_to_numeric(data_frame, label_name):
     cols_to_transform = set(cols_to_transform).intersection(data_frame.columns)
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 
-    # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
-    data_frame.ix[data_frame.workload == "Less than 10 hrs/week", 'workload'] = 5
-    data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 15
-    data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
-    data_frame["workload"] = pd.to_numeric(data_frame["workload"])
+    if 'workload' in data_frame.columns:
+        # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
+        data_frame.ix[data_frame.workload == "Less than 10 hrs/week", 'workload'] = 5
+        data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 15
+        data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
+        data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 
     return data_frame
 
@@ -368,6 +426,7 @@ def missing_value_limit(data_frame_size):
     """
 
     return data_frame_size * _percentage_too_many_missing
+
 
 def get_overall_job_reviews(data_frame, drop_detailed=True):
     """ Computes overall reviews from review categories
@@ -468,6 +527,7 @@ def weight_data(data_frame):
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_frame.fillna(0, inplace=True)
     return data_frame
+
 
 def normalize_test_train(df_train, df_test, label_name=None, z_score_norm=False, weighting=True):
     """ Normalize and optionally weight train and test set (test set normalized based on train set!)

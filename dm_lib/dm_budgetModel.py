@@ -10,6 +10,7 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, cross_val_predict
 
+
 def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
     """ Clean data specific to the budget model
 
@@ -23,48 +24,47 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     :rtype: pandas.DataFrame
     """
 
-    # if we use total charge as budget, 0 values make no sense
-    # (the budget would not be 0, we just didn't find a freelancer here)
-    if label_name == "total_charge":
-        # declare total_charge as missing, if 0
-        data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
+    # drop all examples with job_type hourly since there is no budget or
+    # total charge present
+    data_frame.loc[data_frame['job_type'] == 'Hourly', 'job_type'] = None
+    data_frame.dropna(subset=['job_type'], how='any', inplace=True)
+    # job type is static for budget and total_charge (=fixed) so drop it
+    data_frame.drop(labels=["job_type"], axis=1, inplace=True)
 
-        # rows that don't contain total_charge
-        data_frame.dropna(subset=["total_charge"], how='any', inplace=True)
-    elif label_name == "budget":
-        data_frame.drop(labels=["job_type"], axis=1, inplace=True)
+    # exclusively work with one budget attribute
+    if label_name == "budget":
+        data_frame.drop(labels=["total_charge"], axis=1, inplace=True)
+        data_frame.dropna(subset=["budget"], how='any', inplace=True)
 
+        # Discretize budget into 4 bins for classification
         if budget_classification:
-            # Discretize budget into 4 bins
             budget_levels = ['low', 'medium', 'high', 'ultra']
-            data_frame['budget'] = pd.qcut(data_frame.loc[data_frame['budget'] > 0.0, 'budget'], len(budget_levels),
-                                           labels=budget_levels)
+            data_frame['budget'] = pd.qcut(
+                data_frame.loc[data_frame['budget'] > 0.0, 'budget'],
+                len(budget_levels),
+                labels=budget_levels)
             data_frame.loc[data_frame['budget'] == 0.0, 'budget'] = 'low'
-
-    # remove rows with missing values
-
-    # TODO just remove feedbacks?
-    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
+    elif label_name == "total_charge":
+        data_frame.drop(labels=["budget"], axis=1, inplace=True)
+        # declare total_charge as missing, if 0
+        data_frame.loc[data_frame.total_charge == 0, 'total_charge'] = None
+        data_frame.dropna(subset=['total_charge'], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
-    drop_unnecessary = ["client_feedback", "client_reviews_count", "client_past_hires", "client_jobs_posted"]
+    drop_unnecessary = ["client_feedback", "client_reviews_count",
+                        "client_past_hires", "client_jobs_posted",
+                        "workload"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    # fill missing experience levels with random non-missing values
-    filled_experience_levels = data_frame["experience_level"].dropna()
-    data_frame["experience_level"] = data_frame.apply(
-        lambda row: row["experience_level"] if row["experience_level"] is not None
-        else random.choice(filled_experience_levels), axis=1)
-
     # convert everything to numeric
-    data_frame = convert_to_numeric(data_frame, label_name)
-    ### roughly cluster by rounding
-    # data_frame = coarse_clustering(data_frame, label_name)
+    if not budget_classification:
+        data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for budget model", data_frame)
 
     return data_frame
+
 
 def create_model(df_train, label_name, is_classification):
     # separate target
@@ -78,6 +78,7 @@ def create_model(df_train, label_name, is_classification):
 
     model.fit(df_train, df_target_train)
     return model
+
 
 def create_model_cross_val(data_frame, label_name, is_classification):
     # separate target
@@ -98,6 +99,7 @@ def create_model_cross_val(data_frame, label_name, is_classification):
 
     return model, predictions, data_frame_target
 
+
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
 def budget_model(file_name):
     """ Learn model for label 'budget' and return it
@@ -110,7 +112,8 @@ def budget_model(file_name):
     do_cross_val = False
     # label_name = "total_charge"
 
-    data_frame = prepare_data(file_name, budget_name=label_name)
+    #data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db()
 
     # prepare for model
     data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=budget_classification)
@@ -132,7 +135,6 @@ def budget_model(file_name):
 
         # print "\n\n########## Do Text Mining\n"
         # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
-
 
         print "\n\n##### With Outlier Treatment:"
         model = create_model(df_train_outl.copy(), label_name, budget_classification)

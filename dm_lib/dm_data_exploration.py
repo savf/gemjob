@@ -2,12 +2,18 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pandas.core.dtypes.dtypes import CategoricalDtype
+import rethinkdb as rdb
 from scipy import stats
 from scipy.stats.mstats import normaltest
 from sklearn.neighbors.kde import KernelDensity
 
 from dm_data_preparation import *
 from dm_general import print_correlations, print_statistics
+
+RDB_HOST = '192.168.99.100'
+RDB_PORT = 28015
+RDB_DB = 'datasets'
+RDB_OPTIMIZED_TABLE = 'jobs_optimized'
 
 
 def perc_convert(ser):
@@ -98,6 +104,15 @@ def same_mean(series_1, series_2, significance):
         return True, result, p_value
 
 
+def data_frame_from_db():
+    connection = rdb.connect(RDB_HOST, RDB_PORT)
+    jobs_cursor = rdb.db(RDB_DB).table(RDB_OPTIMIZED_TABLE).run(connection)
+    jobs = list(jobs_cursor)
+    data_frame = pd.DataFrame(jobs)
+    data_frame.set_index('id', inplace=True)
+
+    return data_frame
+
 def prepare_data_raw(file_name):
     """ Similar function to prepare_data in dm_data_preparation but without any data modification
 
@@ -133,6 +148,25 @@ def get_datatype_safely(dtype):
     return dtype
 
 
+def plot_qqplot(data_series, store=False):
+    """ Create a QQ plot (aka probability plot) to check for normal dist.
+
+    :param data_series: Panda Series containing the data to plot
+    :type data_series: pandas.Series
+    :param store: Whether to store the plot as PDF
+    :type store: bool
+    """
+    fig, ax = plt.subplots()
+
+    if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
+        stats.probplot(data_series, plot=ax)
+        ax.set_title("Probability plot for " + data_series.name)
+
+        if store:
+            plt.savefig("attributes/qq_{}.pdf".format(data_series.name),
+                        dpi=150)
+
+
 def plot_boxplot(data_series, store=False):
     """ Create a boxplot and save it as boxplot_attributename.pdf
 
@@ -141,15 +175,16 @@ def plot_boxplot(data_series, store=False):
     :param store: Whether to store the plot as PDF
     :type store: bool
     """
-    fix, ax = plt.subplots()
+    fig, ax = plt.subplots()
 
     if np.issubdtype(get_datatype_safely(data_series.dtype), np.number):
         sns.boxplot(data_series, ax=ax)
 
         plt.suptitle('Boxplot for {}'.format(data_series.name))
 
-        plt.savefig("attributes/boxplot_{}.pdf".format(data_series.name),
-                    dpi=150)
+        if store:
+            plt.savefig("attributes/boxplot_{}.pdf".format(data_series.name),
+                        dpi=150)
 
 
 def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
@@ -219,7 +254,7 @@ def explore_data(file_name,budget_name="total_charge"):
     :param budget_name: Use either "budget" or "total_charge"
     :type file_name: str
     """
-    data_frame = prepare_data_raw(file_name)
+    # data_frame = prepare_data_raw(file_name)
 
     feedbacks_for_client = ['feedback_for_client_availability',
                             'feedback_for_client_communication',
@@ -305,7 +340,7 @@ def explore_data(file_name,budget_name="total_charge"):
     #                    ylabels=[col.split('_')[3] for col in
     #                             feedbacks_for_client_frame.columns])
 
-    data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
+    # data_frame = get_overall_job_reviews(data_frame, drop_detailed=False)
 
     # plot_value_distributions(data_frame['feedback_for_client'], x_label="feedback score", logy=True)
     # plot_value_distributions(data_frame['feedback_for_freelancer'], x_label="feedback score", logy=True)
@@ -375,4 +410,29 @@ def explore_data(file_name,budget_name="total_charge"):
     #
     # print ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr))).sum()
 
-    print data_frame.loc[data_frame['job_type'] == 'Hourly'].isnull().sum()
+    # attribute = 'experience_level'
+    # forwardfill = data_frame[attribute].fillna(method='pad')
+    # backfill = data_frame[attribute].fillna(method='backfill')
+    # meanfill = data_frame[attribute].fillna(data_frame[attribute].value_counts().index[0])
+    #
+    # print "{} {}:\r\n{}".format(attribute, "forwardfill", forwardfill.describe())
+    # print "{} {}:\r\n{}".format(attribute, "backfill", backfill.describe())
+    # print "{} {}:\r\n{}".format(attribute, "meanfill", meanfill.describe())
+    #
+    # print from_same_distribution(data_frame[attribute].dropna(), forwardfill, 0.05)
+    # print from_same_distribution(data_frame[attribute].dropna(), backfill, 0.05)
+    # print from_same_distribution(data_frame[attribute].dropna(), meanfill, 0.05)
+
+    # for attribute in data_frame.columns:
+    #     plot_qqplot(data_frame[attribute], store=True)
+
+    # data_frame = prepare_data(file_name)
+    # data_frame.date_created = data_frame.date_created.apply(lambda time: time.to_pydatetime().replace(
+    #     tzinfo=rdb.make_timezone("+02:00")))
+    #
+    # data_frame['id'] = data_frame.index
+    #
+    # connection = rdb.connect(RDB_HOST, RDB_PORT)
+    # response = rdb.db(RDB_DB).table(RDB_OPTIMIZED_TABLE).insert(
+    #     data_frame.to_dict('records'), conflict="replace").run(connection)
+    # connection.close()

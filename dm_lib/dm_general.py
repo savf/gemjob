@@ -81,6 +81,7 @@ def print_correlations(df, attr=None, store=False, method='spearman',
         if ylabels is not None:
             ax1.set_yticklabels(ylabels[::-1])
             ax2.set_yticklabels(ylabels[::-1], rotation=0)
+        plt.show()
 
     else:
         print "### Correlations for " + attr + " ###"

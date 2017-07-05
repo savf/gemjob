@@ -5,21 +5,23 @@ from dm_data_preparation import *
 from dm_general import evaluate_classification, print_predictions_comparison
 
 
-def prepare_data_experience_level_model(data_frame, label_name):
+def prepare_data_experience_level_model(data_frame, label_name, relative_sampling):
     """
     Prepare data to be used to precict the experience level
 
     :param data_frame: Pandas DataFrame containing the data
     :param label_name: Target label
-    :return:
+    :param relative_sampling: Relative or 1:1 sampling
+    :type relative_sampling: bool
+    :return: DataFrame prepared for experience_level classification
+    :rtype: pandas.DataFrame
     """
-    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
-
     data_frame.dropna(subset=['experience_level'], inplace=True)
 
     data_frame = convert_to_numeric(data_frame, label_name)
+    data_frame = balance_data_set(data_frame, label_name, relative_sampling)
 
-    # print data_frame, "\n"
+    # print data_frame
     print_data_frame("After preparing for budget model", data_frame)
 
     return data_frame
@@ -35,8 +37,10 @@ def experience_level_model(file_name):
 
     label_name = 'experience_level'
 
-    data_frame = prepare_data(file_name)
-    data_frame = prepare_data_experience_level_model(data_frame, label_name)
+    #data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db()
+    data_frame = prepare_data_experience_level_model(data_frame, label_name,
+                                                     relative_sampling=False)
     data_frame, text_data = separate_text(data_frame, label_name)
 
     df_train, df_test = train_test_split(data_frame, train_size=0.8)

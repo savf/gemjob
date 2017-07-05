@@ -19,26 +19,12 @@ def prepare_data_feedback_model(data_frame, label_name):
     :rtype: pandas.DataFrame
     """
 
-    # remove rows with missing values
-
-    # remove other feedbacks
-    # TODO summarize feedback to client to one value and predict this one instead of overall feedback
-    data_frame.drop(labels=get_detailed_feedbacks_names(), axis=1, inplace=True)
-
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_past_hires"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
-    # fill missing experience levels with random non-missing values
-    filled_experience_levels = data_frame["experience_level"].dropna()
-    data_frame["experience_level"] = data_frame.apply(
-        lambda row: row["experience_level"] if row["experience_level"] is not None
-        else random.choice(filled_experience_levels), axis=1)
-
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name)
-    ### roughly cluster by rounding
-    # data_frame = coarse_clustering(data_frame, label_name)
 
     # print data_frame, "\n"
     print_data_frame("After preparing for rating model", data_frame)
@@ -55,7 +41,8 @@ def feedback_model(file_name):
     """
     label_name = "client_feedback"
 
-    data_frame = prepare_data(file_name)
+    #data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db()
     data_frame, text_data = prepare_data_feedback_model(data_frame, label_name)
 
     # print "\n\n########## Do Text Mining\n"
