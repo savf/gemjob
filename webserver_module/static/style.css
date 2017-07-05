@@ -167,6 +167,23 @@ a:hover{
     display: inline-block;
 }
 
+span.Token{
+    width: auto;
+    display: inline-block;
+    background: #70ad47;
+    color: white;
+    padding: 8px;
+    margin-right: 20px;
+    margin-top: 4px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+span.Token:hover{
+    background: darkred;
+}
+
 h2.Job{
     color: #70ad47;
 }

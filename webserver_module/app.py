@@ -7,7 +7,7 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/'}
+module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://clustering_module:5000/'}
 # module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/'}
 
 app = Flask(__name__)
@@ -49,8 +49,8 @@ def start():
         profile_pic = user_info['info']['portrait_32_img']
 
         jobs_list = get_jobs(client, user_info['teams'])
-        print "### Jobs:"
-        pretty_print(jobs_list)
+        # print "### Jobs:"
+        # pretty_print(jobs_list)
         return render_template("index.html", first_name=first_name, last_name=last_name, profile_pic=profile_pic, jobs_list=jobs_list)
     except Exception as err:
         print err
@@ -91,24 +91,38 @@ def admin():
 @app.route('/job')
 def job():
     try:
+        access_token = session['access_token']
+        access_token_secret = session['access_token_secret']
+        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                               oauth_access_token=access_token,
+                               oauth_access_token_secret=access_token_secret,
+                               timeout=30)
         user_info = session.get('user_info')
         profile_pic = user_info['info']['portrait_32_img']
-        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"))
+        skills_list = client.provider.get_skills_metadata()
+        print "### Skills list:"
+        # pretty_print(skills_list)
+        skills_list_js = '['
+        for skill in skills_list:
+            skills_list_js = skills_list_js + '"' + str(skill) + '",'
+        skills_list_js = skills_list_js[0:-1] + ']'
+        print skills_list_js
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=skills_list_js)
     except Exception as err:
         print err
         session.clear()
         return render_template("login.html")
 
-@app.route('/job/id=<string:id>')
-def job_existing(id):
-    try:
-        user_info = session.get('user_info')
-        profile_pic = user_info['info']['portrait_32_img']
-        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), job_id=id)
-    except Exception as err:
-        print err
-        session.clear()
-        return render_template("login.html")
+# @app.route('/job/id=<string:id>')
+# def job_existing(id):
+#     try:
+#         user_info = session.get('user_info')
+#         profile_pic = user_info['info']['portrait_32_img']
+#         return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), job_id=id)
+#     except Exception as err:
+#         print err
+#         session.clear()
+#         return render_template("login.html")
 
 @app.route('/get_sample')
 def get_sample():
@@ -144,6 +158,16 @@ def is_online():
     except:
         pass
     return jsonify(result=status)
+
+@app.route('/get_realtime_predictions')
+def get_realtime_predictions():
+    json_data = request.args.to_dict()
+    try:
+        # result = requests.post(module_urls['CL']+"get_predictions/", json=json_data)
+        # return jsonify(result=result.content)
+        return jsonify(result="Not implemented")
+    except:
+        return jsonify(result='Server not responding')
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'
