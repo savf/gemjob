@@ -21,6 +21,13 @@ services:
       - "5001:5000"
     volumes:
       - ./data_mining_module:/data_mining_module
+  cluster_module:
+    build: cluster_module/
+    container_name: cluster_module
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./cluster_module:/cluster_module
   database_module:
     # https://hub.docker.com/_/rethinkdb/
     image: rethinkdb:2.3.5
