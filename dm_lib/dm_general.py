@@ -75,10 +75,15 @@ def print_correlations(df, attr=None, store=False, method='spearman',
         custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
         sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
         sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
+        for ax in [ax1, ax2]:
+            ax.set_xticklabels(ax.xaxis.get_majorticklabels(), rotation=90)
+            ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0)
         if xlabels is not None:
+            xlabels = [label for label in xlabels if label not in set(dropped_columns)]
             ax1.set_xticklabels(xlabels)
             ax2.set_xticklabels(xlabels, rotation=90)
         if ylabels is not None:
+            ylabels = [label for label in ylabels if label not in set(dropped_columns)]
             ax1.set_yticklabels(ylabels[::-1])
             ax2.set_yticklabels(ylabels[::-1], rotation=0)
         plt.show()

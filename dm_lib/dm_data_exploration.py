@@ -2,6 +2,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pandas.core.dtypes.dtypes import CategoricalDtype
+from pandas.plotting import scatter_matrix
 import rethinkdb as rdb
 from scipy import stats
 from scipy.stats.mstats import normaltest
@@ -146,6 +147,39 @@ def get_datatype_safely(dtype):
     if isinstance(dtype, CategoricalDtype):
         return np.object_
     return dtype
+
+
+def plot_scatter_matrix(data_frame, attributes, logx=False, logy=False):
+    """ Plot a scatter matrix with correctly rotated labels
+
+    :param data_frame: DataFrame that holds the attributes
+    :type data_frame: pandas.DataFrame
+    :param attributes: List of attributes to plot
+    :type attributes: list(str)
+    :param logx: Set x axis to log for all scatter plots
+    :type logx: bool
+    :param logy: Set y axis to log for all scatter plots
+    :type logy: bool
+    """
+    attributes_to_plot = [att for att in attributes if att in data_frame.columns]
+    sm = scatter_matrix(data_frame[attributes_to_plot], alpha=0.2,
+                        figsize=(6, 6), diagonal='kde')
+    # Change label rotation
+    [s.xaxis.label.set_rotation(90) for s in sm.reshape(-1)]
+    [s.yaxis.label.set_rotation(0) for s in sm.reshape(-1)]
+    [s.get_yaxis().set_label_coords(-1.5, 0.5) for s in sm.reshape(-1)]
+
+    # Log scaling
+    if logx:
+        [s.set_xscale('log') for s in sm.reshape(-1)]
+    if logy:
+        [s.set_yscale('log') for s in sm.reshape(-1)]
+
+    # Hide all ticks
+    [s.set_xticks(()) for s in sm.reshape(-1)]
+    [s.set_yticks(()) for s in sm.reshape(-1)]
+    plt.subplots_adjust(bottom=0.25, left=0.55)
+    plt.show()
 
 
 def plot_qqplot(data_series, store=False):
@@ -436,3 +470,33 @@ def explore_data(file_name,budget_name="total_charge"):
     # response = rdb.db(RDB_DB).table(RDB_OPTIMIZED_TABLE).insert(
     #     data_frame.to_dict('records'), conflict="replace").run(connection)
     # connection.close()
+
+    data_frame = load_data_frame_from_db()
+    data_frame.drop(labels=['client_country'], axis=1, inplace=True)
+    data_frame = convert_to_numeric(data_frame, None)
+
+    data_frame_hourly = data_frame.loc[data_frame['job_type_Hourly'] == 1]
+    data_frame_hourly.drop(labels=['job_type_Fixed',
+                                   'job_type_Hourly',
+                                   'budget'], axis=1, inplace=True)
+    data_frame_fixed = data_frame.loc[data_frame['job_type_Fixed'] == 1]
+    data_frame_fixed.drop(labels=['job_type_Fixed',
+                                  'job_type_Hourly',
+                                  'workload'], axis=1, inplace=True)
+    # print_correlations(data_frame_hourly, store=True,
+    #                    xlabels=data_frame_hourly.columns.values,
+    #                    ylabels=data_frame_hourly.columns.values)
+    # print_correlations(data_frame_fixed, store=True,
+    #                    xlabels=data_frame_fixed.columns.values,
+    #                    ylabels=data_frame_fixed.columns.values)
+
+    # plot_scatter_matrix(data_frame_fixed, ['budget',
+    #                                         'client_feedback',
+    #                                         'client_jobs_posted',
+    #                                         'client_past_hires',
+    #                                         'client_reviews_count',
+    #                                         'duration_weeks_median',
+    #                                         'feedback_for_client',
+    #                                         'feedback_for_freelancer',
+    #                                         'freelancer_count',
+    #                                         'total_charge', 'total_hours'])
