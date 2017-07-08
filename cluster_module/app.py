@@ -14,11 +14,12 @@ import rethinkdb as rdb
 from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
+
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/dm_lib/')
-# print(sys.path)
 from dm_data_preparation import prepare_data, load_data_frame_from_db
 from dm_clustering import do_clustering_mean_shift
 # sys.path.pop(0)
+
 import thread
 
 app = Flask(__name__)
@@ -29,11 +30,7 @@ RDB_HOST = 'localhost'
 RDB_PORT = 28015
 RDB_DB = 'datasets'
 RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
-# RDB_CLUSTER_TABLE = 'clusters'
-# RDB_CLUSTER_CENTROIDS_TABLE = 'clusters_centroids'
-# RDB_CLUSTER_MIN_TABLE = 'clusters_min'
-# RDB_CLUSTER_MAX_TABLE = 'clusters_max'
-# RDB_CLUSTER_VEC_TABLE = 'clusters_vectorizers'
+
 
 g_clusters = None
 g_centroids = None
@@ -121,27 +118,6 @@ def cluster_data(connection):
 
         return True
 
-        # # store in DB: indices with cluster IDs -> (can use this to find clusters in unnormalized data when predicting)
-        # data_frame['id'] = data_frame.index
-        # data_frame = data_frame[['cluster_label', 'id']] # IMPORTANT: if only selecting one column "data_frame['c']", ".to_dict('records')" doesn't work anymore
-
-        # num_tries = 0
-        # while num_tries < max_num_tries and not_stored:
-        #     try:
-        #         rdb.db(RDB_DB).table(RDB_CLUSTER_TABLE).insert(data_frame.to_dict('records'), conflict="replace").run(connection)
-        #
-        #         # store in DB: centroids, min, max, vectorizers
-        #         rdb.db(RDB_DB).table(RDB_CLUSTER_CENTROIDS_TABLE).insert(centroids.to_dict('records'), conflict="replace").run(connection)
-        #         rdb.db(RDB_DB).table(RDB_CLUSTER_MIN_TABLE).insert(min.to_dict('records'), conflict="replace").run(connection)
-        #         rdb.db(RDB_DB).table(RDB_CLUSTER_MAX_TABLE).insert(max.to_dict('records'), conflict="replace").run(connection)
-        #
-        #         rdb.db(RDB_DB).table(RDB_CLUSTER_VEC_TABLE).insert(vectorizers.to_dict('records'), conflict="replace").run(connection)
-        #     except Exception as e:
-        #         print 'DB error:', e
-        #         num_tries = num_tries+1
-        #         time.sleep(3)
-        # if not_stored:
-        #     raise Exception, "Cannot store clusters"
     return False
 
 def subscribe_db():
@@ -177,8 +153,6 @@ def clustering_setup():
                 rdb.db_create(RDB_DB).run(connection)
             if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
                 rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
-            # if not rdb.db(RDB_DB).table_list().contains(RDB_CLUSTER_TABLE).run(connection):
-            #     rdb.db(RDB_DB).table_create(RDB_CLUSTER_TABLE).run(connection)
 
             # cluster_data(connection) # TODO activate this again
 
