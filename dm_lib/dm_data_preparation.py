@@ -51,7 +51,7 @@ def db_setup(file_name):
     :param file_name: File name where data is stored
     :type file_name: str
     """
-    host = '192.168.99.100'
+    host = '192.168.1.241'
     port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
@@ -60,17 +60,15 @@ def db_setup(file_name):
     try:
         if not rdb.db_list().contains(database).run(connection):
             rdb.db_create(database).run(connection)
-        if not rdb.db(database).table_list().contains(prepared_jobs_table).run(
-                connection):
+        if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-            data_frame = prepare_data(file_name)
-            data_frame.date_created = data_frame.date_created.apply(
-                lambda time: time.to_pydatetime().replace(
-                    tzinfo=rdb.make_timezone("+02:00"))
-            )
-            data_frame['id'] = data_frame.index
-            rdb.db(database).table(prepared_jobs_table).insert(
-                data_frame.to_dict('records'), conflict="replace").run(connection)
+        data_frame = prepare_data(file_name)
+        data_frame.date_created = data_frame.date_created.apply(
+            lambda time: time.to_pydatetime().replace(
+                tzinfo=rdb.make_timezone("+02:00"))
+        )
+        data_frame['id'] = data_frame.index
+        rdb.db(database).table(prepared_jobs_table).insert(data_frame.to_dict('records'), conflict="replace").run(connection)
     except RqlRuntimeError:
         print 'Database {} and table {} already exist.'.format(database,
                                                                prepared_jobs_table)
@@ -78,19 +76,20 @@ def db_setup(file_name):
         connection.close()
 
 
-def load_data_frame_from_db():
+def load_data_frame_from_db(connection=None):
     """ Load a prepared data_frame directly from the RethinkDB
 
     :return: Prepared DataFrame
     :rtype: pandas.DataFrame
     """
-    host = '192.168.99.100'
+    host = '192.168.1.241'
     port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
 
     try:
-        connection = rdb.connect(host, port)
+        if connection is None:
+            connection = rdb.connect(host, port)
 
         jobs_cursor = rdb.db(database).table(prepared_jobs_table).run(connection)
         jobs = list(jobs_cursor)
