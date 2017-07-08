@@ -32,11 +32,7 @@ RDB_DB = 'datasets'
 RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
 
 
-g_clusters = None
-g_centroids = None
-g_min = None
-g_max = None
-g_vectorizers = None
+GLOBAL_VARIABLE = {}
 
 ###### class begin
 class Predictions(Resource):
@@ -83,7 +79,7 @@ api.add_resource(Predictions, '/get_predictions/')
 def start():
     try:
         # number_of_clusters = rdb.table(RDB_CLUSTER_TABLE).count().run(g.rdb_conn)
-        number_of_clusters = len(g_clusters)
+        number_of_clusters = len(GLOBAL_VARIABLE["clusters"])
         return "<h1>Cluster Module</h1><p>Number of clusters: </p>" + str(number_of_clusters)
     except Exception as e:
         return "<h1>Cluster Module</h1><p>Never updated</p>"
@@ -104,16 +100,15 @@ def cluster_data(connection):
         print "# new clusters computed"
 
         # store everything as global variable
-        global g_clusters
-        global g_centroids
-        global g_min
-        global g_max
-        global g_vectorizers
-        g_clusters = clusters
-        g_centroids = centroids
-        g_min = min
-        g_max = max
-        g_vectorizers = vectorizers
+        local_variable = {}
+        local_variable["clusters"] = clusters
+        local_variable["centroids"] = centroids
+        local_variable["min"] = min
+        local_variable["max"] = max
+        local_variable["vectorizers"] = vectorizers
+        # only one atomic write! -> no conflicts
+        global GLOBAL_VARIABLE
+        GLOBAL_VARIABLE = local_variable
         print "# new clusters stored"
 
         return True
@@ -154,7 +149,7 @@ def clustering_setup():
             if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
                 rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
 
-            # cluster_data(connection) # TODO activate this again
+            cluster_data(connection) # TODO activate this again
 
             # subscribe to changes in DB
             thread.start_new_thread(subscribe_db, ())
