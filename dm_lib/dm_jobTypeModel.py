@@ -1,6 +1,6 @@
 from dm_data_preparation import *
 from dm_text_mining import do_text_mining
-from dm_general import evaluate_classification, print_correlations, print_predictions_comparison
+from dm_general import evaluate_classification, print_predictions_comparison
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC

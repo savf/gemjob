@@ -1,5 +1,5 @@
 from dm_data_preparation import *
-from dm_general import evaluate_regression, print_correlations, print_predictions_comparison
+from dm_general import evaluate_regression, print_predictions_comparison
 from dm_text_mining import do_text_mining
 from sklearn.model_selection import train_test_split
 from sklearn import linear_model

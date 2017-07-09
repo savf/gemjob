@@ -1,7 +1,6 @@
 import os
 
 import pandas as pd
-import scipy.stats as stats
 from sklearn.metrics import explained_variance_score, mean_squared_error, \
     mean_absolute_error, accuracy_score
 
@@ -24,43 +23,6 @@ def print_data_frame(title, df):
     # print "\n## Show data: ##"
     # print df[0:5]
     print "############################## \n\n"
-
-
-def print_correlations(df, attr=None, method='spearman'):
-    """ Print attribute correlations for a given Pandas DataFrame
-
-    Spearman and kendall are robust in regards to outliers whereas pearson
-    can be affected by them and can give the wrong correlation as a result
-
-    :param df: Pandas DataFrame to analyze
-    :type df: pandas.DataFrame
-    :param attr: If specified, only print correlations for the given attribute
-    :type attr: str
-    :param method: Correlation method to use (spearman, kendall or pearson)
-    :type method: str
-    """
-    corr = df.corr(method)
-
-    if attr is not None:
-        print "### Correlations for " + attr + " ###"
-        print corr[attr].abs().sort_values(ascending=False)
-        print "### p-Values for correlations for " + attr + " ###"
-        if method == "spearman":
-            for column in range(df.shape[1]):
-                print "{} and {}: {}".format(attr,
-                                             df.columns[column],
-                                             stats.spearmanr(df[attr], df[df.columns[column]]))
-        elif method == "kendall":
-            for column in range(df.shape[1]):
-                print "{} and {}: {}".format(attr,
-                                             df.columns[column],
-                                             stats.kendalltau(df[attr], df[df.columns[column]]))
-        else:
-            for column in range(df.shape[1]):
-                print "{} and {}: {}".format(attr,
-                                             df.columns[column],
-                                             stats.pearsonr(df[attr], df[df.columns[column]]))
-    print "################################ \n\n"
 
 
 def print_statistics(df):
@@ -180,12 +142,14 @@ def evaluate_classification(df, predictions, label_name):
 def print_model_evaluation(model, df_test, label_name, is_classification):
     """ Print accuracy of model
 
+    :param model: Model used
     :param df_test: Pandas DataFrame containing the test data
     :type df_test: pandas.DataFrame
     :param label_name: Target label
     :type label_name: str
     :param is_classification: classification or regression?
-    :type is_classification: bool"""
+    :type is_classification: bool
+    """
     print "\n########## Evaluate model\n"
     # separate target
     df_target_test = df_test[label_name]

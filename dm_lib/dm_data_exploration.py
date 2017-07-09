@@ -9,7 +9,7 @@ from scipy.stats.mstats import normaltest
 from sklearn.neighbors.kde import KernelDensity
 
 from dm_data_preparation import *
-from dm_general import print_correlations, print_statistics
+from dm_general import print_statistics
 
 RDB_HOST = '192.168.99.100'
 RDB_PORT = 28015
@@ -147,6 +147,80 @@ def get_datatype_safely(dtype):
     if isinstance(dtype, CategoricalDtype):
         return np.object_
     return dtype
+
+
+def print_correlations(df, attr=None, store=False, method='spearman',
+                       xlabels=None, ylabels=None):
+    """ Print attribute correlations for a given Pandas DataFrame
+
+    Spearman and kendall are robust in regards to outliers whereas pearson
+    can be affected by them and can give the wrong correlation as a result
+
+    :param df: Pandas DataFrame to analyze
+    :type df: pandas.DataFrame
+    :param attr: If specified, only print correlations for the given attribute
+    :type attr: str
+    :param store: Whether to store the correlations and significance as CSV
+    :type store: bool
+    :param method: Which correlation method to use: pearson, spearman or kendall
+    :type method: str
+    :param xlabels: List with labels for the x-axis tick marks
+    :type xlabels: list(str)
+    :param ylabels: List with labels for the y-axis tick marks
+    :type ylabels: list(str)
+    """
+    corr = df.corr(method)
+    dropped_columns = list(set(df.columns) - set(corr.columns))
+    df.drop(labels=dropped_columns, axis=1, inplace=True)
+    significance = np.zeros([df.shape[1], df.shape[1]])
+
+    for row in range(df.shape[1]):
+        for column in range(df.shape[1]):
+            row_label = df.columns[row]
+            column_label = df.columns[column]
+            if method == 'pearson':
+                significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+            elif method == 'kendall':
+                significance[row][column] = stats.kendalltau(df[row_label], df[column_label])[1]
+            else:
+                significance[row][column] = stats.spearmanr(df[row_label], df[column_label])[1]
+
+    corr_significance = pd.DataFrame(significance)
+    corr_significance.columns = df.columns.values
+    corr_significance.set_index(df.columns.values, inplace=True)
+
+    if attr is None:
+        fig1, ax1 = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        plt.subplots_adjust(left=0.1, bottom=0.2)
+        green_to_red = ["#30d43f", "#49ff61", "#ff8787", "#ff4545", "#ff0000"]
+        custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
+        sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
+        sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
+        for ax in [ax1, ax2]:
+            ax.set_xticklabels(ax.xaxis.get_majorticklabels(), rotation=90)
+            ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0)
+        if xlabels is not None:
+            xlabels = [label for label in xlabels if label not in set(dropped_columns)]
+            ax1.set_xticklabels(xlabels)
+            ax2.set_xticklabels(xlabels, rotation=90)
+        if ylabels is not None:
+            ylabels = [label for label in ylabels if label not in set(dropped_columns)]
+            ax1.set_yticklabels(ylabels[::-1])
+            ax2.set_yticklabels(ylabels[::-1], rotation=0)
+        plt.show()
+
+    else:
+        print "### Correlations for " + attr + " ###"
+        print corr[attr].abs().sort_values(ascending=False)
+    print "################################ \n\n"
+    if store:
+        with open('correlations.csv', 'w') as f:
+            f.write(corr.to_csv())
+        f.close()
+        with open('correlation_significances.csv', 'w') as f:
+            f.write(corr_significance.to_csv())
+        f.close()
 
 
 def plot_scatter_matrix(data_frame, attributes, logx=False, logy=False):
@@ -471,18 +545,18 @@ def explore_data(file_name,budget_name="total_charge"):
     #     data_frame.to_dict('records'), conflict="replace").run(connection)
     # connection.close()
 
-    data_frame = load_data_frame_from_db()
-    data_frame.drop(labels=['client_country'], axis=1, inplace=True)
-    data_frame = convert_to_numeric(data_frame, None)
-
-    data_frame_hourly = data_frame.loc[data_frame['job_type_Hourly'] == 1]
-    data_frame_hourly.drop(labels=['job_type_Fixed',
-                                   'job_type_Hourly',
-                                   'budget'], axis=1, inplace=True)
-    data_frame_fixed = data_frame.loc[data_frame['job_type_Fixed'] == 1]
-    data_frame_fixed.drop(labels=['job_type_Fixed',
-                                  'job_type_Hourly',
-                                  'workload'], axis=1, inplace=True)
+    # data_frame = load_data_frame_from_db()
+    # data_frame.drop(labels=['client_country'], axis=1, inplace=True)
+    # data_frame = convert_to_numeric(data_frame, None)
+	#
+    # data_frame_hourly = data_frame.loc[data_frame['job_type_Hourly'] == 1]
+    # data_frame_hourly.drop(labels=['job_type_Fixed',
+    #                                'job_type_Hourly',
+    #                                'budget'], axis=1, inplace=True)
+    # data_frame_fixed = data_frame.loc[data_frame['job_type_Fixed'] == 1]
+    # data_frame_fixed.drop(labels=['job_type_Fixed',
+    #                               'job_type_Hourly',
+    #                               'workload'], axis=1, inplace=True)
     # print_correlations(data_frame_hourly, store=True,
     #                    xlabels=data_frame_hourly.columns.values,
     #                    ylabels=data_frame_hourly.columns.values)
