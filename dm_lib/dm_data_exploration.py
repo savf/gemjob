@@ -6,6 +6,7 @@ from pandas.plotting import scatter_matrix
 import rethinkdb as rdb
 from scipy import stats
 from scipy.stats.mstats import normaltest
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors.kde import KernelDensity
 
 from dm_data_preparation import *
@@ -147,6 +148,36 @@ def get_datatype_safely(dtype):
     if isinstance(dtype, CategoricalDtype):
         return np.object_
     return dtype
+
+
+def plot_crosstab_barchart(series1, series2, normalize=False, store=False):
+    """ Plot a barchart for the crosstab between two series
+
+    :param series1: First Series
+    :type series1: pandas.Series
+    :param series2: Second Series
+    :type series2: pandas.Series
+    :param normalize: Whether to normalize the plot to 1.0
+    :type normalize: bool
+    :param store: Whether to store the plot as PDF
+    :type store: bool
+    """
+    crosstab = pd.crosstab(series1, series2, margins=True,
+                           normalize='index' if normalize else False)
+    if not normalize:
+        crosstab.drop('All', axis=1, inplace=True)
+    ctp = crosstab.plot.bar(stacked=True)
+    title = plt.suptitle("Bar Chart for Crosstab between {} and {}".format(
+        series1.name, series2.name))
+    legend = ctp.legend(title=series2.name, loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.90)
+    if store:
+        plt.savefig("attributes/ctbarchart_{}_{}.pdf".format(
+            series1.name, series2.name),
+                    dpi=150, bbox_extra_artists=(legend, title), bbox_inches='tight')
+    else:
+        plt.show()
 
 
 def print_correlations(df, attr=None, store=False, method='spearman',
@@ -295,7 +326,7 @@ def plot_boxplot(data_series, store=False):
                         dpi=150)
 
 
-def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
+def plot_value_distributions(data_series, x_label=None, logy=False, store=True, normalized=False):
     """ Plot a histogram, a KDE and a CDF for the given Series
 
     :param data_series: The data series to be plotted
@@ -306,6 +337,8 @@ def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
     :type logy: bool
     :param store: Whether to store the generated plot
     :type store: bool
+    :param normalized: Whether to plot categorical histograms noramlized to 1.0
+    :type normalized: bool
     """
     # Check if data is numeric or not
     fig = plt.figure()
@@ -339,9 +372,19 @@ def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
         ax4.axis('off')
         toplot = data_series.value_counts()\
             .append(pd.Series({'missing': len(data_series.loc[data_series.isnull()])}))
+
         toplot.plot(kind='bar', ax=ax2)
+        if normalized:
+            total = float(toplot.sum())
+            toplot_normalized = toplot.apply(lambda row: float(row/total))
+            ax3.axis('on')
+            toplot_normalized.plot(kind='bar', ax=ax3)
+            ax3.set_ylim([0.0, 1.0])
+            ax3.set_ylabel("Percent")
 
         plt.suptitle('Histogram for {}'.format(data_series.name))
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.90)
 
     ax2.set_ylabel("Frequency{}".format(" (log)" if logy else ""))
     ax2.set_yscale('log' if logy else 'linear')
@@ -574,3 +617,13 @@ def explore_data(file_name,budget_name="total_charge"):
     #                                         'feedback_for_freelancer',
     #                                         'freelancer_count',
     #                                         'total_charge', 'total_hours'])
+
+    # categorical_attributes = [attribute for attribute in data_frame.columns
+    #                           if not np.issubdtype(get_datatype_safely(data_frame[attribute].dtype), np.number)]
+    # categorical_attributes = set(categorical_attributes).difference(['client_country', 'date_created', 'skills', 'snippet', 'title', 'url'])
+    # for attribute in categorical_attributes:
+    #     for attribute2 in categorical_attributes:
+    #         if attribute != attribute2:
+    #             plot_crosstab_barchart(data_frame[attribute],
+    #                                    data_frame[attribute2],
+    #                                    normalize=True, store=True)

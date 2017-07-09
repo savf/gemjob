@@ -63,13 +63,14 @@ def db_setup(file_name):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-        data_frame = prepare_data(file_name)
-        data_frame.date_created = data_frame.date_created.apply(
-            lambda time: time.to_pydatetime().replace(
-                tzinfo=rdb.make_timezone("+02:00"))
-        )
-        data_frame['id'] = data_frame.index
-        rdb.db(database).table(prepared_jobs_table).insert(data_frame.to_dict('records'), conflict="replace").run(connection)
+            data_frame = prepare_data(file_name)
+            data_frame.date_created = data_frame.date_created.apply(
+                lambda time: time.to_pydatetime().replace(
+                    tzinfo=rdb.make_timezone("+02:00"))
+            )
+            data_frame['id'] = data_frame.index
+            rdb.db(database).table(prepared_jobs_table).insert(
+                data_frame.to_dict('records'), conflict="replace").run(connection)
     except RqlRuntimeError:
         print 'Database {} and table {} already exist.'.format(database,
                                                                prepared_jobs_table)
