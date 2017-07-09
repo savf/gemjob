@@ -7,8 +7,8 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5000/'}
-# module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/'}
+# module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/'}
+module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/'}
 
 app = Flask(__name__)
 
@@ -163,11 +163,11 @@ def is_online():
 def get_realtime_predictions():
     json_data = request.args.to_dict()
     try:
-        # result = requests.post(module_urls['CL']+"get_predictions/", json=json_data)
-        # return jsonify(result=result.content)
-        return jsonify(result="Not implemented")
+        result = requests.post(module_urls['CL']+"get_predictions/", json=json_data)
+        return jsonify(result=result.content)
+        # return jsonify(result="Not implemented")
     except:
-        return jsonify(result='Server not responding')
+        return None # jsonify(result='Server not responding')
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'

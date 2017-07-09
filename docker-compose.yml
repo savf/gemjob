@@ -25,7 +25,7 @@ services:
     build: cluster_module/
     container_name: cluster_module
     ports:
-      - "5002:5000"
+      - "5002:5002"
     volumes:
       - ./cluster_module:/cluster_module
   database_module:

@@ -14,9 +14,10 @@ import rethinkdb as rdb
 from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
+import pandas as pd
 
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/dm_lib/')
-from dm_data_preparation import prepare_data, load_data_frame_from_db
+from dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
 from dm_clustering import do_clustering_mean_shift
 # sys.path.pop(0)
 
@@ -40,9 +41,7 @@ class Predictions(Resource):
     ### post request
     def post(self):
         json_data = request.get_json(force=True)
-
-        possible_request_columns = ["subcategory2", "title", "description", "freelancer_count", "skills", "start_date",
-                                    "job_type", "budget", "duration", "workload", "experience_level"]
+        data_frame = prepare_single_job(json_data)
 
         # TODO: change names of columns to be consistent with prepare_data
         # TODO: prepare data like in dm_lib, but without removing missing columns
@@ -50,7 +49,7 @@ class Predictions(Resource):
         # TODO: get clusters from data_base
         # TODO: predict
 
-
+        return {"hello": "world"}
     ### post end
 
 
@@ -123,7 +122,7 @@ def subscribe_db():
 
         try:
             connection = rdb.connect(RDB_HOST, RDB_PORT)
-            feed = rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).changes({"squash": True}).run(connection) # IMPORTANT: set squash to true to only get notified of a change once
+            feed = rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).changes(squash= True).run(connection) # IMPORTANT: set squash to true to only get notified of a change once
             for change in feed:
                 print "\n\n### Change in DB occured\n"
                 print "#Change:    ",change, "\n"
@@ -149,7 +148,7 @@ def clustering_setup():
             if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
                 rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
 
-            cluster_data(connection) # TODO activate this again
+            # cluster_data(connection) # TODO activate this again
 
             # subscribe to changes in DB
             thread.start_new_thread(subscribe_db, ())
@@ -165,4 +164,4 @@ def clustering_setup():
 if __name__ == '__main__':
     with app.app_context():
         clustering_setup() # TODO Do this in another thread!
-        app.run(debug=True, use_debugger=False, use_reloader=False, host="0.0.0.0")
+        app.run(debug=True, use_debugger=False, use_reloader=False, host="0.0.0.0", port=5002)

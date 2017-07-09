@@ -1,7 +1,11 @@
+from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, accuracy_score
+import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.metrics import explained_variance_score, mean_squared_error, \
-    mean_absolute_error, accuracy_score
-
+import numpy as np
+import scipy.stats as stats
+import seaborn as sns
+import os
+from matplotlib.colors import ListedColormap
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -21,6 +25,97 @@ def print_data_frame(title, df):
     # print "\n## Show data: ##"
     # print df[0:5]
     print "############################## \n\n"
+
+
+def print_correlations(df, attr=None, store=False, method='spearman',
+                       xlabels=None, ylabels=None):
+    """ Print attribute correlations for a given Pandas DataFrame
+
+    Spearman and kendall are robust in regards to outliers whereas pearson
+    can be affected by them and can give the wrong correlation as a result
+
+    :param df: Pandas DataFrame to analyze
+    :type df: pandas.DataFrame
+    :param attr: If specified, only print correlations for the given attribute
+    :type attr: str
+    :param store: Whether to store the correlations and significance as CSV
+    :type store: bool
+    :param method: Which correlation method to use: pearson, spearman or kendall
+    :type method: str
+    :param xlabels: List with labels for the x-axis tick marks
+    :type xlabels: list(str)
+    :param ylabels: List with labels for the y-axis tick marks
+    :type ylabels: list(str)
+    """
+    corr = df.corr(method)
+    dropped_columns = list(set(df.columns) - set(corr.columns))
+    df.drop(labels=dropped_columns, axis=1, inplace=True)
+    significance = np.zeros([df.shape[1], df.shape[1]])
+
+    for row in range(df.shape[1]):
+        for column in range(df.shape[1]):
+            row_label = df.columns[row]
+            column_label = df.columns[column]
+            if method == 'pearson':
+                significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+            elif method == 'kendall':
+                significance[row][column] = stats.kendalltau(df[row_label], df[column_label])[1]
+            else:
+                significance[row][column] = stats.spearmanr(df[row_label], df[column_label])[1]
+
+    corr_significance = pd.DataFrame(significance)
+    corr_significance.columns = df.columns.values
+    corr_significance.set_index(df.columns.values, inplace=True)
+
+    if attr is None:
+        fig1, ax1 = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        plt.subplots_adjust(left=0.1, bottom=0.2)
+        green_to_red = ["#30d43f", "#49ff61", "#ff8787", "#ff4545", "#ff0000"]
+        custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
+        sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
+        sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
+        for ax in [ax1, ax2]:
+            ax.set_xticklabels(ax.xaxis.get_majorticklabels(), rotation=90)
+            ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0)
+        if xlabels is not None:
+            xlabels = [label for label in xlabels if label not in set(dropped_columns)]
+            ax1.set_xticklabels(xlabels)
+            ax2.set_xticklabels(xlabels, rotation=90)
+        if ylabels is not None:
+            ylabels = [label for label in ylabels if label not in set(dropped_columns)]
+            ax1.set_yticklabels(ylabels[::-1])
+            ax2.set_yticklabels(ylabels[::-1], rotation=0)
+        plt.show()
+
+    else:
+        print "### Correlations for " + attr + " ###"
+        print corr[attr].abs().sort_values(ascending=False)
+    print "################################ \n\n"
+    if store:
+        with open('correlations.csv', 'w') as f:
+            f.write(corr.to_csv())
+        f.close()
+        with open('correlation_significances.csv', 'w') as f:
+            f.write(corr_significance.to_csv())
+        f.close()
+
+
+def print_statistics(df):
+    print "\n### Statistics ###\n"
+    if not os.path.exists("attribute_statistics"):
+        os.makedirs("attribute_statistics")
+    for attribute in df.columns:
+        with open("attribute_statistics/{}.txt".format(attribute), mode='w') as f:
+            f.write("name: " + attribute + "\n")
+            f.write("missing: {}\n".format(df[attribute].isnull().sum()))
+            values = dict(df[attribute].describe())
+            for key,value in values.iteritems():
+                f.write("{}: {}\n".format(key, value))
+            f.write("type: {}".format(str(df[attribute].dtype)))
+        f.close()
+
+    print "################################ \n\n"
 
 
 def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
@@ -69,6 +164,35 @@ def evaluate_regression(df, predictions, label_name):
     print "## Mean squared error: ", sq_err
 
     return exp_var_sc, abs_err, sq_err
+
+
+def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribute, model_name, parameters, runtime):
+    """ Evaluate the regression and output the evaluation as a CSV line
+
+    :param df: Pandas DataFrame containing the data
+    :type df: pandas.DataFrame
+    :param predictions: Array holding the regression predictions
+    :type predictions: array
+    :param label_name: Target label
+    :type label_name: str
+    :param predicted_with_attribute: Attribute that was used to predict the target label
+    :type predicted_with_attribute: str
+    :param model_name: Name of the regression model used for the prediction
+    :type model_name: str
+    :param parameters: Parameters used in the regression model
+    :type parameters: dict
+    :param runtime: Runtime of the model in seconds
+    :type runtime: float
+    """
+    if isinstance(df, pd.DataFrame):
+        df = df[label_name]
+    exp_var_sc = explained_variance_score(df, predictions)
+    abs_err = mean_absolute_error(df, predictions)
+    sq_err = mean_squared_error(df, predictions)
+    parameter_string = ",".join([str(value) for key, value in parameters.iteritems()])
+
+    print label_name+","+predicted_with_attribute+","+model_name+","+parameter_string+","\
+        + str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)+","+str(runtime)
 
 
 def evaluate_classification(df, predictions, label_name):

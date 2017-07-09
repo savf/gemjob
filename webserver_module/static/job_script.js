@@ -1,6 +1,8 @@
 var maxWidthMobile = 700;
+var min_filled_for_predictions = 4;
 var form_values = {};
 form_values["skills"] = [];
+var form_elements = {};
 
 $(document).ready(function() {
 	adjustToSize();
@@ -8,6 +10,11 @@ $(document).ready(function() {
 	jobTypeSwitch();
 
     skill_input();
+
+    form_elements = $(".ReadInput");
+    for (var i = 0; i < form_elements.length; i++) {
+        onValueInput(form_elements[i].name, form_elements[i].value, true);
+    }
 
 	$(window).resize(function() {
 		adjustToSize();
@@ -90,18 +97,32 @@ function skill_input() {
     input.addEventListener("awesomplete-selectcomplete", addSkill, false);
 }
 
-function onValueInput(key, value){
-    if (key != undefined && value != undefined && form_values[key] != value){
-        form_values[key] = value
+function onValueInput(key, value, doNotPredict){
+    if (key != undefined && form_values[key] != value){
+        if(value == "" || value == undefined)
+            delete form_values[key];
+        else
+            form_values[key] = value;
 
-        // get predictions
-        $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
-        $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function(data) {
-            // alert(data.result);
-            var time = new Date();
-            $("#Status").text("Recommendations updated at " + time.getHours() + ":" + time.getMinutes() + ":" + time.getSeconds()).addClass("OK").removeClass("Warning");
-        }).fail(function( jqxhr, textStatus, error ) {
-            $("#Status").text("Updating recommendations failed").addClass("Warning").removeClass("OK");
-        });
+        if (!doNotPredict) {
+            var count = Object.keys(form_values).length
+
+            if (count > min_filled_for_predictions) {
+                // get predictions
+                $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
+                $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
+                    // alert(data.result);
+                    if (data) {
+                        var time = new Date();
+                        $("#Status").text("Recommendations updated at " + time.getHours() + ":" + time.getMinutes() + ":" + time.getSeconds()).addClass("OK").removeClass("Warning");
+                    }
+                    else {
+                        $("#Status").text("Updating recommendations failed").addClass("Warning").removeClass("OK");
+                    }
+                }).fail(function (jqxhr, textStatus, error) {
+                    $("#Status").text("Updating recommendations failed").addClass("Warning").removeClass("OK");
+                });
+            }
+        }
     }
 }

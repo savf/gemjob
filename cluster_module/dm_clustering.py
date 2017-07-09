@@ -1,10 +1,13 @@
 from dm_data_preparation import *
+from dm_general import *
 from sklearn.cluster import DBSCAN, KMeans, MeanShift, estimate_bandwidth
 from sklearn import metrics
 import numpy as np
 from dm_text_mining import addTextTokensToWholeDF
 from sklearn.model_selection import train_test_split
 from sklearn.metrics.pairwise import euclidean_distances
+
+ERROR_VALUE = -1
 
 def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weighting=True):
     """ Clean and prepare data specific to clustering
@@ -308,6 +311,9 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
 
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
+    # declare budget as missing, if hourly job
+    data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
+
     gb = data_frame_original.groupby('cluster_label')
     clusters = [gb.get_group(x) for x in gb.groups]
 
@@ -377,6 +383,9 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
     data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
 
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
+
+    # declare budget as missing, if hourly job
+    data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
 
     gb = data_frame_original.groupby('cluster_label')
     clusters = [gb.get_group(x) for x in gb.groups]
@@ -451,6 +460,9 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
 
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
+    # declare budget as missing, if hourly job
+    data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
+
     gb = data_frame_original.groupby('cluster_label')
     clusters = [gb.get_group(x) for x in gb.groups]
 
@@ -515,10 +527,14 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
 
             if tc in numeric_columns:
                 median = clusters[cluster_index_euc][tc].median()
-                # abs_err = abs(actual - median)
-                # abs_err_euclidean = abs_err_euclidean + abs_err
-                print "# Prediction:", median #, "Error:", abs_err
-                unnormalized_data.set_value(index, tc, median)
+                if np.isnan(median):
+                    print "#ERROR: no median found!"
+                    unnormalized_data.set_value(index, tc, ERROR_VALUE)
+                else:
+                    # abs_err = abs(actual - median)
+                    # abs_err_euclidean = abs_err_euclidean + abs_err
+                    print "# Prediction:", median #, "Error:", abs_err
+                    unnormalized_data.set_value(index, tc, median)
             else:
                 # print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
@@ -593,6 +609,8 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         correct_euclidean = 0
         abs_err_predict = 0
         abs_err_euclidean = 0
+        errors_euc = 0
+        errors_mod = 0
 
         for index, row in normalized_data.iterrows():
             print "\n#### Current row:", index
@@ -605,13 +623,21 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
             print "## Cluster values:"
             if tc in numeric_columns:
                 median = clusters[cluster_index_euc][tc].median()
-                abs_err = abs(actual - median)
-                abs_err_euclidean = abs_err_euclidean + abs_err
-                print "# Euclidean Distance:", median, "Error:", abs_err
+                if np.isnan(median):
+                    print "#ERROR: no median found!"
+                    errors_euc = errors_euc+1
+                else :
+                    abs_err = abs(actual - median)
+                    abs_err_euclidean = abs_err_euclidean + abs_err
+                    print "# Euclidean Distance:", median, "Error:", abs_err
                 median = clusters[cluster_index_pred][tc].median()
-                abs_err = abs(actual - median)
-                abs_err_predict = abs_err_predict + abs_err
-                print "# Model Prediction:", median, "Error:", abs_err
+                if np.isnan(median):
+                    print "#ERROR: no median found!"
+                    errors_mod = errors_mod + 1
+                else:
+                    abs_err = abs(actual - median)
+                    abs_err_predict = abs_err_predict + abs_err
+                    print "# Model Prediction:", median, "Error:", abs_err
             else:
                 print "# Euclidean Distance:"
                 print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
@@ -635,7 +661,9 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                 print "Majority voting:", majority
         if tc in numeric_columns:
             print "\n\n#### Abs Error Euclidean:", abs_err_euclidean / float(normalized_data.shape[0])
+            print "#### Number of NaN Errors Euclidean:", errors_euc
             print "#### Abs Error Model:", abs_err_predict / float(normalized_data.shape[0])
+            print "#### Number of NaN Errors Model:", errors_mod
         else:
             print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
             print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
@@ -659,23 +687,23 @@ def test_clustering(file_name, method="Mean-Shift"):
     data_frame_original_test = df_test.copy()
 
     if method == "Mean-Shift":
-        model, _, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, do_explore=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, do_explore=False)
     elif method == "K-Means":
-        model, _, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, do_explore=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, do_explore=False)
     # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
     elif method == "DBSCAN":
-        model, _, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
 
-    # balance data set for experience_level or job_type
-    df_test = balance_data_set(df_test, "experience_level", relative_sampling=False)
+    # # balance data set for experience_level or job_type
+    # df_test = balance_data_set(df_test, "experience_level", relative_sampling=False)
 
-    # # remove rows without budget to predict_comparison budget
-    # df_test.ix[data_frame.budget == 0, 'budget'] = None
-    # df_test.dropna(subset=["budget"], how='any', inplace=True)
+    # remove rows without budget to predict_comparison budget
+    df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
+    df_test.dropna(subset=["budget"], how='any', inplace=True)
 
     # prepare test data
     df_test = prepare_test_data(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
     # predict(data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
-    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
-    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
+    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
+    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])

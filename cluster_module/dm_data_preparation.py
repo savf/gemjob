@@ -1,3 +1,4 @@
+from dm_general import print_data_frame
 import os
 import json
 import pandas as pd
@@ -6,6 +7,7 @@ from math import log
 import random
 import rethinkdb as rdb
 from rethinkdb import RqlDriverError, RqlRuntimeError
+import datetime as dt
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
@@ -50,7 +52,7 @@ def db_setup(file_name):
     :param file_name: File name where data is stored
     :type file_name: str
     """
-    host = 'localhost'
+    host = '192.168.1.241'
     port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
@@ -81,7 +83,7 @@ def load_data_frame_from_db(connection=None):
     :return: Prepared DataFrame
     :rtype: pandas.DataFrame
     """
-    host = 'localhost'
+    host = '192.168.1.241'
     port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
@@ -176,7 +178,97 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    # print_data_frame("After preparing data", data_frame)
+    print_data_frame("After preparing data", data_frame)
+    print data_frame[0:3]
+
+    return data_frame
+
+
+def prepare_single_job(json_data):
+    """ Prepare a single job to be similar to the prepared data
+
+    :param json_data: Job in JSON format
+    :type json_data: dict
+    :return: Cleaned DataFrame
+    :rtype: pandas.DataFrame
+    """
+
+    # TODO check for correct types and values
+
+    data_frame = pd.DataFrame(json_data, index=[0])
+
+    unnecessary_columns = ["visibility", "start_date", "url"]
+    for c in unnecessary_columns:
+        if c in data_frame.columns:
+            data_frame.drop(labels=[c], axis=1, inplace=True)
+
+    if 'duration' in data_frame.columns:
+        data_frame['duration'] = data_frame.duration.astype(int)
+        data_frame.rename(columns={'duration': 'total_hours'}, inplace=True)
+
+    # capitalize hourly and fixed
+    if 'job_type' in data_frame.columns:
+        data_frame.loc[data_frame.job_type == "hourly", 'job_type'] = "Hourly"
+        data_frame.loc[data_frame.job_type == "fixed-price", 'job_type'] = "Fixed"
+
+    # Create date
+    data_frame['date_created'] = dt.datetime.today()
+    data_frame['date_created'] = data_frame['date_created'].apply(
+        lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
+
+    # declare budget as missing, if hourly job (because there, we have no budget field)
+    if 'job_type' in data_frame.columns and 'budget' in data_frame.columns:
+        data_frame.loc[data_frame.job_type == "Hourly", 'budget'] = None
+
+        # Fill with 0 since only hourly jobs have no budget and all non-missing
+        # budgets for hourly jobs are set to 0
+        data_frame.budget.fillna(0, inplace=True)
+
+    # convert experience level from numeric to categorical
+    if 'experience_level' in data_frame.columns:
+        data_frame['experience_level'] = data_frame.experience_level.astype(str)
+        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "beginner"
+        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "intermediate"
+        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "expert"
+
+    # add additional attributes like text size (how long is the description?) or number of skills
+    if 'snippet' in data_frame.columns:
+        data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
+    if 'skills' in data_frame.columns:
+        data_frame["skills_number"] = data_frame["skills"].str.len()
+
+    # create missing columns and fill with defaults
+    default_values = {
+        "budget": None,
+        "client_country": None,
+        "client_feedback": None,
+        "client_jobs_posted": None,
+        "client_past_hires": None,
+        "client_payment_verification_status": None,
+        "client_reviews_count": None,
+        "date_created": None,
+        "duration_weeks_median": None,
+        "experience_level": None,
+        "freelancer_count": None,
+        "job_type": None,
+        "skills": None,
+        "snippet": None,
+        "subcategory2": None,
+        "title": None,
+        "total_charge": None,
+        "total_hours": None,
+        "workload": None,
+        "feedback_for_client": None,
+        "feedback_for_freelancer": None,
+        "snippet_length": None,
+        "skills_number": None}
+
+    for key, value in default_values.iteritems():
+        if key not in data_frame.columns:
+            data_frame[key] = value
+
+    print_data_frame("After preparing data", data_frame)
+    print data_frame
 
     return data_frame
 
@@ -412,6 +504,18 @@ def coarse_clustering(data_frame, label_name):
         data_frame["timestamp"] = data_frame["timestamp"].round(-10)
 
     return data_frame
+
+
+def missing_value_limit(data_frame_size):
+    """ Calculates the amount of missing values that is tolerable
+
+    :param data_frame_size: Total size of data frame
+    :type data_frame_size: int
+    :return: Limit
+    :rtype: int
+    """
+
+    return data_frame_size * _percentage_too_many_missing
 
 
 def get_overall_job_reviews(data_frame, drop_detailed=True):
