@@ -107,6 +107,124 @@ def load_data_frame_from_db(connection=None):
         return None
 
 
+def is_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def is_str(s):
+    try:
+        str(s)
+        return True
+    except ValueError:
+        return False
+
+
+def is_correct_date(date_text):
+    try:
+        dt.datetime.strptime(date_text, '%m-%d-%Y')
+        return True
+    except ValueError:
+        return False
+
+
+def make_attributes_safe(raw_job):
+    """ Check attribute types of raw job and correct if wrong type
+
+    If experience_level is not correct, 2 (=intermediate) is chosen
+    If job_type is not correct, "hourly" is chosen
+    If start_date is not correct, todays date is chosen
+    If snippet is too long, it's truncated to 5000 chars
+    If title is too long, it's truncated to 500 chars
+    If visibility is not correct, "public" is chosen
+
+    :param raw_job: Job as dict
+    :type raw_job: dict
+    """
+    for key, value in raw_job.iteritems():
+        if key == 'budget':
+            if not is_int(value):
+                raw_job[key] = -1
+        elif key == 'client_country':
+            if not is_str(value):
+                raw_job[key] = ""
+        elif key == 'client_feedback':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'client_reviews_count':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'duration':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'duration_weeks_median':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'experience_level':
+            if is_int(value):
+                if not 1 <= int(value) <= 3:
+                    raw_job[key] = 2
+            else:
+                raw_job[key] = 2
+        elif key == 'freelancer_count':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'job_type':
+            if is_str(value):
+                if value not in ["hourly", "fixed-price"]:
+                    raw_job[key] = "hourly"
+            else:
+                raw_job[key] = "hourly"
+        elif key == 'skills':
+            if not is_str(value):
+                raw_job[key] = ""
+        elif key == 'start_date':
+            if is_str(value):
+                if not is_correct_date(value):
+                    raw_job[key] = dt.date.today().strftime('%m-%d-%Y')
+            else:
+                raw_job[key] = dt.date.today().strftime('%m-%d-%Y')
+        elif key == 'subcategory2':
+            if not is_str(value):
+                raw_job[key] = ""
+        elif key == 'snippet':
+            if is_str(value):
+                if not len(value) <= 5000:
+                    raw_job[key] = value[:4997] + "..."
+            else:
+                raw_job[key] = ""
+        elif key == 'title':
+            if is_str(value):
+                if not len(value) <= 500 or not \
+                        all([len(word) <= 50 for word in value.split()]):
+                    raw_job[key] = value[:497] + "..."
+            else:
+                raw_job[key] = ""
+        elif key == 'visibility':
+            if is_str(value):
+                if value not in ["public", "private", "invite-only"]:
+                    raw_job[key] = "public"
+            else:
+                raw_job[key] = "public"
+        elif key == 'workload':
+            if is_str(value):
+                if value not in ["10-30 hrs/week", "Less than 10 hrs/week", "30+ hrs/week"]:
+                    raw_job[key] = "30+ hrs/week"
+            else:
+                raw_job[key] = "30+ hrs/week"
+
+
 def prepare_data(file_name):
     """ Clean data
 
@@ -193,7 +311,7 @@ def prepare_single_job(json_data):
     :rtype: pandas.DataFrame
     """
 
-    # TODO check for correct types and values
+    make_attributes_safe(json_data)
 
     data_frame = pd.DataFrame(json_data, index=[0])
 
