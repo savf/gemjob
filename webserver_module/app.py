@@ -10,6 +10,8 @@ from pretty_print import *
 # module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/'}
 module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/'}
 
+GLOBAL_VARIABLE = {}
+
 app = Flask(__name__)
 
 def get_jobs(client, teams):
@@ -27,6 +29,25 @@ def get_jobs(client, teams):
     except Exception as err:
         print err
     return jobs
+
+def get_client_data(client):
+    client_info = {}
+    try:
+        me = client.hr.get_user_me()
+        details = client.provider.get_provider(me["profile_key"])
+        pretty_print(details)
+        client_info["client_country"] = details.get("dev_country", 0)
+        # client_info["client_jobs_posted"] = details.get("")
+        # client_info["client_past_hires"] = details.get("")
+        # client_info["client_payment_verification_status"] = details.get("")
+        client_info["client_reviews_count"] = details.get("dev_tot_feedback", 0)
+        if details.has_key("feedback"):
+            client_info["client_feedback"] = details.get("feedback").get("score", 0)
+        else:
+            client_info["client_feedback"] = 0
+    except Exception as err:
+        print err
+    return client_info
 
 @app.route('/')
 def start():
@@ -99,15 +120,21 @@ def job():
                                timeout=30)
         user_info = session.get('user_info')
         profile_pic = user_info['info']['portrait_32_img']
-        skills_list = client.provider.get_skills_metadata()
-        print "### Skills list:"
-        # pretty_print(skills_list)
-        skills_list_js = '['
-        for skill in skills_list:
-            skills_list_js = skills_list_js + '"' + str(skill) + '",'
-        skills_list_js = skills_list_js[0:-1] + ']'
-        print skills_list_js
-        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=skills_list_js)
+
+        if not GLOBAL_VARIABLE.has_key("skills_list"):
+            skills_list = client.provider.get_skills_metadata()
+            print "### Skills list:"
+            # pretty_print(skills_list)
+            skills_list_js = '['
+            for skill in skills_list:
+                skills_list_js = skills_list_js + '"' + str(skill) + '",'
+            skills_list_js = skills_list_js[0:-1] + ']'
+            print skills_list_js
+            GLOBAL_VARIABLE["skills_list"] = skills_list_js
+
+        client_info = get_client_data(client)
+
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=GLOBAL_VARIABLE["skills_list"], client_info=client_info)
     except Exception as err:
         print err
         session.clear()

@@ -260,7 +260,7 @@ def addTextTokensToDF(df_train, df_test, text_train, text_test, max_features=500
         :return: Pandas DataFrame containing training data and Pandas DataFrame containing test data
         :rtype: pandas.DataFrame
         """
-    text_columns = ["skills", "title", "snippet"]
+    text_columns = list(set(["skills", "snippet", "title"]).intersection(text_train.columns))
     for text_column_name in text_columns:
         vectorizer, train_data_features = prepare_text_train(text_train, text_column_name, max_features)
         test_data_features = prepare_text_test(text_test, text_column_name, vectorizer)
@@ -293,7 +293,7 @@ def addTextTokensToWholeDF(df, text, max_features=500, vectorizers={}):
         :return: Pandas DataFrame containing structured data and text tokens, as well as the vectorizers
         :rtype: pandas.DataFrame
         """
-    text_columns = ["skills", "title", "snippet"]
+    text_columns = list(set(["skills", "snippet", "title"]).intersection(text.columns))
     for text_column_name in text_columns:
         if vectorizers.has_key(text_column_name):
             vectorizer = vectorizers[text_column_name]

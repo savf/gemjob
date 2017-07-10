@@ -1,7 +1,6 @@
 var maxWidthMobile = 700;
-var min_filled_for_predictions = 4;
-var form_values = {};
-form_values["skills"] = [];
+var min_filled_for_predictions = 12;
+skills_selected = [];
 var form_elements = {};
 
 $(document).ready(function() {
@@ -24,7 +23,15 @@ $(document).ready(function() {
         $("#Status").text("Reviewing job ...").removeClass("Warning").removeClass("OK");
         $('#ReviewButton').prop("disabled",true).addClass("Disabled");
 
-        $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function(data) {
+        // read all form fields
+        for (var i = 0; i < form_elements.length; i++) {
+            onValueInput(form_elements[i].name, form_elements[i].value, true);
+        }
+
+        $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
+            if (data && data.result) {
+                $("#ServerResponse").text("PREDICTIONS: "+data.result);
+            }
             $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
             $("#Status").text("Job review complete").addClass("OK").removeClass("Warning");
         }).fail(function( jqxhr, textStatus, error ) {
@@ -64,9 +71,9 @@ function jobTypeSwitch() {
 function addSkill () {
     var input = document.getElementById("SkillSearch");
     var sel_skill = input.value;
-    var ind = form_values["skills"].indexOf(sel_skill);
+    var ind = skills_selected.indexOf(sel_skill);
     if (ind == -1) {
-        form_values["skills"].push(sel_skill);
+        skills_selected.push(sel_skill);
 
         var id_string = 'Token_' + sel_skill;
         $("#SkillsList").append("<span id='" + id_string + "' class='Token'>" + sel_skill + "</span>");
@@ -75,11 +82,11 @@ function addSkill () {
 
         $(("#" + id_string)).click(function () {
             $(this).remove();
-            var index = form_values["skills"].indexOf(sel_skill);
+            var index = skills_selected.indexOf(sel_skill);
             if (index > -1) {
-                form_values["skills"].splice(index, 1);
+                skills_selected.splice(index, 1);
 
-                if (form_values["skills"].length == 0){
+                if (skills_selected.length == 0){
                     $("#NoSkills").show();
                 }
             }
@@ -97,6 +104,14 @@ function skill_input() {
     input.addEventListener("awesomplete-selectcomplete", addSkill, false);
 }
 
+function getSkillsString(){
+    var skills_selected_string = "";
+    for (var i = 0; i < skills_selected.length; i++) {
+        skills_selected_string = skills_selected_string + " " + skills_selected[i];
+    }
+    return skills_selected_string;
+}
+
 function onValueInput(key, value, doNotPredict){
     if (key != undefined && form_values[key] != value){
         if(value == "" || value == undefined)
@@ -105,22 +120,25 @@ function onValueInput(key, value, doNotPredict){
             form_values[key] = value;
 
         if (!doNotPredict) {
-            var count = Object.keys(form_values).length
+            var count = Object.keys(form_values).length;
 
             if (count > min_filled_for_predictions) {
                 // get predictions
                 $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
+
+                form_values["skills"] = getSkillsString();
+
                 $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
-                    // alert(data.result);
-                    if (data) {
+                    if (data && data.result) {
+                        $("#ServerResponse").text("PREDICTIONS: "+data.result);
                         var time = new Date();
-                        $("#Status").text("Recommendations updated at " + time.getHours() + ":" + time.getMinutes() + ":" + time.getSeconds()).addClass("OK").removeClass("Warning");
+                        $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
                     }
                     else {
-                        $("#Status").text("Updating recommendations failed").addClass("Warning").removeClass("OK");
+                        $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
                     }
                 }).fail(function (jqxhr, textStatus, error) {
-                    $("#Status").text("Updating recommendations failed").addClass("Warning").removeClass("OK");
+                    $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
                 });
             }
         }

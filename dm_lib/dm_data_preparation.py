@@ -235,7 +235,12 @@ def prepare_single_job(json_data):
     if 'snippet' in data_frame.columns:
         data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     if 'skills' in data_frame.columns:
-        data_frame["skills_number"] = data_frame["skills"].str.len()
+        data_frame["skills_number"] = data_frame["skills"].str.split().str.len()
+
+    # convert numeric attributes to numeric
+    for c in ["budget", "client_feedback", "client_jobs_posted", "client_past_hires", "client_reviews_count", "duration_weeks_median", "freelancer_count", "total_charge", "total_hours"]:
+        if c in data_frame.columns:
+            data_frame[c] = pd.to_numeric(data_frame[c], errors='coerce') # errors are filled with NaN
 
     # create missing columns and fill with defaults
     default_values = {
@@ -409,11 +414,15 @@ def separate_text(data_frame, label_name=None):
     :return: Pandas DataFrames once with only numerical attributes and once only text attributes
     :rtype: pandas.DataFrame
     """
+    text_col_names = list(set(["skills", "snippet", "title"]).intersection(data_frame.columns))
     if label_name is None:
-        text_data = data_frame[["skills", "snippet", "title"]]
+        text_data = data_frame[text_col_names]
     else:
-        text_data = data_frame[[label_name, "skills", "snippet", "title"]]
-    data_frame.drop(labels=["skills", "snippet", "title"], axis=1, inplace=True)
+        text_col_names.append(label_name)
+        text_data = data_frame[text_col_names]
+        text_col_names.remove(label_name)
+
+    data_frame.drop(labels=text_col_names, axis=1, inplace=True)
 
     return data_frame, text_data
 

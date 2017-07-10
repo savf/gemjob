@@ -20,6 +20,10 @@
         $SCRIPT_ROOT = {{ request.script_root|tojson|safe }};
         {% autoescape false %}
         var skills_list = {{ skills_list }};
+        var form_values = {};
+        form_values["client_country"] = "{{ client_info["client_country"] }}";
+        form_values["client_feedback"] = {{ client_info["client_feedback"] }};
+        form_values["client_reviews_count"] = {{ client_info["client_reviews_count"] }};
         {% endautoescape %}
     </script>
     <script type=text/javascript src="{{ url_for('static', filename='job_script.js') }}"></script>
@@ -155,6 +159,13 @@
             </form>
         </div>
     </div>
+
+    <div class="Section HighlightedSection" style="margin-top: 80px;">
+        <div class="Text">
+            <p id="ServerResponse">[Here, server response will be displayed (for testing only)]</p>
+        </div>
+    </div>
+
 
 </body>
 </html>

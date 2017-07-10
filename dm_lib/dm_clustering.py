@@ -74,7 +74,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
         return data_frame, min, max, vectorizers
 
 
-def prepare_test_data(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
     """ Clean and prepare data specific to clustering
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -146,6 +146,77 @@ def prepare_test_data(data_frame, cluster_columns, min, max, vectorizers=None, w
 
     return data_frame
 
+def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+    """ Clean and prepare data specific to clustering
+
+    :param data_frame: Pandas DataFrame that holds the data
+    :type data_frame: pandas.DataFrame
+    :param cluster_columns: Columns of cluster data
+    :type cluster_columns: list
+    :param min: minimum values
+    :type min: pandas.Series
+    :param max: maximum values
+    :type max: pandas.Series
+    :param vectorizers: Vectorizers for adding text tokens (text not added if not given!)
+    :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
+    :param weighting: Do weighting
+    :type weighting: bool
+    :return: Cleaned Pandas DataFrame with only numerical attributes
+    :rtype: pandas.DataFrame
+    """
+
+    # declare total_charge as missing, if 0
+    data_frame.ix[data_frame.total_charge == 0, 'total_charge'] = None
+
+    # declare feedbacks as missing, if 0
+    data_frame.ix[data_frame.client_feedback == 0, 'client_feedback'] = None
+
+    # identify target columns and drop them
+    target_columns = data_frame.columns[data_frame.isnull().any()].tolist()
+    data_frame.drop(labels=target_columns, axis=1, inplace=True)
+
+    # don't try to predict text
+    text_col_names = list(set(["skills", "snippet", "title"]).intersection(set(target_columns)))
+    for c in text_col_names:
+        target_columns.remove(c)
+
+    # remove unnecessary columns
+    drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
+    for c in drop_unnecessary:
+        if c in data_frame.columns:
+            data_frame.drop(labels=[c], axis=1, inplace=True)
+
+    # convert everything to numeric
+    data_frame = convert_to_numeric(data_frame, label_name="")
+
+    # handle text
+    data_frame, text_data = separate_text(data_frame)
+    if vectorizers is not None:
+        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
+
+    # add missing columns (dummies, that were not in this data set)
+    for col in cluster_columns:
+        if col not in data_frame.columns:
+            data_frame[col] = 0
+    # remove columns not existing in clusters
+    for col in data_frame.columns:
+        if col not in cluster_columns:
+            data_frame.drop(labels=[col], axis=1, inplace=True)
+
+    print_data_frame("after adding all cols", data_frame)
+
+    # normalize
+    data_frame, _, _ = normalize_min_max(data_frame, min, max)
+
+    if weighting:
+        data_frame = weight_data(data_frame)
+
+    # order acording to cluster_columns (important!!! scikit does not look at labels!)
+    # print data_frame[0:5], "\n"
+    data_frame = data_frame.reindex_axis(cluster_columns, axis=1)
+    # print data_frame[0:5], "\n"
+
+    return data_frame, target_columns
 
 def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     """ Print stats and facts about the clusters
@@ -552,7 +623,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
         #     print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
         # print "#### Number of rows:", normalized_data.shape[0]
 
-        return unnormalized_data
+    return unnormalized_data
 
 
 
@@ -702,7 +773,7 @@ def test_clustering(file_name, method="Mean-Shift"):
     df_test.dropna(subset=["budget"], how='any', inplace=True)
 
     # prepare test data
-    df_test = prepare_test_data(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
+    df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
     # predict(data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
     predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
