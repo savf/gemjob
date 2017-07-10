@@ -1,11 +1,18 @@
-from sklearn.metrics import explained_variance_score, mean_squared_error, mean_absolute_error, accuracy_score
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import scipy.stats as stats
-import seaborn as sns
 import os
-from matplotlib.colors import ListedColormap
+import sys
+
+import pandas as pd
+from sklearn.metrics import explained_variance_score, mean_squared_error, \
+    mean_absolute_error, accuracy_score
+
+
+def block_printing():
+    sys.stdout = open(os.devnull, 'w')
+
+
+def enable_printing():
+    sys.stdout = sys.__stdout__
+
 
 def print_data_frame(title, df):
     """ Print stats about a given Pandas DataFrame with a given title
@@ -25,80 +32,6 @@ def print_data_frame(title, df):
     # print "\n## Show data: ##"
     # print df[0:5]
     print "############################## \n\n"
-
-
-def print_correlations(df, attr=None, store=False, method='spearman',
-                       xlabels=None, ylabels=None):
-    """ Print attribute correlations for a given Pandas DataFrame
-
-    Spearman and kendall are robust in regards to outliers whereas pearson
-    can be affected by them and can give the wrong correlation as a result
-
-    :param df: Pandas DataFrame to analyze
-    :type df: pandas.DataFrame
-    :param attr: If specified, only print correlations for the given attribute
-    :type attr: str
-    :param store: Whether to store the correlations and significance as CSV
-    :type store: bool
-    :param method: Which correlation method to use: pearson, spearman or kendall
-    :type method: str
-    :param xlabels: List with labels for the x-axis tick marks
-    :type xlabels: list(str)
-    :param ylabels: List with labels for the y-axis tick marks
-    :type ylabels: list(str)
-    """
-    corr = df.corr(method)
-    dropped_columns = list(set(df.columns) - set(corr.columns))
-    df.drop(labels=dropped_columns, axis=1, inplace=True)
-    significance = np.zeros([df.shape[1], df.shape[1]])
-
-    for row in range(df.shape[1]):
-        for column in range(df.shape[1]):
-            row_label = df.columns[row]
-            column_label = df.columns[column]
-            if method == 'pearson':
-                significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
-            elif method == 'kendall':
-                significance[row][column] = stats.kendalltau(df[row_label], df[column_label])[1]
-            else:
-                significance[row][column] = stats.spearmanr(df[row_label], df[column_label])[1]
-
-    corr_significance = pd.DataFrame(significance)
-    corr_significance.columns = df.columns.values
-    corr_significance.set_index(df.columns.values, inplace=True)
-
-    if attr is None:
-        fig1, ax1 = plt.subplots()
-        fig2, ax2 = plt.subplots()
-        plt.subplots_adjust(left=0.1, bottom=0.2)
-        green_to_red = ["#30d43f", "#49ff61", "#ff8787", "#ff4545", "#ff0000"]
-        custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
-        sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
-        sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
-        for ax in [ax1, ax2]:
-            ax.set_xticklabels(ax.xaxis.get_majorticklabels(), rotation=90)
-            ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0)
-        if xlabels is not None:
-            xlabels = [label for label in xlabels if label not in set(dropped_columns)]
-            ax1.set_xticklabels(xlabels)
-            ax2.set_xticklabels(xlabels, rotation=90)
-        if ylabels is not None:
-            ylabels = [label for label in ylabels if label not in set(dropped_columns)]
-            ax1.set_yticklabels(ylabels[::-1])
-            ax2.set_yticklabels(ylabels[::-1], rotation=0)
-        plt.show()
-
-    else:
-        print "### Correlations for " + attr + " ###"
-        print corr[attr].abs().sort_values(ascending=False)
-    print "################################ \n\n"
-    if store:
-        with open('correlations.csv', 'w') as f:
-            f.write(corr.to_csv())
-        f.close()
-        with open('correlation_significances.csv', 'w') as f:
-            f.write(corr_significance.to_csv())
-        f.close()
 
 
 def print_statistics(df):
@@ -130,8 +63,6 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     :param num_of_rows: Number of rows to diplay
     :type num_of_rows: int
     """
-    if not isinstance(df, pd.DataFrame):
-        df = pd.DataFrame(df, columns=[label_name])
     pd.set_option('display.max_rows', num_of_rows)
     if len(df) != len(predictions):
         print "\n### Error: Length of values does not match\n"
@@ -143,7 +74,7 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     pd.reset_option('display.max_rows')
 
 
-def evaluate_regression(df, predictions, label_name):
+def evaluate_regression(df, predictions, label_name, printing):
     """ Print explained variance, mean absolute error and mean squared error for given regression results
 
     :param df: Pandas DataFrame containing the data
@@ -152,9 +83,12 @@ def evaluate_regression(df, predictions, label_name):
     :type predictions: array
     :param label_name: Target label
     :type label_name: str
+    :param printing: Whether to print to console
+    :type printing: bool
     """
-    if isinstance(df, pd.DataFrame):
-        df = df[label_name]
+    if not printing:
+        block_printing()
+
     print "### Evaluation of " + label_name + " ###"
     exp_var_sc = explained_variance_score(df, predictions)
     print "## Explained variance score (best is 1.0): ", exp_var_sc
@@ -163,6 +97,7 @@ def evaluate_regression(df, predictions, label_name):
     sq_err = mean_squared_error(df, predictions)
     print "## Mean squared error: ", sq_err
 
+    enable_printing()
     return exp_var_sc, abs_err, sq_err
 
 
@@ -195,7 +130,7 @@ def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribut
         + str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)+","+str(runtime)
 
 
-def evaluate_classification(df, predictions, label_name):
+def evaluate_classification(df, predictions, label_name, printing):
     """ Print accuracy of classification
 
     :param df: Pandas DataFrame containing the data
@@ -203,7 +138,12 @@ def evaluate_classification(df, predictions, label_name):
     :param predictions: Array holding the classification predictions
     :type predictions: array
     :param label_name: Target label
-    :type label_name: str"""
+    :type label_name: str
+    :param printing: Whether to print to console
+    :type printing: bool
+    """
+    if not printing:
+        block_printing()
     if isinstance(df, pd.DataFrame):
         df = df[label_name]
     print "### Evaluation of " + label_name + " ###"
@@ -212,10 +152,12 @@ def evaluate_classification(df, predictions, label_name):
 
     # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics
 
+    enable_printing()
     return accuracy
 
 
-def print_model_evaluation(model, df_test, label_name, is_classification):
+def print_model_evaluation(model, df_test, label_name,
+                           is_classification, csv=False):
     """ Print accuracy of model
 
     :param df_test: Pandas DataFrame containing the test data
@@ -223,17 +165,29 @@ def print_model_evaluation(model, df_test, label_name, is_classification):
     :param label_name: Target label
     :type label_name: str
     :param is_classification: classification or regression?
-    :type is_classification: bool"""
-    print "\n########## Evaluate model\n"
+    :type is_classification: bool
+    :param csv: Print comma separated to use in spreadsheets
+    :type csv: bool
+    """
     # separate target
     df_target_test = df_test[label_name]
     df_test.drop(labels=[label_name], axis=1, inplace=True)
     # predict
     predictions = model.predict(df_test)
+    results = []
 
     if is_classification:
-        evaluate_classification(df_target_test, predictions, label_name)
+        accuracy = evaluate_classification(
+            df_target_test[label_name], predictions, label_name,
+            printing=not csv)
+        results.append(accuracy)
     else:
-        evaluate_regression(df_target_test, predictions, label_name)
+        exp_var_sc, abs_err, sq_err = evaluate_regression(
+            df_target_test, predictions, label_name, printing=not csv)
+        results.extend([exp_var_sc, abs_err, sq_err])
 
-    print_predictions_comparison(df_target_test, predictions, label_name, 20)
+    if not csv:
+        print_predictions_comparison(df_target_test, predictions,
+                                     label_name, num_of_rows=20)
+    return results
+

@@ -9,6 +9,7 @@ from sklearn.ensemble import RandomForestRegressor, BaggingRegressor
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.feature_selection import SelectKBest, f_regression, f_classif, mutual_info_regression
 
 
 def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
@@ -51,9 +52,7 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
         data_frame.dropna(subset=['total_charge'], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
-    drop_unnecessary = ["client_feedback", "client_reviews_count",
-                        "client_past_hires", "client_jobs_posted",
-                        "workload"]
+    drop_unnecessary = ["client_country", "client_payment_verification_status"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # convert everything to numeric
@@ -66,18 +65,27 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     return data_frame
 
 
-def create_model(df_train, label_name, is_classification):
+def create_model(df_train, label_name, is_classification, selectbest):
     # separate target
     df_target_train = df_train[label_name]
     df_train.drop(labels=[label_name], axis=1, inplace=True)
+    relevant_indices = []
 
+    if selectbest > 0:
+        if is_classification:
+            selector = SelectKBest(f_classif, k=selectbest)
+        else:
+            selector = SelectKBest(mutual_info_regression, k=selectbest)
+        selector.fit(df_train, df_target_train)
+        relevant_indices = selector.get_support(indices=True)
+        df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
         model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
         model = RandomForestClassifier(n_estimators=100)
 
     model.fit(df_train, df_target_train)
-    return model
+    return model, relevant_indices
 
 
 def create_model_cross_val(data_frame, label_name, is_classification):
@@ -136,30 +144,30 @@ def budget_model(file_name):
         # print "\n\n########## Do Text Mining\n"
         # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
-        print "\n\n##### With Outlier Treatment:"
-        model = create_model(df_train_outl.copy(), label_name, budget_classification)
-        print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
+        # print "\n\n##### With Outlier Treatment:"
+        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model = create_model(df_train.copy(), label_name, budget_classification)
+        model = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
         print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
 
-        print "##### With Text Tokens, With Outlier Treatment:"
-        # add tokens to data frame
-        df_train_outl, df_test_outl = addTextTokensToDF(df_train_outl, df_test_outl, text_train_outl, text_test_outl)
-        model = create_model(df_train_outl.copy(), label_name, budget_classification)
-        print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
-
-        print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
-        df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
-        model = create_model(df_train_outl, label_name, budget_classification)
-        print_model_evaluation(model, df_test_outl, label_name, budget_classification)
-
-        print "##### With Text Tokens, Without Outlier Treatment:"
-        # add tokens to data frame
-        df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
-        model = create_model(df_train, label_name, budget_classification)
-        print_model_evaluation(model, df_test, label_name, budget_classification)
+        # print "##### With Text Tokens, With Outlier Treatment:"
+        # # add tokens to data frame
+        # df_train_outl, df_test_outl = addTextTokensToDF(df_train_outl, df_test_outl, text_train_outl, text_test_outl)
+        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
+        #
+        # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
+        # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
+        # model = create_model(df_train_outl, label_name, budget_classification)
+        # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
+        #
+        # print "##### With Text Tokens, Without Outlier Treatment:"
+        # # add tokens to data frame
+        # df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
+        # model = create_model(df_train, label_name, budget_classification)
+        # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)
         df_outl = treat_outliers_log_scale(data_frame.copy(), label_name=label_name, budget_name=label_name, add_to_df=False)
@@ -178,3 +186,67 @@ def budget_model(file_name):
         print_predictions_comparison(data_frame_target, predictions, label_name, 20)
 
 
+def budget_model_search(file_name):
+    label_name = "budget"
+    budget_classification = False
+    do_cross_val = False
+    # label_name = "total_charge"
+
+    # data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db()
+
+    # prepare for model
+    data_frame = prepare_data_budget_model(data_frame, label_name,
+                                           budget_classification=budget_classification)
+    # print_correlations(data_frame, label_name)
+
+    if not do_cross_val:
+        # split
+        df_train, df_test = train_test_split(data_frame, train_size=0.8)
+
+        # treat outliers
+        df_train_outl, df_test_outl = treat_outliers(df_train.copy(),
+                                                     df_test.copy(), label_name,
+                                                     label_name, add_to_df=True)
+
+        # separate text
+        df_train, text_train = separate_text(df_train)
+        df_test, text_test = separate_text(df_test)
+
+        for k in range(1, len(df_train.columns)):
+            result_collection = []
+            for _ in range(1, len(df_train.columns)):
+                model, relevant_indices = create_model(df_train.copy(),
+                                                       label_name,
+                                                       is_classification=False,
+                                                       selectbest=k)
+                results = print_model_evaluation(model, df_test.copy(), label_name,
+                                                 is_classification=False, csv=True)
+                results = results + list(relevant_indices)
+                result_collection.append(results)
+
+            abs_err_list = [sublist[1] for sublist in result_collection]
+            best_results = abs_err_list.index(min(abs_err_list))
+            print ",".join([str(item) for item in [label_name, k] + result_collection[best_results]])
+    else:
+        # treat outliers (no deletion because it changes target in test set as well)
+        df_outl = treat_outliers_log_scale(data_frame.copy(),
+                                           label_name=label_name,
+                                           budget_name=label_name,
+                                           add_to_df=False)
+
+        # separate text
+        data_frame, df_text = separate_text(data_frame)
+        # separate text after outlier treatment
+        df_outl, df_text_outl = separate_text(df_outl)
+
+        print "\n\n##### With Outlier Treatment:"
+        model, predictions, data_frame_target = create_model_cross_val(df_outl,
+                                                                       label_name,
+                                                                       budget_classification)
+        if budget_classification:
+            evaluate_classification(data_frame_target, predictions, label_name)
+        else:
+            evaluate_regression(data_frame_target, predictions, label_name)
+        print_predictions_comparison(data_frame_target, predictions, label_name,
+                                     20)

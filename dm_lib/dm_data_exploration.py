@@ -6,10 +6,11 @@ from pandas.plotting import scatter_matrix
 import rethinkdb as rdb
 from scipy import stats
 from scipy.stats.mstats import normaltest
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors.kde import KernelDensity
 
 from dm_data_preparation import *
-from dm_general import print_correlations, print_statistics
+from dm_general import print_statistics
 
 RDB_HOST = '192.168.99.100'
 RDB_PORT = 28015
@@ -149,6 +150,110 @@ def get_datatype_safely(dtype):
     return dtype
 
 
+def plot_crosstab_barchart(series1, series2, normalize=False, store=False):
+    """ Plot a barchart for the crosstab between two series
+
+    :param series1: First Series
+    :type series1: pandas.Series
+    :param series2: Second Series
+    :type series2: pandas.Series
+    :param normalize: Whether to normalize the plot to 1.0
+    :type normalize: bool
+    :param store: Whether to store the plot as PDF
+    :type store: bool
+    """
+    crosstab = pd.crosstab(series1, series2, margins=True,
+                           normalize='index' if normalize else False)
+    if not normalize:
+        crosstab.drop('All', axis=1, inplace=True)
+    ctp = crosstab.plot.bar(stacked=True)
+    title = plt.suptitle("Bar Chart for Crosstab between {} and {}".format(
+        series1.name, series2.name))
+    legend = ctp.legend(title=series2.name, loc='center left', bbox_to_anchor=(1, 0.5))
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.90)
+    if store:
+        plt.savefig("attributes/ctbarchart_{}_{}.pdf".format(
+            series1.name, series2.name),
+                    dpi=150, bbox_extra_artists=(legend, title), bbox_inches='tight')
+    else:
+        plt.show()
+
+
+def print_correlations(df, attr=None, store=False, method='spearman',
+                       xlabels=None, ylabels=None):
+    """ Print attribute correlations for a given Pandas DataFrame
+
+    Spearman and kendall are robust in regards to outliers whereas pearson
+    can be affected by them and can give the wrong correlation as a result
+
+    :param df: Pandas DataFrame to analyze
+    :type df: pandas.DataFrame
+    :param attr: If specified, only print correlations for the given attribute
+    :type attr: str
+    :param store: Whether to store the correlations and significance as CSV
+    :type store: bool
+    :param method: Which correlation method to use: pearson, spearman or kendall
+    :type method: str
+    :param xlabels: List with labels for the x-axis tick marks
+    :type xlabels: list(str)
+    :param ylabels: List with labels for the y-axis tick marks
+    :type ylabels: list(str)
+    """
+    corr = df.corr(method)
+    dropped_columns = list(set(df.columns) - set(corr.columns))
+    df.drop(labels=dropped_columns, axis=1, inplace=True)
+    significance = np.zeros([df.shape[1], df.shape[1]])
+
+    for row in range(df.shape[1]):
+        for column in range(df.shape[1]):
+            row_label = df.columns[row]
+            column_label = df.columns[column]
+            if method == 'pearson':
+                significance[row][column] = stats.pearsonr(df[row_label], df[column_label])[1]
+            elif method == 'kendall':
+                significance[row][column] = stats.kendalltau(df[row_label], df[column_label])[1]
+            else:
+                significance[row][column] = stats.spearmanr(df[row_label], df[column_label])[1]
+
+    corr_significance = pd.DataFrame(significance)
+    corr_significance.columns = df.columns.values
+    corr_significance.set_index(df.columns.values, inplace=True)
+
+    if attr is None:
+        fig1, ax1 = plt.subplots()
+        fig2, ax2 = plt.subplots()
+        plt.subplots_adjust(left=0.1, bottom=0.2)
+        green_to_red = ["#30d43f", "#49ff61", "#ff8787", "#ff4545", "#ff0000"]
+        custom_cmap = ListedColormap(sns.color_palette(green_to_red).as_hex())
+        sns.heatmap(corr, vmax=1.0, square=True, cmap="OrRd", ax=ax1)
+        sns.heatmap(significance, vmax=1.0, square=True, cmap=custom_cmap, ax=ax2)
+        for ax in [ax1, ax2]:
+            ax.set_xticklabels(ax.xaxis.get_majorticklabels(), rotation=90)
+            ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0)
+        if xlabels is not None:
+            xlabels = [label for label in xlabels if label not in set(dropped_columns)]
+            ax1.set_xticklabels(xlabels)
+            ax2.set_xticklabels(xlabels, rotation=90)
+        if ylabels is not None:
+            ylabels = [label for label in ylabels if label not in set(dropped_columns)]
+            ax1.set_yticklabels(ylabels[::-1])
+            ax2.set_yticklabels(ylabels[::-1], rotation=0)
+        plt.show()
+
+    else:
+        print "### Correlations for " + attr + " ###"
+        print corr[attr].abs().sort_values(ascending=False)
+    print "################################ \n\n"
+    if store:
+        with open('correlations.csv', 'w') as f:
+            f.write(corr.to_csv())
+        f.close()
+        with open('correlation_significances.csv', 'w') as f:
+            f.write(corr_significance.to_csv())
+        f.close()
+
+
 def plot_scatter_matrix(data_frame, attributes, logx=False, logy=False):
     """ Plot a scatter matrix with correctly rotated labels
 
@@ -221,7 +326,7 @@ def plot_boxplot(data_series, store=False):
                         dpi=150)
 
 
-def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
+def plot_value_distributions(data_series, x_label=None, logy=False, store=True, normalized=False):
     """ Plot a histogram, a KDE and a CDF for the given Series
 
     :param data_series: The data series to be plotted
@@ -232,6 +337,8 @@ def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
     :type logy: bool
     :param store: Whether to store the generated plot
     :type store: bool
+    :param normalized: Whether to plot categorical histograms noramlized to 1.0
+    :type normalized: bool
     """
     # Check if data is numeric or not
     fig = plt.figure()
@@ -265,9 +372,19 @@ def plot_value_distributions(data_series, x_label=None, logy=False, store=True):
         ax4.axis('off')
         toplot = data_series.value_counts()\
             .append(pd.Series({'missing': len(data_series.loc[data_series.isnull()])}))
+
         toplot.plot(kind='bar', ax=ax2)
+        if normalized:
+            total = float(toplot.sum())
+            toplot_normalized = toplot.apply(lambda row: float(row/total))
+            ax3.axis('on')
+            toplot_normalized.plot(kind='bar', ax=ax3)
+            ax3.set_ylim([0.0, 1.0])
+            ax3.set_ylabel("Percent")
 
         plt.suptitle('Histogram for {}'.format(data_series.name))
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.90)
 
     ax2.set_ylabel("Frequency{}".format(" (log)" if logy else ""))
     ax2.set_yscale('log' if logy else 'linear')
@@ -471,18 +588,18 @@ def explore_data(file_name,budget_name="total_charge"):
     #     data_frame.to_dict('records'), conflict="replace").run(connection)
     # connection.close()
 
-    data_frame = load_data_frame_from_db()
-    data_frame.drop(labels=['client_country'], axis=1, inplace=True)
-    data_frame = convert_to_numeric(data_frame, None)
-
-    data_frame_hourly = data_frame.loc[data_frame['job_type_Hourly'] == 1]
-    data_frame_hourly.drop(labels=['job_type_Fixed',
-                                   'job_type_Hourly',
-                                   'budget'], axis=1, inplace=True)
-    data_frame_fixed = data_frame.loc[data_frame['job_type_Fixed'] == 1]
-    data_frame_fixed.drop(labels=['job_type_Fixed',
-                                  'job_type_Hourly',
-                                  'workload'], axis=1, inplace=True)
+    # data_frame = load_data_frame_from_db()
+    # data_frame.drop(labels=['client_country'], axis=1, inplace=True)
+    # data_frame = convert_to_numeric(data_frame, None)
+	#
+    # data_frame_hourly = data_frame.loc[data_frame['job_type_Hourly'] == 1]
+    # data_frame_hourly.drop(labels=['job_type_Fixed',
+    #                                'job_type_Hourly',
+    #                                'budget'], axis=1, inplace=True)
+    # data_frame_fixed = data_frame.loc[data_frame['job_type_Fixed'] == 1]
+    # data_frame_fixed.drop(labels=['job_type_Fixed',
+    #                               'job_type_Hourly',
+    #                               'workload'], axis=1, inplace=True)
     # print_correlations(data_frame_hourly, store=True,
     #                    xlabels=data_frame_hourly.columns.values,
     #                    ylabels=data_frame_hourly.columns.values)
@@ -500,3 +617,13 @@ def explore_data(file_name,budget_name="total_charge"):
     #                                         'feedback_for_freelancer',
     #                                         'freelancer_count',
     #                                         'total_charge', 'total_hours'])
+
+    # categorical_attributes = [attribute for attribute in data_frame.columns
+    #                           if not np.issubdtype(get_datatype_safely(data_frame[attribute].dtype), np.number)]
+    # categorical_attributes = set(categorical_attributes).difference(['client_country', 'date_created', 'skills', 'snippet', 'title', 'url'])
+    # for attribute in categorical_attributes:
+    #     for attribute2 in categorical_attributes:
+    #         if attribute != attribute2:
+    #             plot_crosstab_barchart(data_frame[attribute],
+    #                                    data_frame[attribute2],
+    #                                    normalize=True, store=True)
