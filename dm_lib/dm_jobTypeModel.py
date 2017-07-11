@@ -1,10 +1,9 @@
-from dm_data_preparation import *
-from dm_text_mining import do_text_mining
-from dm_general import evaluate_classification, print_predictions_comparison
-from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
 from sklearn import tree
+from sklearn.model_selection import train_test_split
+
+from dm_data_preparation import *
+from dm_general import evaluate_classification, print_predictions_comparison
+
 
 def prepare_data_job_type_model(data_frame, label_name, relative_sampling):
     """ Prepare the given data to be used to predict the job type

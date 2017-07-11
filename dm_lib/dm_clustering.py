@@ -1,11 +1,11 @@
+from sklearn import metrics
+from sklearn.cluster import DBSCAN, KMeans, MeanShift
+from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.model_selection import train_test_split
+
 from dm_data_preparation import *
 from dm_general import *
-from sklearn.cluster import DBSCAN, KMeans, MeanShift, estimate_bandwidth
-from sklearn import metrics
-import numpy as np
-from dm_text_mining import addTextTokensToWholeDF
-from sklearn.model_selection import train_test_split
-from sklearn.metrics.pairwise import euclidean_distances
+from dm_text_mining import add_text_tokens_to_data_frame
 
 ERROR_VALUE = -1
 
@@ -51,7 +51,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     # handle text
     data_frame, text_data = separate_text(data_frame)
     if add_text:
-        data_frame, vectorizers = addTextTokensToWholeDF(data_frame, text_data)
+        data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame, text_data)
     else:
         vectorizers = {}
 
@@ -123,7 +123,7 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     # handle text
     data_frame, text_data = separate_text(data_frame)
     if vectorizers is not None:
-        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
+        data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data, vectorizers=vectorizers)
 
     # add missing columns (dummies, that were not in this data set)
     for col in cluster_columns:
@@ -192,7 +192,7 @@ def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectori
     # handle text
     data_frame, text_data = separate_text(data_frame)
     if vectorizers is not None:
-        data_frame, _ = addTextTokensToWholeDF(data_frame, text_data, vectorizers=vectorizers)
+        data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data, vectorizers=vectorizers)
 
     # add missing columns (dummies, that were not in this data set)
     for col in cluster_columns:
