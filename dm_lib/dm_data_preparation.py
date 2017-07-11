@@ -302,8 +302,8 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    print_data_frame("After preparing data", data_frame)
-    print data_frame[0:3]
+    # print_data_frame("After preparing data", data_frame)
+    # print data_frame[0:3]
 
     return data_frame
 

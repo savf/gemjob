@@ -195,30 +195,30 @@ def budget_model(file_name):
         # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
         # print "\n\n##### With Outlier Treatment:"
-        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
+        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
         print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
 
         # print "##### With Text Tokens, With Outlier Treatment:"
         # # add tokens to data frame
         # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
         # df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
-        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
         #
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
-        # model = create_model(df_train_outl, label_name, budget_classification)
+        # model, _ = create_model(df_train_outl, label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
         #
         # print "##### With Text Tokens, Without Outlier Treatment:"
         # # add tokens to data frame
         # df_train, vectorizers = add_text_tokens_to_data_frame(df_train, text_train)
         # df_test, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
-        # model = create_model(df_train, label_name, budget_classification)
+        # model, _ = create_model(df_train, label_name, budget_classification)
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)
