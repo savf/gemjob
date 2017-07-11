@@ -18,9 +18,17 @@ services:
     build: data_mining_module/
     container_name: data_mining_module
     ports:
-      - "5001:5000"
+      - "5001:5003"
     volumes:
       - ./data_mining_module:/data_mining_module
+  budget_module:
+    build: budget_module/
+    container_name: budget_module
+    ports:
+      - "5003:5000"
+    volumes:
+      - ./budget_module:/budget_module
+      - ./dm_lib:/budget_module/dm_lib
   cluster_module:
     build: cluster_module/
     container_name: cluster_module

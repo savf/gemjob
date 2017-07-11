@@ -1,14 +1,6 @@
+from dm_data_exploration import explore_data
 from dm_data_preparation import *
 from dm_text_mining import *
-from dm_jobTypeModel import job_type_model
-from dm_budgetModel import budget_model
-from dm_feedbackModel import feedback_model
-from dm_experienceLevelModel import experience_level_model
-import pandas as pd
-import numpy as np
-# from dm_data_exploration import explore_data
-from dm_clustering import test_clustering
-from dm_knn import test_knn
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)

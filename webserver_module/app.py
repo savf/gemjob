@@ -7,12 +7,13 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-# module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/'}
-module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/'}
+# module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/'}
+module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003'}
 
 GLOBAL_VARIABLE = {}
 
 app = Flask(__name__)
+
 
 def get_jobs(client, teams):
     jobs = []
@@ -29,6 +30,7 @@ def get_jobs(client, teams):
     except Exception as err:
         print err
     return jobs
+
 
 def get_client_data(client):
     client_info = {}
@@ -48,6 +50,7 @@ def get_client_data(client):
     except Exception as err:
         print err
     return client_info
+
 
 @app.route('/')
 def start():
@@ -78,6 +81,7 @@ def start():
         session.clear()
         return render_template("login.html")
 
+
 @app.route('/login')
 def login():
     client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key, timeout=30)
@@ -86,6 +90,7 @@ def login():
     session['request_token_secret'] = request_token_secret
     authorize_url = client.auth.get_authorize_url(callback_url=request.base_url+"/upwork")
     return redirect(authorize_url)
+
 
 @app.route('/login/upwork', methods=['GET'])
 def login_callback():
@@ -100,14 +105,17 @@ def login_callback():
     session['access_token_secret'] = access_token_secret
     return redirect("/")
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect("/")
 
+
 @app.route('/admin')
 def admin():
     return render_template("admin.html")
+
 
 @app.route('/job')
 def job():
@@ -151,6 +159,7 @@ def job():
 #         session.clear()
 #         return render_template("login.html")
 
+
 @app.route('/get_sample')
 def get_sample():
     json_data = request.args.to_dict()
@@ -165,6 +174,7 @@ def get_sample():
         return jsonify(result=result.content)
     except:
         return jsonify(result='Server not responding')
+
 
 @app.route('/is_online')
 def is_online():
@@ -186,6 +196,7 @@ def is_online():
         pass
     return jsonify(result=status)
 
+
 @app.route('/get_realtime_predictions')
 def get_realtime_predictions():
     json_data = request.args.to_dict()
@@ -195,6 +206,16 @@ def get_realtime_predictions():
         # return jsonify(result="Not implemented")
     except:
         return None # jsonify(result='Server not responding')
+
+
+@app.route('/get_model_predictions')
+def get_model_predictions():
+    json_data = request.args.to_dict()
+    try:
+        result = requests.post(module_urls['BU'] + "get_predictions/", json=json_data)
+        return jsonify(result=result.content)
+    except:
+        return None
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'

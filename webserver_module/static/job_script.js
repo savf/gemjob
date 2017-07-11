@@ -31,7 +31,7 @@ $(document).ready(function() {
             onValueInput(form_elements[i].name, form_elements[i].value, true);
         }
 
-        $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
+        $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result) {
                 $("#ServerResponse").text("PREDICTIONS: "+data.result);
             }

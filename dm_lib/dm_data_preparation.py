@@ -42,7 +42,7 @@ def create_data_frame(file_name):
     return df
 
 
-def db_setup(file_name):
+def db_setup(file_name, host='localhost', port='28015'):
     """ Create DB and table if they don't exist, then insert jobs
 
     The database_module needs to be running and the host variable
@@ -51,9 +51,11 @@ def db_setup(file_name):
 
     :param file_name: File name where data is stored
     :type file_name: str
+    :param host: RethinkDB host
+    :type host: str
+    :param port: RethinkDB port
+    :type port: str
     """
-    host = '192.168.1.241'
-    port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
 
@@ -78,14 +80,18 @@ def db_setup(file_name):
         connection.close()
 
 
-def load_data_frame_from_db(connection=None):
+def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
     """ Load a prepared data_frame directly from the RethinkDB
 
+    :param connection: RethinkDB connection
+    :type connection: rethinkdb.net.ConnectionInstance
+    :param host: RethinkDB host
+    :type host: str
+    :param port: RethinkDB port
+    :type port: str
     :return: Prepared DataFrame
     :rtype: pandas.DataFrame
     """
-    host = '192.168.1.241'
-    port = '28015'
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
 
@@ -296,8 +302,8 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    # print_data_frame("After preparing data", data_frame)
-    # print data_frame[0:3]
+    print_data_frame("After preparing data", data_frame)
+    print data_frame[0:3]
 
     return data_frame
 
@@ -312,7 +318,6 @@ def prepare_single_job(json_data):
     """
 
     make_attributes_safe(json_data)
-    # TODO check for correct types and values
 
     data_frame = pd.DataFrame(json_data, index=[0])
 
@@ -714,6 +719,16 @@ def normalize_min_max(data_frame, min=None, max=None):
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_frame.fillna(0, inplace=True)
     return data_frame, min, max
+
+
+def denormalize_min_max(data_frame, min, max):
+    if min is not None and max is not None:
+        data_frame = data_frame * (max - min) + min
+
+        data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+        data_frame.fillna(0, inplace=True)
+
+    return data_frame
 
 
 def weight_data(data_frame):

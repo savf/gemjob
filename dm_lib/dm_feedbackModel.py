@@ -1,11 +1,8 @@
+from sklearn.ensemble import BaggingRegressor
+from sklearn.model_selection import train_test_split
+
 from dm_data_preparation import *
 from dm_general import evaluate_regression, print_predictions_comparison
-from dm_text_mining import do_text_mining
-from sklearn.model_selection import train_test_split
-from sklearn import linear_model
-from sklearn import svm
-from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestRegressor, BaggingRegressor
 
 
 def prepare_data_feedback_model(data_frame, label_name):

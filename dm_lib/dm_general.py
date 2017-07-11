@@ -74,7 +74,7 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     pd.reset_option('display.max_rows')
 
 
-def evaluate_regression(df, predictions, label_name, printing):
+def evaluate_regression(df, predictions, label_name, printing=True):
     """ Print explained variance, mean absolute error and mean squared error for given regression results
 
     :param df: Pandas DataFrame containing the data

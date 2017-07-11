@@ -1,15 +1,13 @@
-from dm_data_preparation import *
 from dm_general import *
-from dm_text_mining import do_text_mining, addTextTokensToDF
-from sklearn.model_selection import train_test_split
-from sklearn import linear_model, metrics
-from sklearn import svm
-from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import RandomForestRegressor, BaggingRegressor
-from sklearn.svm import SVC
+from sklearn.ensemble import BaggingRegressor
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_selection import SelectKBest, f_classif, \
+    mutual_info_regression
 from sklearn.model_selection import cross_val_score, cross_val_predict
-from sklearn.feature_selection import SelectKBest, f_regression, f_classif, mutual_info_regression
+from sklearn.model_selection import train_test_split
+
+from dm_data_preparation import *
+from dm_text_mining import add_text_tokens_to_data_frame
 
 
 def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
@@ -52,7 +50,9 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
         data_frame.dropna(subset=['total_charge'], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
-    drop_unnecessary = ["client_country", "client_payment_verification_status"]
+    drop_unnecessary = ["client_country", "client_jobs_posted",
+                        "client_past_hires", "client_payment_verification_status",
+                        "feedback_for_client", "feedback_for_freelancer"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # convert everything to numeric
@@ -60,16 +60,66 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
         data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
-    print_data_frame("After preparing for budget model", data_frame)
+    # print_data_frame("After preparing for budget model", data_frame)
 
     return data_frame
 
 
-def create_model(df_train, label_name, is_classification, selectbest):
+def prepare_single_job_budget_model(data_frame, columns, min, max, vectorizers):
+    """ Prepare a data frame with a single job for prediction
+
+    :param data_frame: Pandas DataFrame holding the single job
+    :type data_frame: pandas.DataFrame
+    :param columns: List of columns, which need to be present
+    :type columns: list(str)
+    :param min: Minimum for min-max normalization
+    :param max: Maximum for min-max normalization
+    :param vectorizers: Vectorizers used for the text columns
+    :type vectorizers: list(CountVectorizer)
+    :return:
+    """
+    label_name = 'budget'
+
+    data_frame = prepare_data_budget_model(data_frame, label_name=label_name,
+                                           budget_classification=False)
+
+    # handle text
+    data_frame, text_data = separate_text(data_frame)
+    if vectorizers is not None:
+        data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data,
+                                                      vectorizers=vectorizers)
+
+    # add missing columns (dummies, that were not in this data set)
+    for col in columns:
+        if col not in data_frame.columns:
+            data_frame[col] = 0
+    # remove columns not existing in clusters
+    for col in data_frame.columns:
+        if col not in columns:
+            data_frame.drop(labels=[col], axis=1, inplace=True)
+
+    # normalize
+    if min is not None and max is not None:
+        data_frame, _, _ = normalize_min_max(data_frame, min, max)
+
+    # order acording to cluster_columns, since scikit does not look at labels!
+    data_frame = data_frame.reindex_axis(columns, axis=1)
+
+    return data_frame
+
+
+def create_model(df_train, label_name, is_classification, selectbest=False):
+    """ Create budget model for regression or classification
+
+    :param df_train: Pandas DataFrame holding the data to be trained
+    :param label_name: Budget label to learn ('budget' or 'total_charge')
+    :param is_classification: Whether classification should be used
+    :param selectbest: False or number of features to select
+    :return: Model and selected columns
+    """
     # separate target
     df_target_train = df_train[label_name]
     df_train.drop(labels=[label_name], axis=1, inplace=True)
-    relevant_indices = []
 
     if selectbest > 0:
         if is_classification:
@@ -85,7 +135,7 @@ def create_model(df_train, label_name, is_classification, selectbest):
         model = RandomForestClassifier(n_estimators=100)
 
     model.fit(df_train, df_target_train)
-    return model, relevant_indices
+    return model, df_train.columns
 
 
 def create_model_cross_val(data_frame, label_name, is_classification):
@@ -149,24 +199,26 @@ def budget_model(file_name):
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
+        model = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
         print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
 
         # print "##### With Text Tokens, With Outlier Treatment:"
         # # add tokens to data frame
-        # df_train_outl, df_test_outl = addTextTokensToDF(df_train_outl, df_test_outl, text_train_outl, text_test_outl)
-        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
+        # df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
+        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
         #
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
-        # model, _ = create_model(df_train_outl, label_name, budget_classification)
+        # model = create_model(df_train_outl, label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
         #
         # print "##### With Text Tokens, Without Outlier Treatment:"
         # # add tokens to data frame
-        # df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
-        # model, _ = create_model(df_train, label_name, budget_classification)
+        # df_train, vectorizers = add_text_tokens_to_data_frame(df_train, text_train)
+        # df_test, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
+        # model = create_model(df_train, label_name, budget_classification)
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)
@@ -184,6 +236,65 @@ def budget_model(file_name):
         else:
             evaluate_regression(data_frame_target, predictions, label_name)
         print_predictions_comparison(data_frame_target, predictions, label_name, 20)
+
+
+def budget_model_production(connection, budget_name='budget', normalization=True):
+    """ Learn model for label 'budget' on whole dataset and return it
+
+    :param connection: RethinkDB connection
+    :type connection: rethinkdb.net.ConnectionInstance
+    :param budget_name: Predict 'total_charge' or 'budget'
+    :type budget_name: str
+    :param normalization: Whether to do min-max normalization
+    :type normalization: bool
+    """
+    budget_classification = False
+
+    data_frame = load_data_frame_from_db(connection)
+    data_frame = prepare_data_budget_model(data_frame,
+                                           budget_name, budget_classification)
+
+    data_frame = treat_outliers_deletion(data_frame, budget_name=budget_name)
+    data_frame, text_data = separate_text(data_frame, label_name=budget_name)
+    data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame, text_data)
+    if normalization:
+        data_frame, min, max = normalize_min_max(data_frame)
+    else:
+        min, max = [None, None]
+
+    model, columns = create_model(data_frame, budget_name,
+                                  is_classification=budget_classification,
+                                  selectbest=False)
+
+    return model, columns, min, max, vectorizers
+
+
+def predict(data_frame, label_name, model, min=None, max=None):
+    """ Predict budget for the given data frame
+
+    :param data_frame: Pandas DataFrame holding the data for prediction
+    :param label_name: Budget label
+    :param model: Prediction model
+    :param min: Minimum for min-max denormalization
+    :param max: Maximum for min-max denormalization
+    :return: Budget prediction
+    """
+    prediction = model.predict(data_frame)
+    if len(prediction) > 0:
+        prediction = prediction[0]
+    else:
+        return -1
+
+    # De-normalize if min and max given
+    if min is not None and max is not None:
+        prediction_frame = pd.DataFrame()
+        prediction_frame.set_value(0, label_name, prediction)
+        prediction_frame = denormalize_min_max(prediction_frame,
+                                               min=min, max=max)
+        if len(prediction_frame[label_name]) > 0:
+            prediction = prediction_frame[label_name][0]
+
+    return prediction
 
 
 def budget_model_search(file_name):

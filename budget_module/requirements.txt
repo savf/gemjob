@@ -1,0 +1,6 @@
+flask-restful
+requests
+rethinkdb
+scikit-learn
+numpy
+scipy
