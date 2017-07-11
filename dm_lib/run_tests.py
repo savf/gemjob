@@ -6,7 +6,7 @@ from dm_feedbackModel import feedback_model
 from dm_experienceLevelModel import experience_level_model
 import pandas as pd
 import numpy as np
-# from dm_data_exploration import explore_data
+from dm_data_exploration import explore_data
 from dm_clustering import test_clustering
 from dm_knn import test_knn
 
@@ -67,6 +67,6 @@ db_setup("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")
 # test_text_mining()
-# explore_data("data/found_jobs_4K_extended.json")
+explore_data("data/found_jobs_4K_extended.json")
 # test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
 # test_knn("data/found_jobs_4K_extended.json")
