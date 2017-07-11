@@ -63,13 +63,14 @@ def db_setup(file_name):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-        data_frame = prepare_data(file_name)
-        data_frame.date_created = data_frame.date_created.apply(
-            lambda time: time.to_pydatetime().replace(
-                tzinfo=rdb.make_timezone("+02:00"))
-        )
-        data_frame['id'] = data_frame.index
-        rdb.db(database).table(prepared_jobs_table).insert(data_frame.to_dict('records'), conflict="replace").run(connection)
+            data_frame = prepare_data(file_name)
+            data_frame.date_created = data_frame.date_created.apply(
+                lambda time: time.to_pydatetime().replace(
+                    tzinfo=rdb.make_timezone("+02:00"))
+            )
+            data_frame['id'] = data_frame.index
+            rdb.db(database).table(prepared_jobs_table).insert(
+                data_frame.to_dict('records'), conflict="replace").run(connection)
     except RqlRuntimeError:
         print 'Database {} and table {} already exist.'.format(database,
                                                                prepared_jobs_table)
@@ -296,8 +297,8 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    print_data_frame("After preparing data", data_frame)
-    print data_frame[0:3]
+    # print_data_frame("After preparing data", data_frame)
+    # print data_frame[0:3]
 
     return data_frame
 
@@ -312,6 +313,7 @@ def prepare_single_job(json_data):
     """
 
     make_attributes_safe(json_data)
+    # TODO check for correct types and values
 
     data_frame = pd.DataFrame(json_data, index=[0])
 
@@ -390,8 +392,8 @@ def prepare_single_job(json_data):
         if key not in data_frame.columns:
             data_frame[key] = value
 
-    print_data_frame("After preparing data", data_frame)
-    print data_frame
+    # print_data_frame("After preparing data", data_frame)
+    # print data_frame
 
     return data_frame
 
