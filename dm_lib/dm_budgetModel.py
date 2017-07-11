@@ -149,24 +149,24 @@ def budget_model(file_name):
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
+        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
         print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
 
         # print "##### With Text Tokens, With Outlier Treatment:"
         # # add tokens to data frame
         # df_train_outl, df_test_outl = addTextTokensToDF(df_train_outl, df_test_outl, text_train_outl, text_test_outl)
-        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
         #
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
-        # model = create_model(df_train_outl, label_name, budget_classification)
+        # model, _ = create_model(df_train_outl, label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
         #
         # print "##### With Text Tokens, Without Outlier Treatment:"
         # # add tokens to data frame
         # df_train, df_test = addTextTokensToDF(df_train, df_test, text_train, text_test)
-        # model = create_model(df_train, label_name, budget_classification)
+        # model, _ = create_model(df_train, label_name, budget_classification)
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)

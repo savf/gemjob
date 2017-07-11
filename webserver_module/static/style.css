@@ -10,15 +10,15 @@ html, body {
 
 h1{
 	margin-top: 10px;
-	margin-bottom: 20px;
 	line-height: 60px;
 	font-size:35px;
     display: inline-block;
+    margin-bottom: 15px;
 }
 
 h2{
-	margin-top: 15px;
-	margin-bottom: 15px;
+	padding-top: 5px;
+	padding-bottom: 5px;
 	line-height: 40px;
 	font-size:25px;
 }
@@ -61,6 +61,26 @@ input, a.Button, select, textarea{
     text-align: right;
     line-height: 30px;
     vertical-align: top;
+}
+
+.LiveRecommendation, .RecommendationLabel{
+    display: inline-block;
+    text-align: right;
+    line-height: 30px;
+    padding-right: 5px;
+    padding-left: 5px;
+    margin-bottom: 10px;
+    vertical-align: top;
+    background: #e2f0d9;
+}
+
+.LiveRecommendation{
+    min-width: 30%;
+}
+
+.RecommendationLabel{
+    background: #c5e0b4;
+
 }
 
 input[type=radio]{
@@ -135,8 +155,9 @@ a:hover{
 }
 
 .Section{
-    padding-top:30px;
-    padding-bottom:30px;
+    padding-top:20px;
+    padding-bottom:20px;
+    margin-bottom: 10px;
 }
 
 .TableSection{
@@ -157,7 +178,7 @@ a:hover{
 .Text{
     display: block;
     width: 95%;
-    max-width: 900px;
+    max-width: 1200px;
     margin: auto;
 }
 
@@ -165,6 +186,10 @@ a:hover{
     width: 46%;
     margin-right: 2%;
     display: inline-block;
+    vertical-align: top;
+}
+.TableStyle:nth-child(even){
+    color: darkgreen;
 }
 
 span.Token{
@@ -252,17 +277,20 @@ a.Button:hover{
     width: 100%;
 }
 
-.Disabled{
+.Disabled, .Disabled:active, .Disabled:hover{
     background: gray;
     border-color: gray;
+    color: white;
+    border: none;
+    padding: 0;
 }
 
 /* Formatting */
 
 .Warning{
-    color: red;
+    color: red !important;
 }
 
 .OK{
-    color: green;
+    color: green !important;
 }

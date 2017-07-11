@@ -63,14 +63,14 @@ def db_setup(file_name):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-            data_frame = prepare_data(file_name)
-            data_frame.date_created = data_frame.date_created.apply(
-                lambda time: time.to_pydatetime().replace(
-                    tzinfo=rdb.make_timezone("+02:00"))
-            )
-            data_frame['id'] = data_frame.index
-            rdb.db(database).table(prepared_jobs_table).insert(
-                data_frame.to_dict('records'), conflict="replace").run(connection)
+        data_frame = prepare_data(file_name)
+        data_frame.date_created = data_frame.date_created.apply(
+            lambda time: time.to_pydatetime().replace(
+                tzinfo=rdb.make_timezone("+02:00"))
+        )
+        data_frame['id'] = data_frame.index
+        rdb.db(database).table(prepared_jobs_table).insert(
+            data_frame.to_dict('records'), conflict="replace").run(connection)
     except RqlRuntimeError:
         print 'Database {} and table {} already exist.'.format(database,
                                                                prepared_jobs_table)
@@ -281,9 +281,8 @@ def prepare_data(file_name):
     data_frame['date_created'] = data_frame['date_created'].apply(lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
 
     # convert experience level from numeric to categorical
-    experience_levels = ['beginner', 'intermediate', 'expert']
-    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
-                                            labels=experience_levels)
+    experience_levels = ['Entry Level', 'Intermediate', 'Expert']
+    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),labels=experience_levels)
 
     # fill missing experience levels with forward filling
     data_frame['experience_level'].fillna(method='ffill', inplace=True)
@@ -297,7 +296,7 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    # print_data_frame("After preparing data", data_frame)
+    print_data_frame("After preparing data", data_frame)
     # print data_frame[0:3]
 
     return data_frame
@@ -347,9 +346,9 @@ def prepare_single_job(json_data):
     # convert experience level from numeric to categorical
     if 'experience_level' in data_frame.columns:
         data_frame['experience_level'] = data_frame.experience_level.astype(str)
-        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "beginner"
-        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "intermediate"
-        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "expert"
+        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "Entry Level"
+        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "Intermediate"
+        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "Expert"
 
     # add additional attributes like text size (how long is the description?) or number of skills
     if 'snippet' in data_frame.columns:

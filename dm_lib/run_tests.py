@@ -60,9 +60,9 @@ def test_text_mining():
 
 
 #run
-db_setup("data/found_jobs_4K_extended.json")
+# db_setup("data/found_jobs_4K_extended.json")
 # prepare_data("data/found_jobs_4K_extended.json")
-# budget_model("data/found_jobs_4K_extended.json")
+budget_model("data/found_jobs_4K_extended.json")
 # job_type_model("data/found_jobs_4K_extended.json")
 # feedback_model("data/found_jobs_4K_extended.json")
 # experience_level_model("data/found_jobs_4K_extended.json")

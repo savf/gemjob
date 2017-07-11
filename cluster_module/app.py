@@ -14,7 +14,7 @@ from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
 import pandas as pd
-# sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/dm_lib/')
+# sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
 from dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
 from dm_clustering import do_clustering_mean_shift, prepare_single_job_clustering, predict
 # sys.path.pop(0)
@@ -50,12 +50,12 @@ class Predictions(Resource):
 
             unnormalized_data = predict(unnormalized_data, normalized_data, local_variable["clusters"], local_variable["centroids"], target_columns)
 
-            predictions = unnormalized_data[target_columns].to_dict('records')
+            predictions = unnormalized_data.to_dict('records')
 
             print "\n\n### Predictions:"
             print predictions
 
-            return predictions
+            return predictions[0]
         else:
             return {}
 
@@ -134,9 +134,7 @@ def clustering_setup(max_tries=-1):
             if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
                 rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
 
-            cluster_data(connection) # TODO activate this again
-
-            isSetup = True
+            isSetup = cluster_data(connection)
         except Exception as e:
             print 'DB error:', e
             if connection:

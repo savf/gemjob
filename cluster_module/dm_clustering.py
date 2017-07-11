@@ -597,7 +597,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     :type centroids: pandas.DataFrame
     :param target_columns: columns to predict_comparison
     :type target_columns: list
-    :return: Pandas Dataframe with predictions for each row of the input data
+    :return: Pandas Dataframe with predictions for each row of the input data and the "cluster_size" as its own column
     :rtype: pandas.DataFrame
     """
 
@@ -623,20 +623,24 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
         predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
 
     # find nearest centroid for each row of the given data
+    all_columns = list(clusters.itervalues().next().columns)
+    all_columns = [x for x in all_columns if x not in ["cluster_label", "skills", "title", "snippet", "client_country", "date_created", "client_reviews_count", ]]
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
 
-    for tc in target_columns:
+    unnormalized_data = unnormalized_data[all_columns]
+    unnormalized_data["cluster_size"] = 0
 
-        print "\n\n\n\n##### Predict label:", tc
-
-        for index, row in normalized_data.iterrows():
+    for index, row in normalized_data.iterrows():
+        for tc in all_columns:
+            print "\n\n\n\n##### Predict label:", tc
             print "\n#### Current row:", index
             cluster_index_euc = predicted_clusters["prediction_euclidean"].loc[index]
             print "Cluster found:", cluster_index_euc
             print "Cluster shape:", clusters[cluster_index_euc].shape
+            unnormalized_data.set_value(index, "cluster_size", clusters[cluster_index_euc].shape[0])
 
             actual = unnormalized_data.loc[index][tc]
-            # print "## Actucal value:", actual
+            print "## Actucal value:", actual
 
             if tc in numeric_columns:
                 median = clusters[cluster_index_euc][tc].median()
