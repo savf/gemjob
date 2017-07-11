@@ -18,6 +18,7 @@ import pandas as pd
 from dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
 from dm_clustering import do_clustering_mean_shift, prepare_single_job_clustering, predict
 # sys.path.pop(0)
+import copy
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
@@ -38,15 +39,16 @@ GLOBAL_VARIABLE = {}
 class Predictions(Resource):
 
     def post(self):
-        if GLOBAL_VARIABLE.has_key("clusters"):
+        local_variable = copy.deepcopy(GLOBAL_VARIABLE)
+        if local_variable.has_key("clusters"):
             json_data = request.get_json(force=True)
 
             data_frame = prepare_single_job(json_data)
             unnormalized_data = data_frame.copy()
 
-            normalized_data, target_columns = prepare_single_job_clustering(data_frame, GLOBAL_VARIABLE["centroids"].columns, GLOBAL_VARIABLE["min"], GLOBAL_VARIABLE["max"], vectorizers=GLOBAL_VARIABLE["vectorizers"], weighting=True)
+            normalized_data, target_columns = prepare_single_job_clustering(data_frame, local_variable["centroids"].columns, local_variable["min"], local_variable["max"], vectorizers=local_variable["vectorizers"], weighting=True)
 
-            unnormalized_data = predict(unnormalized_data, normalized_data, GLOBAL_VARIABLE["clusters"], GLOBAL_VARIABLE["centroids"], target_columns)
+            unnormalized_data = predict(unnormalized_data, normalized_data, local_variable["clusters"], local_variable["centroids"], target_columns)
 
             predictions = unnormalized_data[target_columns].to_dict('records')
 
@@ -74,14 +76,15 @@ api.add_resource(Update, '/update_clusters/')
 
 @app.route('/')
 def start():
+    local_variable = copy.deepcopy(GLOBAL_VARIABLE)
     try:
-        if GLOBAL_VARIABLE.has_key("clusters"):
-            number_of_clusters = len(GLOBAL_VARIABLE["clusters"])
+        if local_variable.has_key("clusters"):
+            number_of_clusters = len(local_variable["clusters"])
             return "<h1>Cluster Module</h1><p>Number of clusters: </p>" + str(number_of_clusters)
         else:
             return "<h1>Cluster Module</h1><p>Not setup!</p>"
     except Exception as e:
-        return "<h1>Cluster Module</h1><p>Never updated</p>"
+        return "<h1>Cluster Module</h1><p>Error</p>"
 
 
 def cluster_data(connection):
@@ -91,9 +94,10 @@ def cluster_data(connection):
         # load data
         # data_frame = prepare_data("data/found_jobs_4K_extended.json") # for testing only!
         data_frame = load_data_frame_from_db(connection=connection)
+        print "# number of jobs in db:", data_frame.shape[0]
 
         # cluster using mean shift
-        _, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=False)
+        _, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=False, min_rows_per_cluster=3)
         print "# new clusters computed"
 
         # store everything as global variable

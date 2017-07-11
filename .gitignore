@@ -3,4 +3,5 @@
 **/credentials.py
 **/credentials.pyc
 *.pyc
+/cluster_module/dm*
 .DS_Store

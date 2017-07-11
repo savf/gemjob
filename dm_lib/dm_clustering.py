@@ -221,8 +221,8 @@ def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectori
 def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     """ Print stats and facts about the clusters
 
-    :param clusters: List of clusters in the form of Pandas Data Frames
-    :type clusters: list
+    :param clusters: Dict of clusters in the form of Pandas Data Frames (key is cluster number, does not necessarily start with 0!)
+    :type clusters: dict
     :return: Final score for clusters (lower is better)
     :rtype: float
     """
@@ -245,7 +245,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
         # all_means[num_col] = []
 
     # TODO: store stats for each cluster into a file
-    for cluster in clusters:
+    for cluster in clusters.itervalues():
         print "\n\nCluster: " + str(cluster["cluster_label"][0]), " --- Shape: ", cluster.shape
         # print '\033[94m', cluster[0:5], '\033[0m'
 
@@ -307,7 +307,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     return final_score
 
 
-def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
+def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
     """ Cluster using DBSCAN algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.64 WITH removing columns
@@ -318,6 +318,8 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
     :type find_best_params: bool
     :param do_explore: Print stats about clusters
     :type do_explore: bool
+    :param min_rows_per_cluster: Minimum number of rows a cluster should have
+    :type min_rows_per_cluster: int
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
@@ -380,13 +382,24 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
     data_frame["cluster_label"] = labels
     data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
 
+    if min_rows_per_cluster > 1:
+        value_counts = data_frame["cluster_label"].value_counts()
+        small_clusters = value_counts.loc[value_counts < min_rows_per_cluster]
+        centroids.drop(small_clusters.index, inplace=True)
+        data_frame = data_frame[-data_frame["cluster_label"].isin(list(small_clusters.index))]
+        # #print
+        # value_counts = data_frame["cluster_label"].value_counts()
+        # print "\n### Remaining indices: ", value_counts
+
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
     # declare budget as missing, if hourly job
     data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
 
     gb = data_frame_original.groupby('cluster_label')
-    clusters = [gb.get_group(x) for x in gb.groups]
+    # clusters = [gb.get_group(x) for x in gb.groups]
+    clusters = {gb.get_group(x)['cluster_label'][0]: gb.get_group(x) for x in gb.groups}
+    # print  "\n### Cluster Keys: ", clusters.keys()
 
     if do_explore:
         explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
@@ -394,7 +407,7 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True):
     return db, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
+def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
     """ Cluster using k-means algorithm
     silhouette_score about 0.54 (0.25 with z-score) without removing columns
     silhouette_score about 0.60 WITH removing columns
@@ -405,6 +418,8 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
     :type find_best_params: bool
     :param do_explore: Print stats about clusters
     :type do_explore: bool
+    :param min_rows_per_cluster: Minimum number of rows a cluster should have
+    :type min_rows_per_cluster: int
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
@@ -453,13 +468,24 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
     data_frame["cluster_label"] = labels
     data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
 
+    if min_rows_per_cluster > 1:
+        value_counts = data_frame["cluster_label"].value_counts()
+        small_clusters = value_counts.loc[value_counts < min_rows_per_cluster]
+        centroids.drop(small_clusters.index, inplace=True)
+        data_frame = data_frame[-data_frame["cluster_label"].isin(list(small_clusters.index))]
+        # #print
+        # value_counts = data_frame["cluster_label"].value_counts()
+        # print "\n### Remaining indices: ", value_counts
+
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
     # declare budget as missing, if hourly job
     data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
 
     gb = data_frame_original.groupby('cluster_label')
-    clusters = [gb.get_group(x) for x in gb.groups]
+    # clusters = [gb.get_group(x) for x in gb.groups]
+    clusters = {gb.get_group(x)['cluster_label'][0]: gb.get_group(x) for x in gb.groups}
+    # print  "\n### Cluster Keys: ", clusters.keys()
 
     if do_explore:
         explore_clusters(clusters, data_frame_original, silhouette_score, "K-Means")
@@ -467,7 +493,7 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True):
     return kmeans, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True):
+def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
     """ Cluster using mean-shift algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.65 WITH removing columns
@@ -479,6 +505,8 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     :type find_best_params: bool
     :param do_explore: Print stats about clusters
     :type do_explore: bool
+    :param min_rows_per_cluster: Minimum number of rows a cluster should have
+    :type min_rows_per_cluster: int
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
@@ -529,13 +557,26 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     data_frame["cluster_label"] = labels
     data_frame = data_frame[data_frame.cluster_label != -1] # remove noisy samples (have cluster label -1)
 
+    if min_rows_per_cluster > 1:
+        value_counts = data_frame["cluster_label"].value_counts()
+        small_clusters = value_counts.loc[value_counts < min_rows_per_cluster]
+        # print "\n### All indices: ", centroids.index
+        centroids.drop(small_clusters.index, inplace=True)
+        # print "\n### Remaining indices: ", centroids.index
+        data_frame = data_frame[-data_frame["cluster_label"].isin(list(small_clusters.index))]
+        # #print
+        # value_counts = data_frame["cluster_label"].value_counts()
+        # print "\n### Remaining indices: ", value_counts
+
     data_frame_original = data_frame_original.join(data_frame["cluster_label"], how='inner')
 
     # declare budget as missing, if hourly job
     data_frame_original.ix[data_frame_original.job_type == 'Hourly', 'budget'] = None
 
     gb = data_frame_original.groupby('cluster_label')
-    clusters = [gb.get_group(x) for x in gb.groups]
+    # clusters = [gb.get_group(x) for x in gb.groups]
+    clusters = {gb.get_group(x)['cluster_label'][0]: gb.get_group(x) for x in gb.groups}
+    # print  "\n### Cluster Keys: ", clusters.keys()
 
     if do_explore:
         explore_clusters(clusters, data_frame_original, silhouette_score, "Mean-Shift")
@@ -550,8 +591,8 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     :type unnormalized_data: pandas.DataFrame
     :param normalized_data: Pandas DataFrames holding normalized data
     :type normalized_data: pandas.DataFrame
-    :param clusters: List of Pandas DataFrames holding non-normalized data
-    :type clusters: pandas.DataFrame
+    :param clusters: Dict of clusters in the form of Pandas Data Frames (key is cluster number, does not necessarily start with 0!)
+    :type clusters: dict
     :param centroids: minimum values
     :type centroids: pandas.DataFrame
     :param target_columns: columns to predict_comparison
@@ -573,28 +614,29 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     # get predictions based on euclidean distance
     predicted_clusters = pd.DataFrame(0, columns=["prediction_euclidean"], index=normalized_data.index)
 
+
+    print "\nCentroid indices", centroids.index
     for index, row in normalized_data.iterrows():
         distances = euclidean_distances(centroids, row.values.reshape(1, -1))
         cluster_index = np.array(distances).argmin()
+        cluster_index = centroids.index[cluster_index]
         predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
 
     # find nearest centroid for each row of the given data
-    print "\n\n### Predictions:\n"
-    numeric_columns = clusters[0]._get_numeric_data().columns
+    numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
 
     for tc in target_columns:
 
         print "\n\n\n\n##### Predict label:", tc
-        # correct_euclidean = 0
-        # abs_err_euclidean = 0
 
         for index, row in normalized_data.iterrows():
             print "\n#### Current row:", index
             cluster_index_euc = predicted_clusters["prediction_euclidean"].loc[index]
             print "Cluster found:", cluster_index_euc
+            print "Cluster shape:", clusters[cluster_index_euc].shape
 
             actual = unnormalized_data.loc[index][tc]
-            print "## Actucal value:", actual
+            # print "## Actucal value:", actual
 
             if tc in numeric_columns:
                 median = clusters[cluster_index_euc][tc].median()
@@ -602,26 +644,16 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                     print "#ERROR: no median found!"
                     unnormalized_data.set_value(index, tc, ERROR_VALUE)
                 else:
-                    # abs_err = abs(actual - median)
-                    # abs_err_euclidean = abs_err_euclidean + abs_err
                     print "# Prediction:", median #, "Error:", abs_err
                     unnormalized_data.set_value(index, tc, median)
             else:
-                # print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
                 if len(value_counts) > 0:
                     majority = value_counts.idxmax(axis=1)
                 else:
                     majority = np.NaN
-                # if majority == actual:
-                #     correct_euclidean = correct_euclidean + 1
                 print "Majority voting:", majority
                 unnormalized_data.set_value(index, tc, majority)
-        # if tc in numeric_columns:
-        #     print "\n\n#### Abs Error Euclidean:", abs_err_euclidean / float(normalized_data.shape[0])
-        # else:
-        #     print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
-        # print "#### Number of rows:", normalized_data.shape[0]
 
     return unnormalized_data
 
@@ -655,6 +687,16 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
     predicted_clusters = model.predict(normalized_data)
     # print "\n\n### Predictions:"
     # print predicted_clusters
+    numb_in_outlier_cluster = 0
+    for i in range(0, len(predicted_clusters)):
+        try:
+            predicted_clusters[i] = centroids.index[predicted_clusters[i]]
+        except:
+            predicted_clusters[i] = centroids.index[predicted_clusters[0]]
+            numb_in_outlier_cluster = numb_in_outlier_cluster+1
+
+    # print "\n\n### Predictions:"
+    # print predicted_clusters
 
     predicted_clusters = pd.DataFrame(predicted_clusters, columns=["prediction_model"], index=normalized_data.index)
     predicted_clusters["prediction_euclidean"] = 0
@@ -667,11 +709,11 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
     for index, row in normalized_data.iterrows():
         distances = euclidean_distances(centroids, row.values.reshape(1, -1))
         cluster_index = np.array(distances).argmin()
+        cluster_index = centroids.index[cluster_index]
         predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
 
     # find nearest centroid for each row of the given data
-    print "\n\n### Predictions:\n"
-    numeric_columns = clusters[0]._get_numeric_data().columns
+    numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
 
     for tc in target_columns:
 
@@ -739,7 +781,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
             print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
             print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
         print "#### Number of rows:", normalized_data.shape[0]
-
+        print "#### Number of rows predicted to be in outlier cluster (removed from clusters):", numb_in_outlier_cluster
 
 
 def test_clustering(file_name, method="Mean-Shift"):

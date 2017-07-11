@@ -1,8 +1,17 @@
 import os
+import sys
 
 import pandas as pd
 from sklearn.metrics import explained_variance_score, mean_squared_error, \
     mean_absolute_error, accuracy_score
+
+
+def block_printing():
+    sys.stdout = open(os.devnull, 'w')
+
+
+def enable_printing():
+    sys.stdout = sys.__stdout__
 
 
 def print_data_frame(title, df):
@@ -54,8 +63,6 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     :param num_of_rows: Number of rows to diplay
     :type num_of_rows: int
     """
-    if not isinstance(df, pd.DataFrame):
-        df = pd.DataFrame(df, columns=[label_name])
     pd.set_option('display.max_rows', num_of_rows)
     if len(df) != len(predictions):
         print "\n### Error: Length of values does not match\n"
@@ -67,7 +74,7 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     pd.reset_option('display.max_rows')
 
 
-def evaluate_regression(df, predictions, label_name):
+def evaluate_regression(df, predictions, label_name, printing):
     """ Print explained variance, mean absolute error and mean squared error for given regression results
 
     :param df: Pandas DataFrame containing the data
@@ -76,9 +83,12 @@ def evaluate_regression(df, predictions, label_name):
     :type predictions: array
     :param label_name: Target label
     :type label_name: str
+    :param printing: Whether to print to console
+    :type printing: bool
     """
-    if isinstance(df, pd.DataFrame):
-        df = df[label_name]
+    if not printing:
+        block_printing()
+
     print "### Evaluation of " + label_name + " ###"
     exp_var_sc = explained_variance_score(df, predictions)
     print "## Explained variance score (best is 1.0): ", exp_var_sc
@@ -87,6 +97,7 @@ def evaluate_regression(df, predictions, label_name):
     sq_err = mean_squared_error(df, predictions)
     print "## Mean squared error: ", sq_err
 
+    enable_printing()
     return exp_var_sc, abs_err, sq_err
 
 
@@ -119,7 +130,7 @@ def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribut
         + str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)+","+str(runtime)
 
 
-def evaluate_classification(df, predictions, label_name):
+def evaluate_classification(df, predictions, label_name, printing):
     """ Print accuracy of classification
 
     :param df: Pandas DataFrame containing the data
@@ -127,7 +138,12 @@ def evaluate_classification(df, predictions, label_name):
     :param predictions: Array holding the classification predictions
     :type predictions: array
     :param label_name: Target label
-    :type label_name: str"""
+    :type label_name: str
+    :param printing: Whether to print to console
+    :type printing: bool
+    """
+    if not printing:
+        block_printing()
     if isinstance(df, pd.DataFrame):
         df = df[label_name]
     print "### Evaluation of " + label_name + " ###"
@@ -136,30 +152,42 @@ def evaluate_classification(df, predictions, label_name):
 
     # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics
 
+    enable_printing()
     return accuracy
 
 
-def print_model_evaluation(model, df_test, label_name, is_classification):
+def print_model_evaluation(model, df_test, label_name,
+                           is_classification, csv=False):
     """ Print accuracy of model
 
-    :param model: Model used
     :param df_test: Pandas DataFrame containing the test data
     :type df_test: pandas.DataFrame
     :param label_name: Target label
     :type label_name: str
     :param is_classification: classification or regression?
     :type is_classification: bool
+    :param csv: Print comma separated to use in spreadsheets
+    :type csv: bool
     """
-    print "\n########## Evaluate model\n"
     # separate target
     df_target_test = df_test[label_name]
     df_test.drop(labels=[label_name], axis=1, inplace=True)
     # predict
     predictions = model.predict(df_test)
+    results = []
 
     if is_classification:
-        evaluate_classification(df_target_test, predictions, label_name)
+        accuracy = evaluate_classification(
+            df_target_test[label_name], predictions, label_name,
+            printing=not csv)
+        results.append(accuracy)
     else:
-        evaluate_regression(df_target_test, predictions, label_name)
+        exp_var_sc, abs_err, sq_err = evaluate_regression(
+            df_target_test, predictions, label_name, printing=not csv)
+        results.extend([exp_var_sc, abs_err, sq_err])
 
-    print_predictions_comparison(df_target_test, predictions, label_name, 20)
+    if not csv:
+        print_predictions_comparison(df_target_test, predictions,
+                                     label_name, num_of_rows=20)
+    return results
+
