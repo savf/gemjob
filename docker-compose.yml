@@ -25,7 +25,7 @@ services:
     build: budget_module/
     container_name: budget_module
     ports:
-      - "5003:5000"
+      - "5003:5003"
     volumes:
       - ./budget_module:/budget_module
       - ./dm_lib:/budget_module/dm_lib
@@ -36,6 +36,7 @@ services:
       - "5002:5002"
     volumes:
       - ./cluster_module:/cluster_module
+      - ./dm_lib:/cluster_module/dm_lib
   database_module:
     # https://hub.docker.com/_/rethinkdb/
     image: rethinkdb:2.3.5

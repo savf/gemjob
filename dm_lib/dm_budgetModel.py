@@ -56,8 +56,7 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # convert everything to numeric
-    if not budget_classification:
-        data_frame = convert_to_numeric(data_frame, label_name)
+    data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
     # print_data_frame("After preparing for budget model", data_frame)
@@ -102,7 +101,7 @@ def prepare_single_job_budget_model(data_frame, columns, min, max, vectorizers):
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
 
-    # order acording to cluster_columns, since scikit does not look at labels!
+    # order according to cluster_columns, since scikit does not look at labels!
     data_frame = data_frame.reindex_axis(columns, axis=1)
 
     return data_frame
@@ -159,19 +158,21 @@ def create_model_cross_val(data_frame, label_name, is_classification):
 
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
-def budget_model(file_name):
+def budget_model(file_name, connection):
     """ Learn model for label 'budget' and return it
 
     :param file_name: JSON file containing all data
     :type file_name: str
+    :param connection: RethinkDB connection to load the data
+    :type connection: rethinkdb.net.ConnectionInstance
     """
     label_name = "budget"
     budget_classification = False
     do_cross_val = False
     # label_name = "total_charge"
 
-    #data_frame = prepare_data(file_name)
-    data_frame = load_data_frame_from_db()
+    # data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db(connection=connection)
 
     # prepare for model
     data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=budget_classification)
@@ -195,30 +196,30 @@ def budget_model(file_name):
         # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
 
         # print "\n\n##### With Outlier Treatment:"
-        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
+        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
         print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
 
         # print "##### With Text Tokens, With Outlier Treatment:"
         # # add tokens to data frame
         # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
         # df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
-        # model = create_model(df_train_outl.copy(), label_name, budget_classification)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
         #
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
-        # model = create_model(df_train_outl, label_name, budget_classification)
+        # model, _ = create_model(df_train_outl, label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
         #
         # print "##### With Text Tokens, Without Outlier Treatment:"
         # # add tokens to data frame
         # df_train, vectorizers = add_text_tokens_to_data_frame(df_train, text_train)
         # df_test, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
-        # model = create_model(df_train, label_name, budget_classification)
+        # model, _ = create_model(df_train, label_name, budget_classification)
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)

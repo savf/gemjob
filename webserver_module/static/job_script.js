@@ -1,7 +1,8 @@
 var maxWidthMobile = 700;
-var min_filled_for_predictions = 12;
+var min_filled_for_predictions = 11;
 skills_selected = [];
 var form_elements = {};
+var recommendation_elements = {};
 
 $(document).ready(function() {
 	adjustToSize();
@@ -15,9 +16,13 @@ $(document).ready(function() {
         onValueInput(form_elements[i].name, form_elements[i].value, true);
     }
 
+    recommendation_elements = $(".LiveRecommendation");
+
 	$(window).resize(function() {
 		adjustToSize();
 	});
+
+	initPopUp();
 
 	$('#ReviewButton').bind('click', function(e) {
         $("#Status").text("Reviewing job ...").removeClass("Warning").removeClass("OK");
@@ -30,7 +35,7 @@ $(document).ready(function() {
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result) {
-                $("#ServerResponse").text("PREDICTIONS: "+data.result);
+                showPopUp("Model Predictions", data.result);
             }
             $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
             $("#Status").text("Job review complete").addClass("OK").removeClass("Warning");
@@ -41,6 +46,8 @@ $(document).ready(function() {
         e.preventDefault();
         return false;
     });
+	$('#ReviewButton').prop("disabled",true).addClass("Disabled");
+	$('#SubmitButton').prop("disabled",true).addClass("Disabled");
 
 });
 
@@ -75,7 +82,7 @@ function addSkill () {
     if (ind == -1) {
         skills_selected.push(sel_skill);
 
-        var id_string = 'Token_' + sel_skill;
+        var id_string = 'Token_' + sel_skill.replace(/#|\,|\.|\"|\?|\!|\*/g,'_');
         $("#SkillsList").append("<span id='" + id_string + "' class='Token'>" + sel_skill + "</span>");
         input.value = "";
         $("#NoSkills").hide();
@@ -122,6 +129,15 @@ function onValueInput(key, value, doNotPredict){
         if (!doNotPredict) {
             var count = Object.keys(form_values).length;
 
+            if(count < 16) {
+                $('#ReviewButton').prop("disabled", true).addClass("Disabled");
+                $('#SubmitButton').prop("disabled", true).addClass("Disabled");
+            }
+            else {
+                $('#ReviewButton').prop("disabled", false).removeClass("Disabled");
+                $('#SubmitButton').prop("disabled", false).removeClass("Disabled");
+            }
+
             if (count > min_filled_for_predictions) {
                 // get predictions
                 $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
@@ -129,18 +145,52 @@ function onValueInput(key, value, doNotPredict){
                 form_values["skills"] = getSkillsString();
 
                 $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
-                    if (data && data.result) {
-                        $("#ServerResponse").text("PREDICTIONS: "+data.result);
-                        var time = new Date();
+                    var time = new Date();
+                    try{
+                        // showPopUp("Cluster Predictions", data.result);
+                        cluster_predictions = JSON.parse(data.result);
+
+                        for (var i = 0; i < recommendation_elements.length; i++) {
+                            var rec_value = cluster_predictions[recommendation_elements[i].id];
+                            if (rec_value == -1)
+                                rec_value = "None";
+                            recommendation_elements.get(i).innerHTML = rec_value;
+                        }
+                        $("#cluster_size").text(cluster_predictions["cluster_size"])
+
                         $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
                     }
-                    else {
+                    catch (err) {
                         $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
                     }
                 }).fail(function (jqxhr, textStatus, error) {
+                    var time = new Date();
                     $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
                 });
             }
         }
     }
+}
+
+
+function initPopUp(){
+    popUpBackground = $("#PopUpBackground");
+    popUp = $("#PopUp");
+    popUpTitle = $("#PopUpTitle");
+    popUpContent = $("#PopUpContent");
+    popUpBackground.bind('click', function(e) {
+        hidePopUp();
+    });
+}
+
+function showPopUp(title, htmlContent) {
+    popUpTitle.text(title);
+    popUpContent.html(htmlContent);
+    popUpBackground.show();
+    popUp.show();
+}
+
+function hidePopUp(){
+    popUpBackground.hide();
+    popUp.hide();
 }

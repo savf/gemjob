@@ -3,10 +3,11 @@ from dm_data_preparation import *
 from dm_text_mining import *
 from dm_budgetModel import budget_model
 
-pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
+pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
 
-RDB_HOST = '192.168.99.100'
+# RDB_HOST = '192.168.99.100'
+RDB_HOST = 'localhost'
 RDB_PORT = '28015'
 
 def test_text_mining():

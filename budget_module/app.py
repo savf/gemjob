@@ -33,8 +33,7 @@ RDB_PORT = 28015
 RDB_DB = 'datasets'
 RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
 
-TARGET_NAME = 'total_charge'
-
+TARGET_NAME = 'budget'
 
 GLOBAL_VARIABLE = {}
 

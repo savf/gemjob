@@ -45,7 +45,14 @@
             <h1>Job Form</h1>
         </div>
         <div class="HighlightedSectionDark"><div class="Text">
+            <h2>Recommendations:    <div class="Icon" onclick="showPopUp('About Recommendations:', '<p>Real-time recommendations are based on clusters of similar jobs. Whenever you change a value in the form, our application tries to find the most similar cluster to your job and displays typical values chosen by other Upwork clients.</p>' +
+             '<p>After filling the form completely, you may review the form using the corresponding button to get more accurate and more detailed recommendations.</p>')">i</div> </h2>
+        </div></div>
+        <div class="Text">
             <p><span class="TableStyle">Status:</span> <span id="Status" class="TableStyle">No recommendations yet</span></p>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span class="TableStyle">Similar jobs found:</span> <span id="cluster_size" class="TableStyle">None</span></p>
         </div></div>
     </div>
 
@@ -70,7 +77,7 @@
                     <option value="Other - Data Science & Analytics">Other - Data Science & Analytics</option>
 
                 </select>
-                </div>
+                <div id="subcategory2" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Title</div><div class="LabeledElement">
                 <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="" onblur="onValueInput(name, value)">
@@ -90,7 +97,7 @@
 
                 <div class="Label">Number of Freelancers (will not be sent)</div><div class="LabeledElement">
                 <input class="ReadInput" type="number" min="1" step="1" name="freelancer_count" size=50 maxlength=120 value="1"  onblur="onValueInput(name, value)">
-                </div>
+                <div id="freelancer_count" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Skills</div><div class="LabeledElement">
                 <input id="SkillSearch" type="text" name="skills" placeholder="Add skills" size=50>
@@ -107,11 +114,11 @@
                     <option value="hourly">Pay by the hour</option>
                     <option value="fixed-price">Fixed price</option>
                 </select>
-                </div>
+                <div id="job_type" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Budget in $ <span class="IfHourly">(will not be sent)</span></div><div class="LabeledElement">
                 <input class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)">
-                </div>
+                <div id="budget" class="LiveRecommendation"></div></div>
 
                  <div class="Label">Duration in hours <span class="IfFixed" style="display: none">(will not be sent)</span> </div><div class="LabeledElement">
 {#                <select name="duration">#}
@@ -122,11 +129,11 @@
 {#                    <option value="3">More than 6 months</option>#}
 {#                </select>#}
                      <input class="ReadInput" type="number" min="0" step="1" name="duration" size=50 maxlength=120  onblur="onValueInput(name, value)">
-                </div>
+                <div id="total_hours" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Duration in weeks (will not be sent)</div><div class="LabeledElement">
                      <input class="ReadInput" type="number" min="0" step="1" name="duration_weeks_median" size=50 maxlength=120 onblur="onValueInput(name, value)">
-                </div>
+                <div id="duration_weeks_median" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Workload (will not be sent)</div><div class="LabeledElement">
                 <select class="ReadInput" name="workload"  onblur="onValueInput(name, value)">
@@ -134,7 +141,7 @@
                     <option value="10-30 hrs/week">10-30 hrs/week</option>
                     <option value="30+ hrs/week">30+ hrs/week</option>
                 </select>
-                </div>
+                <div id="workload" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Desired Experience Level (will not be sent)</div><div class="LabeledElement">
                 <select class="ReadInput" name="experience_level"  onblur="onValueInput(name, value)">
@@ -142,7 +149,7 @@
                     <option value="2">Intermediate</option>
                     <option value="3">Expert</option>
                 </select>
-                </div>
+                <div id="experience_level" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Visibility</div><div class="LabeledElement">
                 <select class="ReadInput" name="visibility"  onblur="onValueInput(name, value)">
@@ -160,11 +167,16 @@
         </div>
     </div>
 
-    <div class="Section HighlightedSection" style="margin-top: 80px;">
-        <div class="Text">
-            <p id="ServerResponse">[Here, server response will be displayed (for testing only)]</p>
-        </div>
-    </div>
+
+<div id="PopUpBackground"> </div>
+<div id="PopUp">
+	<div id="PopUpHeader"><h2>
+        <span id="PopUpTitle"></span>
+        <div id="PopUpCloseButton" onclick="hidePopUp()">x</div>
+    </h2></div>
+	<div id="PopUpContent" class="Text"> Hello world! I like cats </div>
+</div>
+
 
 
 </body>

@@ -286,7 +286,7 @@ def prepare_data(file_name):
     data_frame['date_created'] = data_frame['date_created'].apply(lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
 
     # convert experience level from numeric to categorical
-    experience_levels = ['beginner', 'intermediate', 'expert']
+    experience_levels = ['Entry Level', 'Intermediate', 'Expert']
     data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
                                             labels=experience_levels)
 
@@ -302,8 +302,8 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
-    print_data_frame("After preparing data", data_frame)
-    print data_frame[0:3]
+    # print_data_frame("After preparing data", data_frame)
+    # print data_frame[0:3]
 
     return data_frame
 
@@ -351,9 +351,9 @@ def prepare_single_job(json_data):
     # convert experience level from numeric to categorical
     if 'experience_level' in data_frame.columns:
         data_frame['experience_level'] = data_frame.experience_level.astype(str)
-        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "beginner"
-        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "intermediate"
-        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "expert"
+        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "Entry Level"
+        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "Intermediate"
+        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "Expert"
 
     # add additional attributes like text size (how long is the description?) or number of skills
     if 'snippet' in data_frame.columns:
@@ -582,6 +582,9 @@ def convert_to_numeric(data_frame, label_name):
         data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 15
         data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
         data_frame["workload"] = pd.to_numeric(data_frame["workload"])
+
+    # print_data_frame("After converting to numeric", data_frame)
+    # print data_frame[0:3]
 
     return data_frame
 
