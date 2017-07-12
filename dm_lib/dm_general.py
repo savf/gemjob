@@ -130,7 +130,7 @@ def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribut
         + str(exp_var_sc)+","+str(abs_err)+","+str(sq_err)+","+str(runtime)
 
 
-def evaluate_classification(df, predictions, label_name, printing):
+def evaluate_classification(df, predictions, label_name, printing=True):
     """ Print accuracy of classification
 
     :param df: Pandas DataFrame containing the data

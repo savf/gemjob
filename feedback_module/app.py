@@ -8,7 +8,6 @@ import os
 working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 import copy
 import logging
-from logging.handlers import RotatingFileHandler
 import time
 import rethinkdb as rdb
 from flask import Flask, request
@@ -16,8 +15,8 @@ from flask_restful import Resource, Api
 import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
 from dm_lib.dm_data_preparation import prepare_single_job
-from dm_lib.dm_budgetModel import budget_model_production,\
-    prepare_single_job_budget_model, predict
+from dm_lib.dm_feedbackModel import feedback_model_production,\
+    prepare_single_job_feedback_model, predict
 from dm_lib.parameters import *
 # sys.path.pop(0)
 
@@ -28,9 +27,10 @@ pd.set_option('display.max_columns', 200)
 app = Flask(__name__)
 api = Api(app)
 
-TARGET_NAME = 'budget'
+TARGET_NAME = 'client_feedback'
 
 GLOBAL_VARIABLE = {}
+
 
 class Predictions(Resource):
 
@@ -42,25 +42,23 @@ class Predictions(Resource):
             data_frame = prepare_single_job(json_data)
             unnormalized_data = data_frame.copy()
 
-            if 'job_type' in unnormalized_data and \
-                unnormalized_data['job_type'][0] != 'Hourly':
-                normalized_data =\
-                    prepare_single_job_budget_model(unnormalized_data,
-                                                    TARGET_NAME,
-                                                    local_variable['columns'],
-                                                    local_variable['min'],
-                                                    local_variable['max'],
-                                                    local_variable['vectorizers'])
+            normalized_data =\
+                prepare_single_job_feedback_model(unnormalized_data,
+                                                  TARGET_NAME,
+                                                  local_variable['columns'],
+                                                  local_variable['min'],
+                                                  local_variable['max'],
+                                                  local_variable['vectorizers'])
 
-                prediction = predict(normalized_data, TARGET_NAME,
-                                     local_variable['model'],
-                                     local_variable['min'],
-                                     local_variable['max'])
+            prediction = predict(normalized_data, TARGET_NAME,
+                                 local_variable['model'],
+                                 local_variable['min'],
+                                 local_variable['max'])
 
-                app.logger.info("{} Prediction: {}".format(TARGET_NAME,
-                                                           prediction))
+            app.logger.info("{} Prediction: {}".format(TARGET_NAME,
+                                                       prediction))
 
-                return {TARGET_NAME: prediction}
+            return {TARGET_NAME: prediction}
 
         return {}
 
@@ -71,7 +69,7 @@ api.add_resource(Predictions, '/get_predictions/')
 class Update(Resource):
 
     def post(self):
-        success = budget_model_built(max_tries=5)
+        success = feedback_model_built(max_tries=5)
 
         return {"success": success}
 
@@ -85,21 +83,21 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            return "<h1>Job type Module</h1><p>Model used: </p>" + str(model_name)
+            return "<h1>Feedback Module</h1><p>Model used: </p>" + str(model_name)
         else:
-            return "<h1>Budget Module</h1><p>Not setup!</p>"
+            return "<h1>Feedback Module</h1><p>Not setup!</p>"
     except Exception as e:
-        return "<h1>Budget Module</h1><p>Never updated</p>"
+        return "<h1>Feedback Module</h1><p>Never updated</p>"
 
 
-def build_budget_model(connection):
+def build_feedback_model(connection):
     optimized_jobs_empty = rdb.db(RDB_DB).table(
         RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
 
     if not optimized_jobs_empty:
         model, columns, min, max, vectorizers =\
-            budget_model_production(connection, budget_name=TARGET_NAME,
-                                    normalization=True)
+            feedback_model_production(connection, label_name=TARGET_NAME,
+                                      normalization=True)
 
         local_variable = {}
         local_variable["model"] = model
@@ -116,13 +114,13 @@ def build_budget_model(connection):
     return False
 
 
-def budget_model_built(max_tries=-1):
-    isSetup = False
+def feedback_model_built(max_tries=-1):
+    is_setup = False
     if max_tries > 0:
         n = 0
     else:
         n = max_tries-1
-    while not isSetup and n < max_tries:
+    while not is_setup and n < max_tries:
         connection = False
 
         try:
@@ -133,7 +131,7 @@ def budget_model_built(max_tries=-1):
             if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
                 rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
 
-            isSetup = build_budget_model(connection)
+            is_setup = build_feedback_model(connection)
         except Exception as e:
             app.logger.error(e.message)
             if connection:
@@ -142,11 +140,11 @@ def budget_model_built(max_tries=-1):
             if max_tries > 0:
                 n = n+1
 
-    return isSetup
+    return is_setup
 
 
 if __name__ == '__main__':
     app.logger.setLevel(logging.INFO)
-    if budget_model_built():
+    if feedback_model_built():
         app.run(debug=True, use_debugger=False, use_reloader=False,
-                host="0.0.0.0", port=5003)
+                host="0.0.0.0", port=5004)

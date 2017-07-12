@@ -64,21 +64,23 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     return data_frame
 
 
-def prepare_single_job_budget_model(data_frame, columns, min, max, vectorizers):
+def prepare_single_job_budget_model(data_frame, label_name,
+                                    columns, min, max, vectorizers):
     """ Prepare a data frame with a single job for prediction
 
     :param data_frame: Pandas DataFrame holding the single job
     :type data_frame: pandas.DataFrame
+    :param label_name: Feedback label to be predicted
+    :type label_name: str
     :param columns: List of columns, which need to be present
     :type columns: list(str)
     :param min: Minimum for min-max normalization
     :param max: Maximum for min-max normalization
     :param vectorizers: Vectorizers used for the text columns
     :type vectorizers: list(CountVectorizer)
-    :return:
+    :return: Data Frame with single job ready for prediction
+    :rypte: pandas.DataFrame
     """
-    label_name = 'budget'
-
     data_frame = prepare_data_budget_model(data_frame, label_name=label_name,
                                            budget_classification=False)
 

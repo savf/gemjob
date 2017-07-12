@@ -2,13 +2,10 @@ from dm_data_exploration import explore_data
 from dm_data_preparation import *
 from dm_text_mining import *
 from dm_budgetModel import budget_model
+from parameters import *
 
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
-
-# RDB_HOST = '192.168.99.100'
-RDB_HOST = 'localhost'
-RDB_PORT = '28015'
 
 def test_text_mining():
     """ Perform a sentiment analysis as a demonstration
@@ -63,7 +60,7 @@ connection = rdb.connect(RDB_HOST, RDB_PORT)
 try:
     # prepare_data("data/found_jobs_4K_extended.json")
     budget_model("data/found_jobs_4K_extended.json", connection)
-    # job_type_model("data/found_jobs_4K_extended.json")
+    # jobtype_model("data/found_jobs_4K_extended.json")
     # feedback_model("data/found_jobs_4K_extended.json")
     # experience_level_model("data/found_jobs_4K_extended.json")
     # test_text_mining()
