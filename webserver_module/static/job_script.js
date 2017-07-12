@@ -22,6 +22,8 @@ $(document).ready(function() {
 		adjustToSize();
 	});
 
+	initPopUp();
+
 	$('#ReviewButton').bind('click', function(e) {
         $("#Status").text("Reviewing job ...").removeClass("Warning").removeClass("OK");
         $('#ReviewButton').prop("disabled",true).addClass("Disabled");
@@ -33,7 +35,7 @@ $(document).ready(function() {
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result) {
-                $("#ServerResponse").text("PREDICTIONS: "+data.result);
+                showPopUp("Model Predictions", data.result);
             }
             $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
             $("#Status").text("Job review complete").addClass("OK").removeClass("Warning");
@@ -145,7 +147,7 @@ function onValueInput(key, value, doNotPredict){
                 $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
                     var time = new Date();
                     try{
-                        $("#ServerResponse").text("PREDICTIONS: "+data.result);
+                        // showPopUp("Cluster Predictions", data.result);
                         cluster_predictions = JSON.parse(data.result);
 
                         for (var i = 0; i < recommendation_elements.length; i++) {
@@ -168,4 +170,27 @@ function onValueInput(key, value, doNotPredict){
             }
         }
     }
+}
+
+
+function initPopUp(){
+    popUpBackground = $("#PopUpBackground");
+    popUp = $("#PopUp");
+    popUpTitle = $("#PopUpTitle");
+    popUpContent = $("#PopUpContent");
+    popUpBackground.bind('click', function(e) {
+        hidePopUp();
+    });
+}
+
+function showPopUp(title, htmlContent) {
+    popUpTitle.text(title);
+    popUpContent.html(htmlContent);
+    popUpBackground.show();
+    popUp.show();
+}
+
+function hidePopUp(){
+    popUpBackground.hide();
+    popUp.hide();
 }
