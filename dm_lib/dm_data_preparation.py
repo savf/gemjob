@@ -73,9 +73,8 @@ def db_setup(file_name, host='localhost', port='28015'):
             data_frame['id'] = data_frame.index
             rdb.db(database).table(prepared_jobs_table).insert(
                 data_frame.to_dict('records'), conflict="replace").run(connection)
-    except RqlRuntimeError:
-        print 'Database {} and table {} already exist.'.format(database,
-                                                               prepared_jobs_table)
+    except RqlRuntimeError as e:
+        print 'Database error: {}'.format(e)
     finally:
         connection.close()
 

@@ -178,8 +178,7 @@ def print_model_evaluation(model, df_test, label_name,
 
     if is_classification:
         accuracy = evaluate_classification(
-            df_target_test[label_name], predictions, label_name,
-            printing=not csv)
+            df_target_test, predictions, label_name, printing=not csv)
         results.append(accuracy)
     else:
         exp_var_sc, abs_err, sq_err = evaluate_regression(
@@ -187,7 +186,7 @@ def print_model_evaluation(model, df_test, label_name,
         results.extend([exp_var_sc, abs_err, sq_err])
 
     if not csv:
-        print_predictions_comparison(df_target_test, predictions,
-                                     label_name, num_of_rows=20)
+        print_predictions_comparison(pd.DataFrame({label_name: df_target_test}),
+                                     predictions, label_name, num_of_rows=20)
     return results
 
