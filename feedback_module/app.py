@@ -14,7 +14,7 @@ from flask import Flask, request
 from flask_restful import Resource, Api
 import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
-from dm_lib.dm_data_preparation import prepare_single_job
+from dm_lib.dm_data_preparation import prepare_single_job, db_setup
 from dm_lib.dm_feedbackModel import feedback_model_production,\
     prepare_single_job_feedback_model, predict
 from dm_lib.parameters import *
@@ -91,14 +91,10 @@ def start():
 
 
 def build_feedback_model(connection):
-    optimized_jobs_empty = rdb.db(RDB_DB).table(
-        RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
-
-    if not optimized_jobs_empty:
+    try:
         model, columns, min, max, vectorizers =\
             feedback_model_production(connection, label_name=TARGET_NAME,
                                       normalization=True)
-
         local_variable = {}
         local_variable["model"] = model
         local_variable["columns"] = columns
@@ -110,8 +106,9 @@ def build_feedback_model(connection):
         GLOBAL_VARIABLE = local_variable
 
         return True
-
-    return False
+    except Exception as e:
+        print "Error: {}".format(e)
+        return False
 
 
 def feedback_model_built(max_tries=-1):
@@ -121,30 +118,27 @@ def feedback_model_built(max_tries=-1):
     else:
         n = max_tries-1
     while not is_setup and n < max_tries:
-        connection = False
+        connection = None
 
         try:
-            connection = rdb.connect(RDB_HOST, RDB_PORT)
-
-            if not rdb.db_list().contains(RDB_DB).run(connection):
-                rdb.db_create(RDB_DB).run(connection)
-            if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
-                rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
+            connection = db_setup(JOBS_FILE, RDB_HOST, RDB_PORT)
 
             is_setup = build_feedback_model(connection)
         except Exception as e:
             app.logger.error(e.message)
-            if connection:
+            if connection is not None:
                 connection.close()
             time.sleep(5)
             if max_tries > 0:
                 n = n+1
+    if not is_setup:
+        is_setup = build_feedback_model(connection=None)
 
     return is_setup
 
 
 if __name__ == '__main__':
     app.logger.setLevel(logging.INFO)
-    if feedback_model_built():
+    if feedback_model_built(max_tries=3):
         app.run(debug=True, use_debugger=False, use_reloader=False,
                 host="0.0.0.0", port=5004)

@@ -8,6 +8,7 @@ import random
 import rethinkdb as rdb
 from rethinkdb import RqlDriverError, RqlRuntimeError
 import datetime as dt
+from parameters import *
 
 _working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 _percentage_few_missing = 0.01
@@ -75,8 +76,8 @@ def db_setup(file_name, host='localhost', port='28015'):
                 data_frame.to_dict('records'), conflict="replace").run(connection)
     except RqlRuntimeError as e:
         print 'Database error: {}'.format(e)
-    finally:
-        connection.close()
+
+    return connection
 
 
 def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
@@ -91,14 +92,11 @@ def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
     :return: Prepared DataFrame
     :rtype: pandas.DataFrame
     """
-    database = 'datasets'
-    prepared_jobs_table = 'jobs_optimized'
-
     try:
         if connection is None:
             connection = rdb.connect(host, port)
 
-        jobs_cursor = rdb.db(database).table(prepared_jobs_table).run(connection)
+        jobs_cursor = rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).run(connection)
         jobs = list(jobs_cursor)
         data_frame = pd.DataFrame(jobs)
         data_frame.set_index('id', inplace=True)
@@ -108,8 +106,10 @@ def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
 
         return data_frame
     except RqlDriverError:
-        return None
-    except RqlRuntimeError:
+        # RethinkDB not reachable -> fall back to json file
+        data_frame = prepare_data(JOBS_FILE)
+        return data_frame
+    except RqlRuntimeError as e:
         return None
 
 
