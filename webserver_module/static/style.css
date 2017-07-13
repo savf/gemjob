@@ -79,6 +79,10 @@ input, a.Button, select, textarea{
     min-width: 30%;
 }
 
+.DifferentPrediction{
+    background: #f0d9d9;
+}
+
 .RecommendationLabel{
     background: #c5e0b4;
 
@@ -331,7 +335,7 @@ a.Button:hover{
     display: none;
     width: 90%;
     max-width: 1000px;
-    min-height: 40%;
+    padding-bottom: 20px;
     background: white;
     z-index: 201;
     position: absolute;

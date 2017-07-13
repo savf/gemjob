@@ -302,6 +302,10 @@ def prepare_data(file_name):
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
+    # rename A/B testing subcategory
+    data_frame.loc[data_frame.subcategory2 == "a_b_testing", 'subcategory2'] = "A/B Testing"
+    # print data_frame["subcategory2"].value_counts()
+
     # print_data_frame("After preparing data", data_frame)
     # print data_frame[0:3]
 
@@ -754,11 +758,11 @@ def weight_data(data_frame):
     country_columns = [col for col in list(data_frame) if col.startswith('client_country')]
     data_frame[country_columns] = data_frame[country_columns] / len(country_columns)
 
-    token_names = [col for col in list(data_frame) if col.startswith('$token_')]
-    if len(token_names) > 1:
-        print "Number of text tokens:", len(token_names)
-        # 3 text attributes, should roughly count as three
-        data_frame[token_names] = data_frame[token_names] * 3 / len(token_names)
+    for text_column_name in ["skills", "snippet", "title"]:
+        token_names = [col for col in list(data_frame) if col.startswith("$token_" + text_column_name)]
+        if len(token_names) > 1:
+            print "Number of "+text_column_name+" tokens:", len(token_names)
+            data_frame[token_names] = data_frame[token_names] / len(token_names)
 
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_frame.fillna(0, inplace=True)
@@ -803,3 +807,38 @@ def normalize_test_train(df_train, df_test, label_name=None, z_score_norm=False,
         df_test = pd.concat([df_test, df_target_test], axis=1)
 
     return df_train, df_test
+
+def reduce_tokens_to_single_job(normalized_job, normalized_centroids):
+    """ Remove tokens not existing in a single job and reweight -> more focus on user text
+    IMPORTANT: usually we should pass a copy of the data, so centroids are still the same for other jobs
+
+    :param normalized_job: Pandas DataFrame
+    :type normalized_job: pd.DataFrame
+    :param normalized_centroids: Pandas DataFrame
+    :type normalized_centroids: pd.DataFrame
+    :return: Reweighted Pandas DataFrames with less tokens
+    :rtype: pandas.DataFrame
+    """
+    # print "\n### reduce_tokens_to_single_job:"
+    for text_column_name in ["skills", "snippet", "title"]:
+        token_names = [col for col in list(normalized_job) if col.startswith("$token_" + text_column_name)]
+        if len(token_names) > 1:
+            # remove old weighting
+            old_len = len(token_names)
+            normalized_job[token_names] = normalized_job[token_names] * old_len
+            normalized_centroids[token_names] = normalized_centroids[token_names] * old_len
+            # remove tokens that are 0 in user job
+            zero_tokens = list(normalized_job[token_names].loc[:, (normalized_job[token_names] == 0).any(axis=0)].columns)
+            # print "\n## ZERO TOKENS: ##\n",zero_tokens[0:20]
+            # print "# Removing", len(zero_tokens), "tokens and reweighting"
+            normalized_job.drop(labels=zero_tokens, axis=1, inplace=True)
+            normalized_centroids.drop(labels=zero_tokens, axis=1, inplace=True)
+
+            # add new weighting
+            remaining_columns = [x for x in token_names if x not in zero_tokens]
+            new_len = old_len-len(zero_tokens)
+            normalized_job[remaining_columns] = normalized_job[remaining_columns] / new_len
+            normalized_centroids[remaining_columns] = normalized_centroids[remaining_columns] / new_len
+
+
+    return normalized_job, normalized_centroids

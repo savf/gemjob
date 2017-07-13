@@ -88,12 +88,17 @@ def start():
 
 
 def cluster_data(connection):
-    data_in_db = not rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
+    if connection is not None:
+        data_in_db = not rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
+    else:
+        data_in_db = True
 
     if data_in_db:
         # load data
-        # data_frame = prepare_data("data/found_jobs_4K_extended.json") # for testing only!
-        data_frame = load_data_frame_from_db(connection=connection)
+        if connection is None:
+            data_frame = prepare_data("data/found_jobs_4K_extended.json")
+        else:
+            data_frame = load_data_frame_from_db(connection=connection)
         print "# number of jobs in db:", data_frame.shape[0]
 
         # cluster using mean shift
@@ -143,8 +148,13 @@ def clustering_setup(max_tries=-1):
             if max_tries > 0:
                 n = n+1
 
+    if not isSetup:
+        # if still not setup: use data file
+        print "# No DB connection: Using backup file"
+        isSetup = cluster_data(None)
+
     return isSetup
 
 
-if __name__ == '__main__' and clustering_setup():
+if __name__ == '__main__' and clustering_setup(3):
     app.run(debug=True, use_debugger=False, use_reloader=False, host="0.0.0.0", port=5002)

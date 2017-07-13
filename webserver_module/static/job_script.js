@@ -87,6 +87,8 @@ function addSkill () {
         input.value = "";
         $("#NoSkills").hide();
 
+        updateRealTimePredictions();
+
         $(("#" + id_string)).click(function () {
             $(this).remove();
             var index = skills_selected.indexOf(sel_skill);
@@ -96,6 +98,8 @@ function addSkill () {
                 if (skills_selected.length == 0){
                     $("#NoSkills").show();
                 }
+
+                updateRealTimePredictions();
             }
         });
     }
@@ -139,34 +143,7 @@ function onValueInput(key, value, doNotPredict){
             }
 
             if (count > min_filled_for_predictions) {
-                // get predictions
-                $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
-
-                form_values["skills"] = getSkillsString();
-
-                $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
-                    var time = new Date();
-                    try{
-                        // showPopUp("Cluster Predictions", data.result);
-                        cluster_predictions = JSON.parse(data.result);
-
-                        for (var i = 0; i < recommendation_elements.length; i++) {
-                            var rec_value = cluster_predictions[recommendation_elements[i].id];
-                            if (rec_value == -1)
-                                rec_value = "None";
-                            recommendation_elements.get(i).innerHTML = rec_value;
-                        }
-                        $("#cluster_size").text(cluster_predictions["cluster_size"])
-
-                        $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
-                    }
-                    catch (err) {
-                        $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
-                    }
-                }).fail(function (jqxhr, textStatus, error) {
-                    var time = new Date();
-                    $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
-                });
+                updateRealTimePredictions();
             }
         }
     }
@@ -193,4 +170,60 @@ function showPopUp(title, htmlContent) {
 function hidePopUp(){
     popUpBackground.hide();
     popUp.hide();
+}
+
+function updateRealTimePredictions(){
+
+    // get predictions
+    $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
+    form_values["skills"] = getSkillsString();
+
+    $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
+        var time = new Date();
+        try{
+            // showPopUp("Cluster Predictions", data.result);
+            cluster_predictions = JSON.parse(data.result);
+
+            recommendation_elements.each(function() {
+                var current_el = $( this );
+                var rec_value = cluster_predictions[current_el.attr('id')];
+                if (rec_value == -1)
+                    rec_value = "None";
+                current_el.text(rec_value);
+
+                if(form_values[current_el.attr('id')] && current_el.attr('id') != "experience_level") {
+                    if (typeof rec_value === 'string' && rec_value.toLowerCase() != form_values[current_el.attr('id')].toLowerCase() &&
+                    !(rec_value == "Fixed" && form_values[current_el.attr('id')] == "fixed-price"))
+                        current_el.addClass("DifferentPrediction");
+                    else if (!(typeof rec_value === 'string') && rec_value != form_values[current_el.attr('id')])
+                        current_el.addClass("DifferentPrediction");
+                    else
+                        current_el.removeClass("DifferentPrediction");
+                }
+                else if (current_el.attr('id') == "total_hours" && form_values["duration"]){
+                    if (rec_value != form_values["duration"])
+                        current_el.addClass("DifferentPrediction");
+                    else
+                        current_el.removeClass("DifferentPrediction");
+                }
+                else if (current_el.attr('id') == "experience_level"){
+                    if(     (rec_value == "Entry Level" && form_values["experience_level"] == 1) ||
+                            (rec_value == "Intermediate" && form_values["experience_level"] == 2) ||
+                            (rec_value == "Expert" && form_values["experience_level"] == 3))
+                        current_el.removeClass("DifferentPrediction")
+                    else current_el.addClass("DifferentPrediction");
+                }
+                else current_el.removeClass("DifferentPrediction");
+            });
+            $("#cluster_size").text(cluster_predictions["cluster_size"]);
+
+            $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
+        }
+        catch (err) {
+            $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
+        }
+    }).fail(function (jqxhr, textStatus, error) {
+        var time = new Date();
+        $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
+    });
 }

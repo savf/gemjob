@@ -90,11 +90,11 @@ def evaluate_regression(df, predictions, label_name, printing=True):
         block_printing()
 
     print "### Evaluation of " + label_name + " ###"
-    exp_var_sc = explained_variance_score(df, predictions)
+    exp_var_sc = explained_variance_score(df[label_name], predictions)
     print "## Explained variance score (best is 1.0): ", exp_var_sc
-    abs_err = mean_absolute_error(df, predictions)
+    abs_err = mean_absolute_error(df[label_name], predictions)
     print "## Mean absolute error: ", abs_err
-    sq_err = mean_squared_error(df, predictions)
+    sq_err = mean_squared_error(df[label_name], predictions)
     print "## Mean squared error: ", sq_err
 
     enable_printing()

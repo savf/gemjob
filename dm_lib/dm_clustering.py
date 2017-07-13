@@ -617,7 +617,9 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
 
     print "\nCentroid indices", centroids.index
     for index, row in normalized_data.iterrows():
-        distances = euclidean_distances(centroids, row.values.reshape(1, -1))
+        row_df = pd.DataFrame(row.values.reshape(1, -1), index=[0], columns=list(normalized_data.columns))
+        row_rw, centroids_rw = reduce_tokens_to_single_job(row_df, centroids.copy())
+        distances = euclidean_distances(centroids_rw, row_rw)
         cluster_index = np.array(distances).argmin()
         cluster_index = centroids.index[cluster_index]
         predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
@@ -630,7 +632,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     unnormalized_data = unnormalized_data[all_columns]
     unnormalized_data["cluster_size"] = 0
 
-    for index, row in normalized_data.iterrows():
+    for index, _ in normalized_data.iterrows():
         for tc in all_columns:
             print "\n\n\n\n##### Predict label:", tc
             print "\n#### Current row:", index
@@ -663,7 +665,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
 
 
 
-def predict_comparison(model, unnormalized_data, normalized_data, clusters, centroids, target_columns):
+def predict_comparison(model, unnormalized_data, normalized_data, clusters, centroids, target_columns, do_reweighting=False):
     """ Prints stats to compare prediction based on model and on eucledean distance to centroids
 
     :param model: Trained cluster model
@@ -696,7 +698,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         try:
             predicted_clusters[i] = centroids.index[predicted_clusters[i]]
         except:
-            predicted_clusters[i] = centroids.index[predicted_clusters[0]]
+            predicted_clusters[i] = centroids.index[0]
             numb_in_outlier_cluster = numb_in_outlier_cluster+1
 
     # print "\n\n### Predictions:"
@@ -704,6 +706,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
 
     predicted_clusters = pd.DataFrame(predicted_clusters, columns=["prediction_model"], index=normalized_data.index)
     predicted_clusters["prediction_euclidean"] = 0
+    predicted_clusters["prediction_euclidean_reweighted"] = 0
 
     # drop target columns in centroids and in normalized_data so distance not based on them
     centroids.drop(labels=actual_cols, axis=1, inplace=True)
@@ -711,10 +714,21 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
 
     # get predictions based on euclidean distance
     for index, row in normalized_data.iterrows():
-        distances = euclidean_distances(centroids, row.values.reshape(1, -1))
+        row_df = pd.DataFrame(row.values.reshape(1, -1), index=[0], columns=list(normalized_data.columns))
+        # print row_df
+        distances = euclidean_distances(centroids, row_df)
         cluster_index = np.array(distances).argmin()
         cluster_index = centroids.index[cluster_index]
         predicted_clusters.ix[index, 'prediction_euclidean'] = cluster_index
+
+        if do_reweighting:
+            # reweighted
+            row_rw, centroids_rw = reduce_tokens_to_single_job(row_df.copy(), centroids.copy())
+            distances = euclidean_distances(centroids_rw, row_rw)
+            cluster_index = np.array(distances).argmin()
+            cluster_index = centroids.index[cluster_index]
+            predicted_clusters.ix[index, 'prediction_euclidean_reweighted'] = cluster_index
+
 
     # find nearest centroid for each row of the given data
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
@@ -724,21 +738,34 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         print "\n\n\n\n##### Predict label:", tc
         correct_predict = 0
         correct_euclidean = 0
+        correct_euclidean_rw = 0
         abs_err_predict = 0
         abs_err_euclidean = 0
+        abs_err_euclidean_rw = 0
         errors_euc = 0
+        errors_euc_rw = 0
         errors_mod = 0
+
 
         for index, row in normalized_data.iterrows():
             print "\n#### Current row:", index
+
             cluster_index_euc = predicted_clusters["prediction_euclidean"].loc[index]
             print "### Euclidean Distance:", "Cluster found:", cluster_index_euc
+
+            if do_reweighting:
+                cluster_index_euc_rw = predicted_clusters["prediction_euclidean_reweighted"].loc[index]
+                print "### Euclidean Distance:", "Cluster found:", cluster_index_euc_rw
+
             cluster_index_pred = predicted_clusters["prediction_model"].loc[index]
             print "### Model Prediction:", "Cluster found:", cluster_index_pred
+
             actual = unnormalized_data.loc[index][tc]
             print "## Actucal value:", actual
+
             print "## Cluster values:"
             if tc in numeric_columns:
+
                 median = clusters[cluster_index_euc][tc].median()
                 if np.isnan(median):
                     print "#ERROR: no median found!"
@@ -747,6 +774,17 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                     abs_err = abs(actual - median)
                     abs_err_euclidean = abs_err_euclidean + abs_err
                     print "# Euclidean Distance:", median, "Error:", abs_err
+
+                if do_reweighting:
+                    median = clusters[cluster_index_euc_rw][tc].median()
+                    if np.isnan(median):
+                        print "#ERROR: no median found!"
+                        errors_euc_rw = errors_euc_rw + 1
+                    else:
+                        abs_err = abs(actual - median)
+                        abs_err_euclidean_rw = abs_err_euclidean_rw + abs_err
+                        print "# Euclidean Distance Reweighted:", median, "Error:", abs_err
+
                 median = clusters[cluster_index_pred][tc].median()
                 if np.isnan(median):
                     print "#ERROR: no median found!"
@@ -755,6 +793,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                     abs_err = abs(actual - median)
                     abs_err_predict = abs_err_predict + abs_err
                     print "# Model Prediction:", median, "Error:", abs_err
+
             else:
                 print "# Euclidean Distance:"
                 print "Cluster shape:", clusters[cluster_index_euc][tc].shape[0]
@@ -766,6 +805,19 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                 if majority == actual:
                     correct_euclidean = correct_euclidean + 1
                 print "Majority voting:", majority
+
+                if do_reweighting:
+                    print "# Euclidean Distance Reweighted:"
+                    print "Cluster shape:", clusters[cluster_index_euc_rw][tc].shape[0]
+                    value_counts = clusters[cluster_index_euc_rw][tc].value_counts()
+                    if len(value_counts) > 0:
+                        majority = value_counts.idxmax(axis=1)
+                    else:
+                        majority = np.NaN
+                    if majority == actual:
+                        correct_euclidean_rw = correct_euclidean_rw + 1
+                    print "Majority voting:", majority
+
                 print "# Model Prediction:"
                 print "Cluster shape:", clusters[cluster_index_pred][tc].shape[0]
                 value_counts = clusters[cluster_index_pred][tc].value_counts()
@@ -776,13 +828,20 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                 if majority == actual:
                     correct_predict = correct_predict + 1
                 print "Majority voting:", majority
+
         if tc in numeric_columns:
             print "\n\n#### Abs Error Euclidean:", abs_err_euclidean / float(normalized_data.shape[0])
             print "#### Number of NaN Errors Euclidean:", errors_euc
+            if do_reweighting:
+                print "#### Abs Error Euclidean Reweighted:", abs_err_euclidean_rw / float(normalized_data.shape[0])
+                print "#### Number of NaN Errors Euclidean Reweighted:", errors_euc_rw
+
             print "#### Abs Error Model:", abs_err_predict / float(normalized_data.shape[0])
             print "#### Number of NaN Errors Model:", errors_mod
         else:
             print "\n\n#### Correct Euclidean:", correct_euclidean, "in %:", float(correct_euclidean) / float(normalized_data.shape[0])
+            if do_reweighting:
+                print "#### Correct Euclidean Reweighted:", correct_euclidean_rw, "in %:", float(correct_euclidean_rw) / float(normalized_data.shape[0])
             print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
         print "#### Number of rows:", normalized_data.shape[0]
         print "#### Number of rows predicted to be in outlier cluster (removed from clusters):", numb_in_outlier_cluster
@@ -811,16 +870,17 @@ def test_clustering(file_name, method="Mean-Shift"):
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
 
-    # # balance data set for experience_level or job_type
-    # df_test = balance_data_set(df_test, "experience_level", relative_sampling=False)
+    # balance data set for experience_level, subcategory2 or job_type
+    df_test = balance_data_set(df_test, "subcategory2", relative_sampling=False)
 
-    # remove rows without budget to predict_comparison budget
-    df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
-    df_test.dropna(subset=["budget"], how='any', inplace=True)
+    # # remove rows without budget to predict_comparison budget
+    # df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
+    # df_test.dropna(subset=["budget"], how='any', inplace=True)
 
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
     # predict(data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
-    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
-    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
+    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
+    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'])
+    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
