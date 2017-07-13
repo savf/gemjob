@@ -61,14 +61,6 @@ def prepare_single_job_jobtype_model(data_frame, label_name,
     :return: Data Frame with single job ready for prediction
     :rtype: pandas.DataFrame
     """
-    # # drop columns where we don't have user data or are unnecessary
-    # drop_unnecessary = ["client_country", "client_jobs_posted",
-    #                     "client_past_hires",
-    #                     "client_payment_verification_status",
-    #                     "feedback_for_client", "feedback_for_freelancer"]
-    # data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
-    #
-    # data_frame = convert_to_numeric(data_frame, label_name)
     data_frame = prepare_data_jobtype_model(data_frame, label_name,
                                             relative_sampling=False)
 
