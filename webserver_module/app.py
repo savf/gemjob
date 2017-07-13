@@ -7,8 +7,8 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-# module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/'}
-module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003'}
+# module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/', 'FE': 'http://feedback_module:5004/', 'JO': 'http://jobtype_module:5005/'}
+module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003/', 'FE': 'http://localhost:5004/', 'JO': 'http://localhost:5005/'}
 
 GLOBAL_VARIABLE = {}
 
@@ -212,9 +212,15 @@ def get_realtime_predictions():
 def get_model_predictions():
     json_data = request.args.to_dict()
     try:
-        result = requests.post(module_urls['BU'] + "get_predictions/", json=json_data)
-        return jsonify(result=result.content)
-    except:
+        predictions = dict()
+        for module in [module_urls['BU'], module_urls['FE'], module_urls['JO']]:
+            result = requests.post(module + "get_predictions/", json=json_data)
+            print result.json()
+            for key, value in result.json().iteritems():
+                predictions[key] = value
+        return jsonify(result=predictions)
+    except Exception as e:
+        print "Exception: {}".format(e)
         return None
 
 if __name__ == '__main__':

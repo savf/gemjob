@@ -56,8 +56,7 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # convert everything to numeric
-    if not budget_classification:
-        data_frame = convert_to_numeric(data_frame, label_name)
+    data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
     # print_data_frame("After preparing for budget model", data_frame)
@@ -65,21 +64,23 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     return data_frame
 
 
-def prepare_single_job_budget_model(data_frame, columns, min, max, vectorizers):
+def prepare_single_job_budget_model(data_frame, label_name,
+                                    columns, min, max, vectorizers):
     """ Prepare a data frame with a single job for prediction
 
     :param data_frame: Pandas DataFrame holding the single job
     :type data_frame: pandas.DataFrame
+    :param label_name: Budget label to be predicted
+    :type label_name: str
     :param columns: List of columns, which need to be present
     :type columns: list(str)
     :param min: Minimum for min-max normalization
     :param max: Maximum for min-max normalization
     :param vectorizers: Vectorizers used for the text columns
     :type vectorizers: list(CountVectorizer)
-    :return:
+    :return: Data Frame with single job ready for prediction
+    :rtype: pandas.DataFrame
     """
-    label_name = 'budget'
-
     data_frame = prepare_data_budget_model(data_frame, label_name=label_name,
                                            budget_classification=False)
 
@@ -102,7 +103,7 @@ def prepare_single_job_budget_model(data_frame, columns, min, max, vectorizers):
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
 
-    # order acording to cluster_columns, since scikit does not look at labels!
+    # order according to cluster_columns, since scikit does not look at labels!
     data_frame = data_frame.reindex_axis(columns, axis=1)
 
     return data_frame
@@ -159,19 +160,21 @@ def create_model_cross_val(data_frame, label_name, is_classification):
 
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
-def budget_model(file_name):
+def budget_model(file_name, connection):
     """ Learn model for label 'budget' and return it
 
     :param file_name: JSON file containing all data
     :type file_name: str
+    :param connection: RethinkDB connection to load the data
+    :type connection: rethinkdb.net.ConnectionInstance
     """
     label_name = "budget"
     budget_classification = False
     do_cross_val = False
     # label_name = "total_charge"
 
-    #data_frame = prepare_data(file_name)
-    data_frame = load_data_frame_from_db()
+    # data_frame = prepare_data(file_name)
+    data_frame = load_data_frame_from_db(connection=connection)
 
     # prepare for model
     data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=budget_classification)

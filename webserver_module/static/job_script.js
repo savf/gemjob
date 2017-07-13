@@ -35,7 +35,19 @@ $(document).ready(function() {
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result) {
-                showPopUp("Model Predictions", data.result);
+                var content = '';
+                for(var key in data.result) {
+                    if(key == 'budget') {
+                        content += 'We propose a budget of ' + data.result[key] + '<br>';
+                    }
+                    else if(key == 'client_feedback') {
+                        content += 'Your overall feedback might change to ' + data.result[key] + '<br>';
+                    }
+                    else if(key == 'job_type') {
+                        content += 'You should make this a ' + data.result[key] + ' job </br>';
+                    }
+                }
+                showPopUp("Model Predictions", content);
             }
             $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
             $("#Status").text("Job review complete").addClass("OK").removeClass("Warning");

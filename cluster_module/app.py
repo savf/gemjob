@@ -15,10 +15,11 @@ from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
 import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
-from dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
-from dm_clustering import do_clustering_mean_shift, prepare_single_job_clustering, predict
+from dm_lib.dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
+from dm_lib.dm_clustering import do_clustering_mean_shift, prepare_single_job_clustering, predict
 # sys.path.pop(0)
 import copy
+from dm_lib.parameters import *
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
@@ -26,12 +27,6 @@ pd.set_option('display.max_columns', 200)
 
 app = Flask(__name__)
 api = Api(app)
-
-RDB_HOST = 'localhost'
-# RDB_HOST = 'database_module' # TODO: uncomment this again?
-RDB_PORT = 28015
-RDB_DB = 'datasets'
-RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
 
 
 GLOBAL_VARIABLE = {}

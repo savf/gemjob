@@ -1,4 +1,4 @@
-from dm_general import print_data_frame
+from dm_general import print_data_frame, block_printing, enable_printing
 import os
 import json
 import pandas as pd
@@ -65,17 +65,16 @@ def db_setup(file_name, host='localhost', port='28015'):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-        data_frame = prepare_data(file_name)
-        data_frame.date_created = data_frame.date_created.apply(
-            lambda time: time.to_pydatetime().replace(
-                tzinfo=rdb.make_timezone("+02:00"))
-        )
-        data_frame['id'] = data_frame.index
-        rdb.db(database).table(prepared_jobs_table).insert(
-            data_frame.to_dict('records'), conflict="replace").run(connection)
-    except RqlRuntimeError:
-        print 'Database {} and table {} already exist.'.format(database,
-                                                               prepared_jobs_table)
+            data_frame = prepare_data(file_name)
+            data_frame.date_created = data_frame.date_created.apply(
+                lambda time: time.to_pydatetime().replace(
+                    tzinfo=rdb.make_timezone("+02:00"))
+            )
+            data_frame['id'] = data_frame.index
+            rdb.db(database).table(prepared_jobs_table).insert(
+                data_frame.to_dict('records'), conflict="replace").run(connection)
+    except RqlRuntimeError as e:
+        print 'Database error: {}'.format(e)
     finally:
         connection.close()
 
@@ -288,7 +287,8 @@ def prepare_data(file_name):
 
     # convert experience level from numeric to categorical
     experience_levels = ['Entry Level', 'Intermediate', 'Expert']
-    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),labels=experience_levels)
+    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
+                                            labels=experience_levels)
 
     # fill missing experience levels with forward filling
     data_frame['experience_level'].fillna(method='ffill', inplace=True)
@@ -443,6 +443,7 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
 
     outliers = ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr)))
 
+    # TODO: Check if additional attributes could benefit from outlier treatment
     attributes_to_consider = ['total_hours', 'duration_weeks_median']
 
     if budget_name == "total_charge":
@@ -497,7 +498,7 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
     return data_frame
 
 
-def balance_data_set(data_frame, label_name, relative_sampling=False):
+def balance_data_set(data_frame, label_name, relative_sampling=False, printing=True):
     """ Balance the data set for classification (ratio of classes 1:1)
 
     :param data_frame: Pandas DataFrame that contains the data
@@ -506,9 +507,14 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
     :type label_name: str
     :param relative_sampling: Relative or 1:1 sampling
     :type relative_sampling: bool
+    :param printing: Whether to print info to console
+    :type printing: bool
     :return: Pandas DataFrame (balanced)
     :rtype: pandas.DataFrame
     """
+    if not printing:
+        block_printing()
+
     print "### Balancing data:"
     value_counts = data_frame[label_name].value_counts()
     min_target_value_count = min(value_counts.values)
@@ -529,6 +535,7 @@ def balance_data_set(data_frame, label_name, relative_sampling=False):
     print "Value counts:\n", \
         data_frame[label_name].value_counts(), "\nminimum:", min_target_value_count, "\n ###\n"
 
+    enable_printing()
     return data_frame
 
 
@@ -703,7 +710,7 @@ def normalize_z_score(data_frame, mean=None, std=None):
     return data_frame, mean, std
 
 
-def normalize_min_max(data_frame, min=None, max=None):
+def normalize_min_max(data_frame, min=None, max=None, classification_label=None):
     """ Normalize based on min and max values
 
     :param data_frame: Pandas DataFrame
@@ -712,13 +719,25 @@ def normalize_min_max(data_frame, min=None, max=None):
     :type min: pandas.Series
     :param max: maximum values (optional)
     :type max: pandas.Series
+    :param classification_label: For classification, we need to exclude the label
+    :type classification_label: str
     :return: Normalized Pandas DataFrame
     :rtype: pandas.DataFrame
     """
+    if classification_label is not None:
+        target_series = data_frame[classification_label]
+        data_frame = data_frame.loc[:, data_frame.columns.difference(
+            [classification_label])]
+
     if min is None or max is None:
         min = data_frame.min()
         max = data_frame.max()
+
     data_frame = (data_frame - min) / (max - min)
+
+    if classification_label is not None:
+        kwargs = {classification_label: target_series}
+        data_frame = data_frame.assign(**kwargs)
 
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_frame.fillna(0, inplace=True)

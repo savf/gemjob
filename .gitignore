@@ -6,3 +6,4 @@
 /cluster_module/dm*
 /budget_module/dm*
 .DS_Store
+cluster_module/parameters.py
