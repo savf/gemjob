@@ -15,7 +15,7 @@ from flask import Flask, request
 from flask_restful import Resource, Api
 import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
-from dm_lib.dm_data_preparation import prepare_single_job
+from dm_lib.dm_data_preparation import db_setup, prepare_single_job
 from dm_lib.dm_budgetModel import budget_model_production,\
     prepare_single_job_budget_model, predict
 from dm_lib.parameters import *
@@ -85,7 +85,7 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            return "<h1>Job type Module</h1><p>Model used: </p>" + str(model_name)
+            return "<h1>Budget type Module</h1><p>Model used: </p>" + str(model_name)
         else:
             return "<h1>Budget Module</h1><p>Not setup!</p>"
     except Exception as e:
@@ -93,11 +93,8 @@ def start():
 
 
 def build_budget_model(connection):
-    optimized_jobs_empty = rdb.db(RDB_DB).table(
-        RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
-
-    if not optimized_jobs_empty:
-        model, columns, min, max, vectorizers =\
+    try:
+        model, columns, min, max, vectorizers, feature_importances =\
             budget_model_production(connection, budget_name=TARGET_NAME,
                                     normalization=True)
 
@@ -112,41 +109,39 @@ def build_budget_model(connection):
         GLOBAL_VARIABLE = local_variable
 
         return True
-
-    return False
+    except:
+        return False
 
 
 def budget_model_built(max_tries=-1):
-    isSetup = False
+    is_setup = False
     if max_tries > 0:
         n = 0
     else:
         n = max_tries-1
-    while not isSetup and n < max_tries:
-        connection = False
+    while not is_setup and n < max_tries:
+        connection = None
 
         try:
-            connection = rdb.connect(RDB_HOST, RDB_PORT)
+            connection = db_setup(JOBS_FILE, RDB_HOST, RDB_PORT)
 
-            if not rdb.db_list().contains(RDB_DB).run(connection):
-                rdb.db_create(RDB_DB).run(connection)
-            if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
-                rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
-
-            isSetup = build_budget_model(connection)
+            is_setup = build_budget_model(connection)
         except Exception as e:
             app.logger.error(e.message)
-            if connection:
+            if connection is not None:
                 connection.close()
             time.sleep(5)
             if max_tries > 0:
                 n = n+1
 
-    return isSetup
+    if not is_setup:
+        is_setup = build_budget_model(connection=None)
+
+    return is_setup
 
 
 if __name__ == '__main__':
     app.logger.setLevel(logging.INFO)
-    if budget_model_built():
+    if budget_model_built(max_tries=3):
         app.run(debug=True, use_debugger=False, use_reloader=False,
                 host="0.0.0.0", port=5003)

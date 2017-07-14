@@ -211,17 +211,15 @@ def get_realtime_predictions():
 @app.route('/get_model_predictions')
 def get_model_predictions():
     json_data = request.args.to_dict()
-    try:
-        predictions = dict()
-        for module in [module_urls['BU'], module_urls['FE'], module_urls['JO']]:
+    predictions = dict()
+    for module in [module_urls['BU'], module_urls['FE'], module_urls['JO']]:
+        try:
             result = requests.post(module + "get_predictions/", json=json_data)
-            print result.json()
             for key, value in result.json().iteritems():
                 predictions[key] = value
-        return jsonify(result=predictions)
-    except Exception as e:
-        print "Exception: {}".format(e)
-        return None
+        except Exception as e:
+            print "Exception: {}".format(e)
+    return jsonify(result=predictions)
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'

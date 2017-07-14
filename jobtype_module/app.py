@@ -14,7 +14,7 @@ from flask import Flask, request
 from flask_restful import Resource, Api
 import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
-from dm_lib.dm_data_preparation import prepare_single_job
+from dm_lib.dm_data_preparation import prepare_single_job, db_setup
 from dm_lib.dm_jobTypeModel import prepare_single_job_jobtype_model, predict,\
     jobtype_model_production
 from dm_lib.parameters import *
@@ -88,10 +88,7 @@ def start():
 
 
 def build_jobtype_model(connection):
-    optimized_jobs_empty = rdb.db(RDB_DB).table(
-        RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
-
-    if not optimized_jobs_empty:
+    try:
         model, columns, min, max, vectorizers =\
             jobtype_model_production(connection, normalization=True)
 
@@ -106,8 +103,8 @@ def build_jobtype_model(connection):
         GLOBAL_VARIABLE = local_variable
 
         return True
-
-    return False
+    except:
+        return False
 
 
 def jobtype_model_built(max_tries=-1):
@@ -117,15 +114,10 @@ def jobtype_model_built(max_tries=-1):
     else:
         n = max_tries-1
     while not is_setup and n < max_tries:
-        connection = False
+        connection = None
 
         try:
-            connection = rdb.connect(RDB_HOST, RDB_PORT)
-
-            if not rdb.db_list().contains(RDB_DB).run(connection):
-                rdb.db_create(RDB_DB).run(connection)
-            if not rdb.db(RDB_DB).table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(connection):
-                rdb.db(RDB_DB).table_create(RDB_JOB_OPTIMIZED_TABLE).run(connection)
+            connection = db_setup(JOBS_FILE, RDB_HOST, RDB_PORT)
 
             is_setup = build_jobtype_model(connection)
         except Exception as e:
@@ -135,12 +127,14 @@ def jobtype_model_built(max_tries=-1):
             time.sleep(5)
             if max_tries > 0:
                 n = n+1
+    if not is_setup:
+        is_setup = build_jobtype_model(connection=None)
 
     return is_setup
 
 
 if __name__ == '__main__':
     app.logger.setLevel(logging.INFO)
-    if jobtype_model_built():
+    if jobtype_model_built(max_tries=3):
         app.run(debug=True, use_debugger=False, use_reloader=False,
                 host="0.0.0.0", port=5005)

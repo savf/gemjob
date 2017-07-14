@@ -30,7 +30,7 @@ def prepare_data_feedback_model(data_frame, label_name):
     data_frame = convert_to_numeric(data_frame, label_name)
 
     # print data_frame, "\n"
-    print_data_frame("After preparing for feedback model", data_frame)
+    # print_data_frame("After preparing for feedback model", data_frame)
 
     return data_frame
 
@@ -56,9 +56,9 @@ def prepare_single_job_feedback_model(data_frame, label_name,
 
     # handle text
     data_frame, text_data = separate_text(data_frame)
-    if vectorizers is not None:
-        data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data,
-                                                      vectorizers=vectorizers)
+    # if vectorizers is not None:
+    #     data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data,
+    #                                                   vectorizers=vectorizers)
 
     # add missing columns (dummies, that were not in this data set)
     for col in columns:
@@ -69,6 +69,10 @@ def prepare_single_job_feedback_model(data_frame, label_name,
         if col not in columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
 
+    # if no reviews yet -> after this job, client will have first review
+    if 'client_reviews_count' in data_frame and \
+        data_frame['client_reviews_count'][0] == 0:
+            data_frame['client_reviews_count'] = 1.0
     # normalize
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
@@ -114,17 +118,19 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
 
 
 # TODO: try classification instead of regression
-def feedback_model_development(file_name):
+def feedback_model_development(file_name, connection=None):
     """ Learn model for label 'feedback' and return it
 
     :param file_name: JSON file containing all data
     :type file_name: str
+    :param connection: RethinkDB connection to load the data (optional)
+    :type connection: rethinkdb.net.ConnectionInstance
     """
     label_name = "client_feedback"
     feedback_classification = False
 
     #data_frame = prepare_data(file_name)
-    data_frame = load_data_frame_from_db()
+    data_frame = load_data_frame_from_db(connection)
     data_frame = prepare_data_feedback_model(data_frame, label_name)
 
     print "\n\n########## Regression including text\n"
@@ -133,13 +139,19 @@ def feedback_model_development(file_name):
     df_train, df_train_text = separate_text(df_train, label_name)
     df_test, df_test_text = separate_text(df_test, label_name)
 
-    df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
-                                                          df_train_text)
-    df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
-                                               vectorizers=vectorizers)
+    # df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
+    #                                                       df_train_text)
+    # print "Added text tokens to train set"
+    #
+    # df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
+    #                                            vectorizers=vectorizers)
+    #
+    # print "Added text tokens to test set"
 
-    model, _ = create_model(df_train, label_name,
-                            feedback_classification, selectbest=10)
+    model, columns = create_model(df_train, label_name,
+                                  feedback_classification, selectbest=5)
+
+    print "Built model with following columns: {}".format(columns)
 
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
 
@@ -196,14 +208,15 @@ def feedback_model_production(connection, label_name='client_feedback',
 
     data_frame = treat_outliers_deletion(data_frame)
     data_frame, text_data = separate_text(data_frame, label_name=label_name)
-    data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
-                                                            text_data)
+    # data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
+    #                                                         text_data)
+    vectorizers = None
     if normalization:
         data_frame, min, max = normalize_min_max(data_frame)
     else:
         min, max = [None, None]
 
     model, columns = create_model(data_frame, label_name,
-                                  feedback_classification, selectbest=False)
+                                  feedback_classification, selectbest=3)
 
     return model, columns, min, max, vectorizers

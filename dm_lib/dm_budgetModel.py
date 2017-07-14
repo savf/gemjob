@@ -160,7 +160,7 @@ def create_model_cross_val(data_frame, label_name, is_classification):
 
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
-def budget_model(file_name, connection):
+def budget_model_development(file_name, connection):
     """ Learn model for label 'budget' and return it
 
     :param file_name: JSON file containing all data
@@ -268,8 +268,14 @@ def budget_model_production(connection, budget_name='budget', normalization=True
     model, columns = create_model(data_frame, budget_name,
                                   is_classification=budget_classification,
                                   selectbest=False)
+    feature_importances = pd.DataFrame(columns=data_frame.columns)
+    for estimator in model.estimators_:
+        importances = pd.DataFrame([estimator.feature_importances_],
+                                   columns=data_frame.columns)
+        feature_importances = feature_importances.append(importances,
+                                                         ignore_index=True)
 
-    return model, columns, min, max, vectorizers
+    return model, columns, min, max, vectorizers, feature_importances
 
 
 def predict(data_frame, label_name, model, min=None, max=None):
