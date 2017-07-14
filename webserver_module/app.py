@@ -36,12 +36,33 @@ def get_client_data(client):
     client_info = {}
     try:
         me = client.hr.get_user_me()
+        user_info = session['user_info']
+
         details = client.provider.get_provider(me["profile_key"])
         pretty_print(details)
         client_info["client_country"] = details.get("dev_country", 0)
-        # client_info["client_jobs_posted"] = details.get("")
-        # client_info["client_past_hires"] = details.get("")
-        # client_info["client_payment_verification_status"] = details.get("")
+        # default values if no jobs are available, they hold
+        client_info["client_jobs_posted"] = 0
+        client_info["client_past_hires"] = 0
+        if 'teams' in user_info:
+            jobs_list = get_jobs(client, user_info['teams'])
+            client_info["client_jobs_posted"] = len(jobs_list)
+            if len(jobs_list) > 0:
+                for job in jobs_list:
+                    try:
+                        if 'reference' in job:
+                            job_profile = client.job.get_job_profile(str(
+                                job['reference']))
+                        elif 'job_ref_ciphertext' in job:
+                            job_profile = client.job.get_job_profile(str(
+                                job['job_ref_ciphertext']))
+                        if job_profile is not None:
+                            if 'buyer' in job_profile and 'op_tot_asgs' in job_profile['buyer']:
+                                client_info["client_past_hires"] = job_profile['buyer']['op_tot_asgs']
+                                break
+                    except:
+                        continue
+
         client_info["client_reviews_count"] = details.get("dev_tot_feedback", 0)
         if details.has_key("feedback"):
             client_info["client_feedback"] = details.get("feedback").get("score", 0)

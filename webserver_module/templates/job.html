@@ -24,6 +24,8 @@
         form_values["client_country"] = "{{ client_info["client_country"] }}";
         form_values["client_feedback"] = {{ client_info["client_feedback"] }};
         form_values["client_reviews_count"] = {{ client_info["client_reviews_count"] }};
+        form_values["client_jobs_posted"] = {{ client_info["client_jobs_posted"] }};
+        form_values["client_past_hires"] = {{ client_info["client_past_hires"] }};
         {% endautoescape %}
     </script>
     <script type=text/javascript src="{{ url_for('static', filename='job_script.js') }}"></script>
