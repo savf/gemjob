@@ -1,8 +1,9 @@
 var maxWidthMobile = 700;
-var min_filled_for_predictions = 11;
+var min_filled_for_predictions = 13;
 skills_selected = [];
 var form_elements = {};
 var recommendation_elements = {};
+var recommendation_labels = {};
 
 $(document).ready(function() {
 	adjustToSize();
@@ -19,6 +20,8 @@ $(document).ready(function() {
     }
 
     recommendation_elements = $(".LiveRecommendation");
+    recommendation_labels = $(".RecommendationLabel");
+    recommendation_labels.hide()
 
     recommendation_elements.bind('click', function(e) {
         var clicked = $(this);
@@ -261,6 +264,8 @@ function updateRealTimePredictions(){
                 else current_el.removeClass("DifferentPrediction");
             });
             $("#cluster_size").text(cluster_predictions["cluster_size"]);
+            $("#feedback_for_client").text(cluster_predictions["feedback_for_client"]);
+            recommendation_labels.show()
 
             $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
         }

@@ -56,6 +56,9 @@
         <div class="HighlightedSectionDark"><div class="Text">
             <p><span class="TableStyle">Similar jobs found:</span> <span id="cluster_size" class="TableStyle">None</span></p>
         </div></div>
+        <div class="Text">
+            <p><span class="TableStyle">Predicted Job rating:</span> <span id="feedback_for_client" class="TableStyle">None</span></p>
+        </div>
     </div>
 
     <div class="Section">
@@ -83,11 +86,11 @@
 
                 <div class="Label">Title</div><div class="LabeledElement">
                 <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="" onblur="onValueInput(name, value)">
-                </div>
+                <div class="RecommendationLabel">Number of words:</div> <div id="title_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Description</div><div class="LabeledElement">
                 <textarea class="ReadInput" name="snippet" placeholder="Description" rows="10" cols="30" value="" onblur="onValueInput(name, value)"></textarea>
-                </div>
+                <div class="RecommendationLabel">Number of words:</div> <div id="snippet_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
 {#                <div class="Label">Type of Project</div><div class="LabeledElement">#}
 {#                <select name="category">#}
@@ -105,7 +108,7 @@
                 <input id="SkillSearch" type="text" name="skills" placeholder="Add skills" size=50>
                 <h2 id="NoSkills" class="Job">no skills needed</h2>
                 <p id="SkillsList" style="margin-top:-3px;margin-bottom: 5px;"></p>
-                </div>
+                <div class="RecommendationLabel">Number of skills:</div> <div id="skills_number"  name="Number of skills" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Start Date</div><div class="LabeledElement">
                 <input class="ReadInput" id="Datepicker" type="text" name="start_date" size=50 value="{{ current_date }}"  onblur="onValueInput(name, value)">

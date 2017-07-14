@@ -73,11 +73,21 @@ input, a.Button, select, textarea{
     margin-bottom: 10px;
     vertical-align: top;
     background: #e2f0d9;
+    margin-left: -5px;
 }
 
 .LiveRecommendation{
     min-width: 30%;
     cursor: pointer;
+}
+
+.LiveRecommendation:hover{
+    text-decoration: underline;
+    color: darkgreen;
+}
+
+.DifferentPrediction.LiveRecommendation:hover{
+    color: darkred;
 }
 
 .DifferentPrediction{

@@ -300,6 +300,7 @@ def prepare_data(file_name):
 
     # add additional attributes like text size (how long is the description?) or number of skills
     data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
+    data_frame["title_length"] = data_frame["title"].str.split().str.len()
     data_frame["skills_number"] = data_frame["skills"].str.len()
 
     # rename A/B testing subcategory
@@ -362,6 +363,8 @@ def prepare_single_job(json_data):
     # add additional attributes like text size (how long is the description?) or number of skills
     if 'snippet' in data_frame.columns:
         data_frame["snippet_length"] = data_frame["snippet"].str.split().str.len()
+    if 'title' in data_frame.columns:
+        data_frame["title_length"] = data_frame["title"].str.split().str.len()
     if 'skills' in data_frame.columns:
         data_frame["skills_number"] = data_frame["skills"].str.split().str.len()
 
