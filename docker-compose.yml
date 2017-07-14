@@ -14,13 +14,6 @@ services:
       - "5000:5000"
     volumes:
       - ./data_module:/data_module
-  data_mining_module:
-    build: data_mining_module/
-    container_name: data_mining_module
-    ports:
-      - "5001:5003"
-    volumes:
-      - ./data_mining_module:/data_mining_module
   cluster_module:
     build: cluster_module/
     container_name: cluster_module

@@ -17,9 +17,9 @@ import pandas as pd
 # sys.path.insert(0, 'C:/Users/B/Documents/MasterProject/')
 from dm_lib.dm_data_preparation import prepare_data, load_data_frame_from_db, prepare_single_job
 from dm_lib.dm_clustering import do_clustering_mean_shift, prepare_single_job_clustering, predict
+from dm_lib.parameters import *
 # sys.path.pop(0)
 import copy
-from dm_lib.parameters import *
 
 pd.set_option('chained_assignment',None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)

@@ -754,7 +754,7 @@ def denormalize_min_max(data_frame, min, max):
     return data_frame
 
 
-def weight_data(data_frame):
+def weight_data(data_frame, text_weight=1.0):
     """ Weight certain attributes so they have less impact (countries and tokens)
 
     :param data_frame: Pandas DataFrame
@@ -781,7 +781,7 @@ def weight_data(data_frame):
         token_names = [col for col in list(data_frame) if col.startswith("$token_" + text_column_name)]
         if len(token_names) > 1:
             print "Number of "+text_column_name+" tokens:", len(token_names)
-            data_frame[token_names] = data_frame[token_names] / len(token_names)
+            data_frame[token_names] = data_frame[token_names] * text_weight / len(token_names)
 
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_frame.fillna(0, inplace=True)
@@ -827,7 +827,7 @@ def normalize_test_train(df_train, df_test, label_name=None, z_score_norm=False,
 
     return df_train, df_test
 
-def reduce_tokens_to_single_job(normalized_job, normalized_centroids):
+def reduce_tokens_to_single_job(normalized_job, normalized_centroids, text_weight=5):
     """ Remove tokens not existing in a single job and reweight -> more focus on user text
     IMPORTANT: usually we should pass a copy of the data, so centroids are still the same for other jobs
 
@@ -856,8 +856,8 @@ def reduce_tokens_to_single_job(normalized_job, normalized_centroids):
             # add new weighting
             remaining_columns = [x for x in token_names if x not in zero_tokens]
             new_len = old_len-len(zero_tokens)
-            normalized_job[remaining_columns] = normalized_job[remaining_columns] / new_len
-            normalized_centroids[remaining_columns] = normalized_centroids[remaining_columns] / new_len
+            normalized_job[remaining_columns] = normalized_job[remaining_columns] * text_weight / new_len
+            normalized_centroids[remaining_columns] = normalized_centroids[remaining_columns] * text_weight / new_len
 
 
     return normalized_job, normalized_centroids

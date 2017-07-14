@@ -615,7 +615,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     predicted_clusters = pd.DataFrame(0, columns=["prediction_euclidean"], index=normalized_data.index)
 
 
-    print "\nCentroid indices", centroids.index
+    # print "\nCentroid indices", centroids.index
     for index, row in normalized_data.iterrows():
         row_df = pd.DataFrame(row.values.reshape(1, -1), index=[0], columns=list(normalized_data.columns))
         row_rw, centroids_rw = reduce_tokens_to_single_job(row_df, centroids.copy())
@@ -628,6 +628,15 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     all_columns = list(clusters.itervalues().next().columns)
     all_columns = [x for x in all_columns if x not in ["cluster_label", "skills", "title", "snippet", "client_country", "date_created", "client_reviews_count", ]]
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
+    # add stats columns
+    for tc in all_columns:
+        if tc in numeric_columns:
+            unnormalized_data[tc + "_mean"] = 0
+            unnormalized_data[tc + "_min"] = 0
+            unnormalized_data[tc + "_max"] = 0
+            unnormalized_data[tc + "_std"] = 0
+        else:
+            unnormalized_data[tc + "_value_counts"] = ""
 
     unnormalized_data = unnormalized_data[all_columns]
     unnormalized_data["cluster_size"] = 0
@@ -648,10 +657,14 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                 median = clusters[cluster_index_euc][tc].median()
                 if np.isnan(median):
                     print "#ERROR: no median found!"
-                    unnormalized_data.set_value(index, tc, ERROR_VALUE)
+                    # unnormalized_data.set_value(index, tc, ERROR_VALUE)
                 else:
                     print "# Prediction:", median #, "Error:", abs_err
                     unnormalized_data.set_value(index, tc, median)
+                    unnormalized_data.set_value(index, (tc + "_mean"), clusters[cluster_index_euc][tc].mean())
+                    unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
+                    unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
+                    unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
             else:
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
                 if len(value_counts) > 0:
@@ -660,6 +673,10 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                     majority = np.NaN
                 print "Majority voting:", majority
                 unnormalized_data.set_value(index, tc, majority)
+                value_counts_string = ""
+                for k, v in value_counts.iteritems():
+                    value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(v) + "</span><br>"
+                unnormalized_data.set_value(index, (tc + "_value_counts"), value_counts_string)
 
     return unnormalized_data
 
@@ -870,8 +887,8 @@ def test_clustering(file_name, method="Mean-Shift"):
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
 
-    # balance data set for experience_level, subcategory2 or job_type
-    df_test = balance_data_set(df_test, "subcategory2", relative_sampling=False)
+    # # balance data set for experience_level, subcategory2 or job_type
+    # df_test = balance_data_set(df_test, "subcategory2", relative_sampling=False)
 
     # # remove rows without budget to predict_comparison budget
     # df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
@@ -880,7 +897,7 @@ def test_clustering(file_name, method="Mean-Shift"):
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
-    # predict(data_frame_original_test, df_test, clusters, centroids, target_columns=['experience_level'])
-    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'])
-    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'])
+    predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
+    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=True)
+    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])

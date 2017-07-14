@@ -77,6 +77,7 @@ input, a.Button, select, textarea{
 
 .LiveRecommendation{
     min-width: 30%;
+    cursor: pointer;
 }
 
 .DifferentPrediction{
@@ -86,6 +87,19 @@ input, a.Button, select, textarea{
 .RecommendationLabel{
     background: #c5e0b4;
 
+}
+
+.BreakDownTable{
+    margin-top: -10px;
+    width: 100%;
+    max-width: 500px;
+    border-collapse: separate;
+    border-spacing: 0px 15px;
+    line-height: 25px;
+}
+
+.BreakDownTable td:nth-child(odd){
+    font-weight: 600;
 }
 
 input[type=radio]{

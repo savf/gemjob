@@ -77,7 +77,7 @@
                     <option value="Other - Data Science & Analytics">Other - Data Science & Analytics</option>
 
                 </select>
-                <div id="subcategory2" class="LiveRecommendation"></div></div>
+                <div id="subcategory2" name="Subcategory" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Title</div><div class="LabeledElement">
                 <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="" onblur="onValueInput(name, value)">
@@ -97,7 +97,7 @@
 
                 <div class="Label">Number of Freelancers (will not be sent)</div><div class="LabeledElement">
                 <input class="ReadInput" type="number" min="1" step="1" name="freelancer_count" size=50 maxlength=120 value="1"  onblur="onValueInput(name, value)">
-                <div id="freelancer_count" class="LiveRecommendation"></div></div>
+                <div id="freelancer_count" name="Number of Freelancers" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Skills</div><div class="LabeledElement">
                 <input id="SkillSearch" type="text" name="skills" placeholder="Add skills" size=50>
@@ -114,11 +114,11 @@
                     <option value="hourly">Pay by the hour</option>
                     <option value="fixed-price">Fixed price</option>
                 </select>
-                <div id="job_type" class="LiveRecommendation"></div></div>
+                <div id="job_type" name="Payment Type" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Budget in $ <span class="IfHourly">(will not be sent)</span></div><div class="LabeledElement">
                 <input class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)">
-                <div id="budget" class="LiveRecommendation"></div></div>
+                <div id="budget" name="Budget" class="LiveRecommendation"></div></div>
 
                  <div class="Label">Duration in hours <span class="IfFixed" style="display: none">(will not be sent)</span> </div><div class="LabeledElement">
 {#                <select name="duration">#}
@@ -129,11 +129,11 @@
 {#                    <option value="3">More than 6 months</option>#}
 {#                </select>#}
                      <input class="ReadInput" type="number" min="0" step="1" name="duration" size=50 maxlength=120  onblur="onValueInput(name, value)">
-                <div id="total_hours" class="LiveRecommendation"></div></div>
+                <div id="total_hours" name="Duration in hours" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Duration in weeks (will not be sent)</div><div class="LabeledElement">
                      <input class="ReadInput" type="number" min="0" step="1" name="duration_weeks_median" size=50 maxlength=120 onblur="onValueInput(name, value)">
-                <div id="duration_weeks_median" class="LiveRecommendation"></div></div>
+                <div id="duration_weeks_median"  name="Duration in weeks" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Workload (will not be sent)</div><div class="LabeledElement">
                 <select class="ReadInput" name="workload"  onblur="onValueInput(name, value)">
@@ -141,7 +141,7 @@
                     <option value="10-30 hrs/week">10-30 hrs/week</option>
                     <option value="30+ hrs/week">30+ hrs/week</option>
                 </select>
-                <div id="workload" class="LiveRecommendation"></div></div>
+                <div id="workload" name="Workload" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Desired Experience Level (will not be sent)</div><div class="LabeledElement">
                 <select class="ReadInput" name="experience_level"  onblur="onValueInput(name, value)">
@@ -149,7 +149,7 @@
                     <option value="2">Intermediate</option>
                     <option value="3">Expert</option>
                 </select>
-                <div id="experience_level" class="LiveRecommendation"></div></div>
+                <div id="experience_level" name="Experience Level" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Visibility</div><div class="LabeledElement">
                 <select class="ReadInput" name="visibility"  onblur="onValueInput(name, value)">

@@ -1,7 +1,8 @@
-from dm_data_exploration import explore_data
+# from dm_data_exploration import explore_data
 from dm_data_preparation import *
 from dm_text_mining import *
 from dm_budgetModel import budget_model
+from dm_clustering import test_clustering
 from parameters import *
 
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
@@ -54,21 +55,22 @@ def test_text_mining():
 
 
 #run
-db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
-
-connection = rdb.connect(RDB_HOST, RDB_PORT)
-try:
-    # prepare_data("data/found_jobs_4K_extended.json")
-    budget_model("data/found_jobs_4K_extended.json", connection)
-    # jobtype_model("data/found_jobs_4K_extended.json")
-    # feedback_model("data/found_jobs_4K_extended.json")
-    # experience_level_model("data/found_jobs_4K_extended.json")
-    # test_text_mining()
-    # explore_data("data/found_jobs_4K_extended.json")
-    # test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
-    # test_knn("data/found_jobs_4K_extended.json")
-except RqlRuntimeError as e:
-    print 'Database error: {}'.format(e)
-finally:
-    connection.close()
-
+test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
+#
+# db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
+#
+# connection = rdb.connect(RDB_HOST, RDB_PORT)
+# try:
+#     # prepare_data("data/found_jobs_4K_extended.json")
+#     budget_model("data/found_jobs_4K_extended.json", connection)
+#     # jobtype_model("data/found_jobs_4K_extended.json")
+#     # feedback_model("data/found_jobs_4K_extended.json")
+#     # experience_level_model("data/found_jobs_4K_extended.json")
+#     # test_text_mining()
+#     # explore_data("data/found_jobs_4K_extended.json")
+#     # test_knn("data/found_jobs_4K_extended.json")
+# except RqlRuntimeError as e:
+#     print 'Database error: {}'.format(e)
+# finally:
+#     connection.close()
+#

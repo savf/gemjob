@@ -11,6 +11,8 @@ $(document).ready(function() {
 
     skill_input();
 
+    initPopUp();
+
     form_elements = $(".ReadInput");
     for (var i = 0; i < form_elements.length; i++) {
         onValueInput(form_elements[i].name, form_elements[i].value, true);
@@ -18,11 +20,42 @@ $(document).ready(function() {
 
     recommendation_elements = $(".LiveRecommendation");
 
+    recommendation_elements.bind('click', function(e) {
+        var clicked = $(this);
+        var content = "<p>We found "+cluster_predictions["cluster_size"]+" similar jobs to yours based on mean-shift clustering.</p>" +
+                "<br><h2>Stats:</h2>" +
+                "<table class='BreakDownTable'> <tr valign='top'> <td>Attribute name:</td> <td>"+clicked.attr("id");
+
+        if(typeof cluster_predictions[clicked.attr("id")] === 'string'){
+            content += "</td> </tr> <tr valign='top'> <td>Majority:</td>  <td>"+cluster_predictions[clicked.attr("id")]+"</td> " +
+                "<tr valign='top'> <td>Value counts:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_value_counts"]+"</td> </tr> </table>";
+        }
+        else{
+            var median = cluster_predictions[clicked.attr("id")];
+            var hint = "";
+            if (median == undefined) {
+                median = "undefined";
+                hint = "All jobs in the cluster are missing this field!"
+            }
+            content += "</td> </tr> <tr valign='top'> <td>Median:</td>  <td>"+median+"</td> " +
+                "<tr valign='top'> <td>Mean:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_mean"]+"</td> </tr> " +
+                "<tr valign='top'> <td>Min:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_min"]+"</td> </tr> " +
+                "<tr valign='top'> <td>Max:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_max"]+"</td> </tr> " +
+                "<tr valign='top'> <td>Std:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_std"]+"</td> </tr> </table>"+
+                "<p>"+hint+"</p>";
+        }
+
+
+        showPopUp(clicked.attr("name")+":", content);
+
+        e.preventDefault();
+        return false;
+    });
+
 	$(window).resize(function() {
 		adjustToSize();
 	});
 
-	initPopUp();
 
 	$('#ReviewButton').bind('click', function(e) {
         $("#Status").text("Reviewing job ...").removeClass("Warning").removeClass("OK");
@@ -199,8 +232,8 @@ function updateRealTimePredictions(){
             recommendation_elements.each(function() {
                 var current_el = $( this );
                 var rec_value = cluster_predictions[current_el.attr('id')];
-                if (rec_value == -1)
-                    rec_value = "None";
+                if (rec_value == undefined)
+                    rec_value = "undefined";
                 current_el.text(rec_value);
 
                 if(form_values[current_el.attr('id')] && current_el.attr('id') != "experience_level") {
