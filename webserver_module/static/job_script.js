@@ -263,9 +263,21 @@ function updateRealTimePredictions(){
                 }
                 else current_el.removeClass("DifferentPrediction");
             });
+
             $("#cluster_size").text(cluster_predictions["cluster_size"]);
             $("#feedback_for_client").text(cluster_predictions["feedback_for_client"]);
-            recommendation_labels.show()
+            recommendation_labels.show();
+
+            var text_field_names = ["title", "snippet"];
+            for (var i = 0; i < text_field_names.length; i++) {
+                var wordCount = form_values[text_field_names[i]].split(" ").length;
+                if (cluster_predictions[i+"_length"] != wordCount)
+                    $("#"+text_field_names[i]+"_length").addClass("DifferentPrediction");
+                else $("#"+text_field_names[i]+"_length").removeClass("DifferentPrediction");
+            }
+            if (cluster_predictions["skills_number"] != skills_selected.length)
+                $("#skills_number").addClass("DifferentPrediction");
+            else $("#skills_number").removeClass("DifferentPrediction");
 
             $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
         }
