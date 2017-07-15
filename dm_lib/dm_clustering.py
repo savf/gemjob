@@ -630,11 +630,18 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
     # add stats columns
     for tc in all_columns:
+        if tc not in unnormalized_data.index and tc in numeric_columns:
+            unnormalized_data[tc] = 0
+        elif tc not in unnormalized_data.index :
+            unnormalized_data[tc] = ""
+
         if tc in numeric_columns:
             unnormalized_data[tc + "_mean"] = 0
             unnormalized_data[tc + "_min"] = 0
             unnormalized_data[tc + "_max"] = 0
             unnormalized_data[tc + "_std"] = 0
+            unnormalized_data[tc + "_25quantile"] = 0
+            unnormalized_data[tc + "_75quantile"] = 0
         else:
             unnormalized_data[tc + "_value_counts"] = ""
 
@@ -665,6 +672,8 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                     unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
                     unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
                     unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
+                    unnormalized_data.set_value(index, (tc + "_25quantile"), clusters[cluster_index_euc][tc].quantile(.25))
+                    unnormalized_data.set_value(index, (tc + "_75quantile"), clusters[cluster_index_euc][tc].quantile(.75))
             else:
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
                 if len(value_counts) > 0:
@@ -890,14 +899,14 @@ def test_clustering(file_name, method="Mean-Shift"):
     # # balance data set for experience_level, subcategory2 or job_type
     # df_test = balance_data_set(df_test, "subcategory2", relative_sampling=False)
 
-    # # remove rows without budget to predict_comparison budget
-    # df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
-    # df_test.dropna(subset=["budget"], how='any', inplace=True)
+    # remove rows without budget to predict_comparison budget
+    df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
+    df_test.dropna(subset=["budget"], how='any', inplace=True)
 
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
-    predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
-    # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=True)
+    # predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
+    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])

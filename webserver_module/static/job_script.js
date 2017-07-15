@@ -1,8 +1,11 @@
 var maxWidthMobile = 700;
-var min_filled_for_predictions = 11;
+var min_filled_for_predictions = 13;
+var min_filled_for_models = 17;
 skills_selected = [];
 var form_elements = {};
 var recommendation_elements = {};
+var recommendation_labels = {};
+var cluster_predictions = 0;
 
 $(document).ready(function() {
 	adjustToSize();
@@ -19,35 +22,19 @@ $(document).ready(function() {
     }
 
     recommendation_elements = $(".LiveRecommendation");
+    recommendation_labels = $(".RecommendationLabel");
+    recommendation_labels.hide();
 
     recommendation_elements.bind('click', function(e) {
         var clicked = $(this);
-        var content = "<p>We found "+cluster_predictions["cluster_size"]+" similar jobs to yours based on mean-shift clustering.</p>" +
-                "<br><h2>Stats:</h2>" +
-                "<table class='BreakDownTable'> <tr valign='top'> <td>Attribute name:</td> <td>"+clicked.attr("id");
+        showStats(clicked);
+        e.preventDefault();
+        return false;
+    });
 
-        if(typeof cluster_predictions[clicked.attr("id")] === 'string'){
-            content += "</td> </tr> <tr valign='top'> <td>Majority:</td>  <td>"+cluster_predictions[clicked.attr("id")]+"</td> " +
-                "<tr valign='top'> <td>Value counts:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_value_counts"]+"</td> </tr> </table>";
-        }
-        else{
-            var median = cluster_predictions[clicked.attr("id")];
-            var hint = "";
-            if (median == undefined) {
-                median = "undefined";
-                hint = "All jobs in the cluster are missing this field!"
-            }
-            content += "</td> </tr> <tr valign='top'> <td>Median:</td>  <td>"+median+"</td> " +
-                "<tr valign='top'> <td>Mean:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_mean"]+"</td> </tr> " +
-                "<tr valign='top'> <td>Min:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_min"]+"</td> </tr> " +
-                "<tr valign='top'> <td>Max:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_max"]+"</td> </tr> " +
-                "<tr valign='top'> <td>Std:</td>  <td>"+cluster_predictions[clicked.attr("id") + "_std"]+"</td> </tr> </table>"+
-                "<p>"+hint+"</p>";
-        }
-
-
-        showPopUp(clicked.attr("name")+":", content);
-
+    $("#feedback_for_client").bind('click', function(e) {
+        var clicked = $(this);
+        showStats(clicked);
         e.preventDefault();
         return false;
     });
@@ -57,9 +44,9 @@ $(document).ready(function() {
 	});
 
 
-	$('#ReviewButton').bind('click', function(e) {
-        $("#Status").text("Reviewing job ...").removeClass("Warning").removeClass("OK");
-        $('#ReviewButton').prop("disabled",true).addClass("Disabled");
+	$('#ModelButton').bind('click', function(e) {
+        $("#Status").text("Loading predictions ...").removeClass("Warning").removeClass("OK");
+        $('#ModelButton').prop("disabled",true).addClass("Disabled");
 
         // read all form fields
         for (var i = 0; i < form_elements.length; i++) {
@@ -67,7 +54,7 @@ $(document).ready(function() {
         }
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
-            if (data && data.result) {
+            if (data && data.result && Object.keys(data.result).length > 0) {
                 var content = '';
                 for(var key in data.result) {
                     if(key == 'budget') {
@@ -81,17 +68,21 @@ $(document).ready(function() {
                     }
                 }
                 showPopUp("Model Predictions", content);
+                $("#Status").text("Model predictions complete").addClass("OK").removeClass("Warning");
             }
-            $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
-            $("#Status").text("Job review complete").addClass("OK").removeClass("Warning");
+            else{
+                $("#Status").text("Model predictions failed").addClass("Warning").removeClass("OK");
+            }
+            $('#ModelButton').prop("disabled",false).removeClass("Disabled");
+
         }).fail(function( jqxhr, textStatus, error ) {
-            $('#ReviewButton').prop("disabled",false).removeClass("Disabled");
+            $('#ModelButton').prop("disabled",false).removeClass("Disabled");
             $("#Status").text("Review failed").addClass("Warning").removeClass("OK");
         });
         e.preventDefault();
         return false;
     });
-	$('#ReviewButton').prop("disabled",true).addClass("Disabled");
+	$('#ModelButton').prop("disabled",true).addClass("Disabled");
 	$('#SubmitButton').prop("disabled",true).addClass("Disabled");
 
 });
@@ -113,10 +104,14 @@ function jobTypeSwitch() {
     if (document.getElementById("JobType").value == "hourly"){
         $(".IfHourly").show();
         $(".IfFixed").hide();
+        delete form_values["budget"];
+        $("#BudgetInput").val("");
+        min_filled_for_models = 17;
     }
     else{
         $(".IfHourly").hide();
         $(".IfFixed").show();
+        min_filled_for_models = 18;
     }
 }
 
@@ -178,12 +173,12 @@ function onValueInput(key, value, doNotPredict){
         if (!doNotPredict) {
             var count = Object.keys(form_values).length;
 
-            if(count < 16) {
-                $('#ReviewButton').prop("disabled", true).addClass("Disabled");
+            if(count < min_filled_for_models) {
+                $('#ModelButton').prop("disabled", true).addClass("Disabled");
                 $('#SubmitButton').prop("disabled", true).addClass("Disabled");
             }
             else {
-                $('#ReviewButton').prop("disabled", false).removeClass("Disabled");
+                $('#ModelButton').prop("disabled", false).removeClass("Disabled");
                 $('#SubmitButton').prop("disabled", false).removeClass("Disabled");
             }
 
@@ -210,6 +205,7 @@ function showPopUp(title, htmlContent) {
     popUpContent.html(htmlContent);
     popUpBackground.show();
     popUp.show();
+    popUp.css("top", Math.max(0, (($(window).height() - popUp.outerHeight()) / 2) + $(window).scrollTop()) + "px");
 }
 
 function hidePopUp(){
@@ -226,32 +222,37 @@ function updateRealTimePredictions(){
     $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
         var time = new Date();
         try{
-            // showPopUp("Cluster Predictions", data.result);
+            var init = false;
+            if (cluster_predictions === 0) init = true;
+
             cluster_predictions = JSON.parse(data.result);
 
             recommendation_elements.each(function() {
                 var current_el = $( this );
-                var rec_value = cluster_predictions[current_el.attr('id')];
+                var current_id = current_el.attr('id');
+                var rec_value = cluster_predictions[current_id];
                 if (rec_value == undefined)
                     rec_value = "undefined";
                 current_el.text(rec_value);
 
-                if(form_values[current_el.attr('id')] && current_el.attr('id') != "experience_level") {
-                    if (typeof rec_value === 'string' && rec_value.toLowerCase() != form_values[current_el.attr('id')].toLowerCase() &&
-                    !(rec_value == "Fixed" && form_values[current_el.attr('id')] == "fixed-price"))
+                if(form_values[current_id] && current_id != "experience_level") {
+
+                    if (typeof rec_value === 'string' && rec_value.toLowerCase() != form_values[current_id].toLowerCase() &&
+                    !(rec_value == "Fixed" && form_values[current_id] == "fixed-price"))
                         current_el.addClass("DifferentPrediction");
-                    else if (!(typeof rec_value === 'string') && rec_value != form_values[current_el.attr('id')])
+                    else if (!(typeof rec_value === 'string') && rec_value != form_values[current_id])
                         current_el.addClass("DifferentPrediction");
                     else
                         current_el.removeClass("DifferentPrediction");
+
                 }
-                else if (current_el.attr('id') == "total_hours" && form_values["duration"]){
+                else if (current_id == "total_hours" && form_values["duration"]){
                     if (rec_value != form_values["duration"])
                         current_el.addClass("DifferentPrediction");
                     else
                         current_el.removeClass("DifferentPrediction");
                 }
-                else if (current_el.attr('id') == "experience_level"){
+                else if (current_id == "experience_level"){
                     if(     (rec_value == "Entry Level" && form_values["experience_level"] == 1) ||
                             (rec_value == "Intermediate" && form_values["experience_level"] == 2) ||
                             (rec_value == "Expert" && form_values["experience_level"] == 3))
@@ -260,15 +261,68 @@ function updateRealTimePredictions(){
                 }
                 else current_el.removeClass("DifferentPrediction");
             });
+
             $("#cluster_size").text(cluster_predictions["cluster_size"]);
+            $("#feedback_for_client").text(cluster_predictions["feedback_for_client"]);
+            recommendation_labels.show();
+
+            var text_field_names = ["title", "snippet"];
+            for (var i = 0; i < text_field_names.length; i++) {
+                if(form_values[text_field_names[i]]) {
+                    var wordCount = form_values[text_field_names[i]].split(" ").length;
+                    if (cluster_predictions[text_field_names[i] + "_length"] != wordCount)
+                        $("#" + text_field_names[i] + "_length").addClass("DifferentPrediction");
+                    else $("#" + text_field_names[i] + "_length").removeClass("DifferentPrediction");
+                }
+            }
+            if (cluster_predictions["skills_number"] != skills_selected.length)
+                $("#skills_number").addClass("DifferentPrediction");
+            else $("#skills_number").removeClass("DifferentPrediction");
+
+            if(init) $("#feedback_for_client").addClass("Clickable");
 
             $("#Status").text("Recommendations updated at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
         }
         catch (err) {
+            console.log("# Live Recommendation Error:");
+            console.log(err);
             $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
         }
     }).fail(function (jqxhr, textStatus, error) {
         var time = new Date();
         $("#Status").text("Updating recommendations failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
     });
+}
+
+function showStats(element){
+    if (cluster_predictions != 0) {
+        var content = "<p>We found " + cluster_predictions["cluster_size"] + " similar jobs to yours based on mean-shift clustering.</p>" +
+            "<br><h2>Stats:</h2>" +
+            "<table class='BreakDownTable'> <tr valign='top'> <td>Attribute name:</td> <td>" + element.attr("id") + "</td> </tr> ";
+
+        if (typeof cluster_predictions[element.attr("id")] === 'string') {
+            content += "<tr valign='top'> <td>Majority:</td>  <td>" + cluster_predictions[element.attr("id")] + "</td> </tr>" +
+                "<tr valign='top'> <td>Value counts:</td>  <td>" + cluster_predictions[element.attr("id") + "_value_counts"] + "</td> </tr> </table>";
+        }
+        else {
+            var median = cluster_predictions[element.attr("id")];
+            var hint = "";
+            if (median == undefined) {
+                median = "undefined";
+                hint = "All jobs in the cluster are missing this field!"
+            }
+            content += "<tr valign='top'> <td>Mean:</td>  <td>" + cluster_predictions[element.attr("id") + "_mean"] + "</td> </tr>" +
+                "<tr valign='top'> <td>Std:</td>  <td>" + cluster_predictions[element.attr("id") + "_std"] + "</td> </tr> " +
+                "<tr valign='top'> <td>Min:</td>  <td>" + cluster_predictions[element.attr("id") + "_min"] + "</td> </tr> " +
+                "<tr valign='top'> <td>1st quantile:</td>  <td>" + cluster_predictions[element.attr("id") + "_25quantile"] + "</td> </tr> " +
+                    "<tr valign='top'> <td>Median:</td>  <td>" + median + "</td> </tr> " +
+                "<tr valign='top'> <td>3rd quantile:</td>  <td>" + cluster_predictions[element.attr("id") + "_75quantile"] + "</td> </tr> " +
+                "<tr valign='top'> <td>Max:</td>  <td>" + cluster_predictions[element.attr("id") + "_max"] + "</td> </tr> " +
+                "</table>" +
+                "<p>" + hint + "</p>";
+        }
+
+
+        showPopUp(element.attr("name") + ":", content);
+    }
 }
