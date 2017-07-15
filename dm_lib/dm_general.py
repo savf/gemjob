@@ -204,7 +204,8 @@ def generate_regression_stats(data_frame, model):
 
     text = {'text': [], 'title': [], 'snippet': [], 'skills': []}
     engineered_text = ['snippet_length', 'skills_number', 'title_length']
-    categorical = {'client_country': [], 'subcategory2': [], 'experience_level': []}
+    categorical = {'client_country': [], 'subcategory2': [], 'experience_level': [],
+                   'job_type': []}
     numerical = {}
 
     for column in feature_importances_mean.keys():

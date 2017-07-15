@@ -87,7 +87,7 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            content = "<h1>Budget type Module</h1><p>Model used: </p>" + str(model_name)
+            content = "<h1>Budget Module</h1><p>Model used: </p>" + str(model_name)
         else:
             return "<h1>Budget Module</h1><p>Not setup!</p>"
         if "feature_importances" in local_variable:
@@ -99,17 +99,23 @@ def start():
                                 "and skills ({:.2f}%) <br/>".format(importances['title']*100,
                                                                   importances['snippet']*100,
                                                                   importances['skills']*100)
-            content = content + "The length of the description " \
-                                "determines {:.2f}% "\
+            content = content + "The length of the title " \
+                                "determines {:.2f}%, "\
+                .format(importances['title_length']*100)
+            content = content + "the length of the description {:.2f}% "\
                 .format(importances['snippet_length']*100)
             content = content + "and the number of skills {:.2f}%</p>"\
                 .format(importances['skills_number']*100)
-            del importances['text']; del importances['title']
-            del importances['snippet']; del importances['skills']
-            del importances['snippet_length']; del importances['skills_number']
+            del importances['text']
+            del importances['title']
+            del importances['snippet']
+            del importances['skills']
+            del importances['snippet_length']
+            del importances['skills_number']
+            del importances['title_length']
             content = content + "<p> The non-text attributes make up the rest:"
             for key, value in importances.iteritems():
-                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value*100)
+                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value * 100)
         return content
     except Exception as e:
         return "<h1>Budget Module</h1><p>Never updated</p>"

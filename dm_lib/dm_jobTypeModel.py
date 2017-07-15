@@ -23,7 +23,8 @@ def prepare_data_jobtype_model(data_frame, label_name, relative_sampling):
 
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_payment_verification_status",
-                        "feedback_for_client", "feedback_for_freelancer"]
+                        "feedback_for_client", "feedback_for_freelancer",
+                        "total_charge"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # balance data set so ratio of hourly and fixed is 1:1
@@ -80,6 +81,9 @@ def prepare_single_job_jobtype_model(data_frame, label_name,
     # normalize
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
+    else:
+        data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+        data_frame.fillna(0, inplace=True)
 
     # order according to cluster_columns, since scikit does not look at labels!
     data_frame = data_frame.reindex_axis(columns, axis=1)
