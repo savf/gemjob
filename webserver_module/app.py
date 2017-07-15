@@ -139,14 +139,15 @@ def admin():
 
 
 @app.route('/job')
-def job():
+def job(client=None, update_job_info=None, warning=None):
     try:
-        access_token = session['access_token']
-        access_token_secret = session['access_token_secret']
-        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
-                               oauth_access_token=access_token,
-                               oauth_access_token_secret=access_token_secret,
-                               timeout=30)
+        if not client:
+            access_token = session['access_token']
+            access_token_secret = session['access_token_secret']
+            client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                                   oauth_access_token=access_token,
+                                   oauth_access_token_secret=access_token_secret,
+                                   timeout=30)
         user_info = session.get('user_info')
         profile_pic = user_info['info']['portrait_32_img']
 
@@ -163,22 +164,30 @@ def job():
 
         client_info = get_client_data(client)
 
-        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=GLOBAL_VARIABLE["skills_list"], client_info=client_info)
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=GLOBAL_VARIABLE["skills_list"], client_info=client_info, update_job_info=update_job_info, warning=warning)
     except Exception as err:
         print err
         session.clear()
         return render_template("login.html")
 
-# @app.route('/job/id=<string:id>')
-# def job_existing(id):
-#     try:
-#         user_info = session.get('user_info')
-#         profile_pic = user_info['info']['portrait_32_img']
-#         return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), job_id=id)
-#     except Exception as err:
-#         print err
-#         session.clear()
-#         return render_template("login.html")
+@app.route('/job/id=<string:id>')
+def job_existing(id):
+    try:
+        access_token = session['access_token']
+        access_token_secret = session['access_token_secret']
+        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                               oauth_access_token=access_token,
+                               oauth_access_token_secret=access_token_secret,
+                               timeout=30)
+        update_job_info = client.hr.get_job(id)
+        pretty_print_dict(update_job_info)
+        if update_job_info["category2"] != "Data Science & Analytics":
+            return job(client=client, warning="The selected job is not a Data Science job!")
+        return job(client=client, update_job_info=update_job_info)
+    except Exception as err:
+        print err
+        session.clear()
+        return render_template("login.html")
 
 
 @app.route('/get_sample')

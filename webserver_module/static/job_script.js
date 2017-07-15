@@ -1,11 +1,12 @@
 var maxWidthMobile = 700;
-var min_filled_for_predictions = 13;
+var min_filled_for_predictions = 14;
 var min_filled_for_models = 17;
-skills_selected = [];
 var form_elements = {};
 var recommendation_elements = {};
 var recommendation_labels = {};
 var cluster_predictions = 0;
+var skills_selected = [];
+form_values["skills"] = "";
 
 $(document).ready(function() {
 	adjustToSize();
@@ -43,6 +44,9 @@ $(document).ready(function() {
 		adjustToSize();
 	});
 
+    for (var i = 0; i < skills_preselected.length; i++){
+        addSkillToList(skills_preselected[i]);
+    }
 
 	$('#ModelButton').bind('click', function(e) {
         $("#Status").text("Loading predictions ...").removeClass("Warning").removeClass("OK");
@@ -84,6 +88,7 @@ $(document).ready(function() {
     });
 	$('#ModelButton').prop("disabled",true).addClass("Disabled");
 	$('#SubmitButton').prop("disabled",true).addClass("Disabled");
+	$('#UpdateButton').prop("disabled",true).addClass("Disabled");
 
 });
 
@@ -117,32 +122,35 @@ function jobTypeSwitch() {
 
 function addSkill () {
     var input = document.getElementById("SkillSearch");
-    var sel_skill = input.value;
-    var ind = skills_selected.indexOf(sel_skill);
+    var skillItem = input.value;
+    input.value = "";
+    var ind = skills_selected.indexOf(skillItem);
     if (ind == -1) {
-        skills_selected.push(sel_skill);
-
-        var id_string = 'Token_' + sel_skill.replace(/#|\,|\.|\"|\?|\!|\*/g,'_');
-        $("#SkillsList").append("<span id='" + id_string + "' class='Token'>" + sel_skill + "</span>");
-        input.value = "";
-        $("#NoSkills").hide();
-
+        addSkillToList(skillItem);
         updateRealTimePredictions();
-
-        $(("#" + id_string)).click(function () {
-            $(this).remove();
-            var index = skills_selected.indexOf(sel_skill);
-            if (index > -1) {
-                skills_selected.splice(index, 1);
-
-                if (skills_selected.length == 0){
-                    $("#NoSkills").show();
-                }
-
-                updateRealTimePredictions();
-            }
-        });
     }
+}
+
+function addSkillToList(skillItem){
+    skills_selected.push(skillItem);
+
+    var id_string = 'Token_' + skillItem.replace(/#|\,|\.|\"|\?|\!|\*/g,'_');
+    $("#SkillsList").append("<span id='" + id_string + "' class='Token'>" + skillItem + "</span>");
+    $("#NoSkills").hide();
+
+    $(("#" + id_string)).click(function () {
+        $(this).remove();
+        var index = skills_selected.indexOf(skillItem);
+        if (index > -1) {
+            skills_selected.splice(index, 1);
+
+            if (skills_selected.length == 0){
+                $("#NoSkills").show();
+            }
+
+            updateRealTimePredictions();
+        }
+    });
 }
 
 function skill_input() {
@@ -176,10 +184,12 @@ function onValueInput(key, value, doNotPredict){
             if(count < min_filled_for_models) {
                 $('#ModelButton').prop("disabled", true).addClass("Disabled");
                 $('#SubmitButton').prop("disabled", true).addClass("Disabled");
+                $('#UpdateButton').prop("disabled",true).addClass("Disabled");
             }
             else {
                 $('#ModelButton').prop("disabled", false).removeClass("Disabled");
                 $('#SubmitButton').prop("disabled", false).removeClass("Disabled");
+                $('#UpdateButton').prop("disabled",false).removeClass("Disabled");
             }
 
             if (count > min_filled_for_predictions) {

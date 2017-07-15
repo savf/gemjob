@@ -26,6 +26,9 @@
         form_values["client_reviews_count"] = {{ client_info["client_reviews_count"] }};
         form_values["client_jobs_posted"] = {{ client_info["client_jobs_posted"] }};
         form_values["client_past_hires"] = {{ client_info["client_past_hires"] }};
+
+        var skills_preselected = [{% if update_job_info["skills"] %}{% set list_of_skills = update_job_info["skills"].split(',') %}{% for skill in list_of_skills %}"{{ skill }}",{% endfor %}{% endif %}];
+
         {% endautoescape %}
     </script>
     <script type=text/javascript src="{{ url_for('static', filename='job_script.js') }}"></script>
@@ -65,6 +68,10 @@
         <div class="Text">
             <form action="." method="POST">
 
+                {% if warning %}
+                    <p class="Warning"> {{ warning }} </p>
+                {% endif %}
+
                 <div class="Label">Category</div><div class="LabeledElement">
                 <select name="category2">
                     <option value="Data Science & Analytics">Data Science & Analytics</option>
@@ -73,35 +80,27 @@
 
                 <div class="Label">Subcategory</div><div class="LabeledElement">
                 <select class="ReadInput" name="subcategory2" onblur="onValueInput(name, value)">
-                    <option value="A/B Testing">A/B Testing</option>
-                    <option value="Data Visualization">Data Visualization</option>
-                    <option value="Data Extraction / ETL">Data Extraction / ETL</option>
-                    <option value="Data Mining & Management">Data Mining & Management</option>
-                    <option value="Machine Learning">Machine Learning</option>
-                    <option value="Quantitative Analysis">Quantitative Analysis</option>
-                    <option value="Other - Data Science & Analytics">Other - Data Science & Analytics</option>
+                    <option value="A/B Testing" {% if update_job_info["subcategory2"] == "A/B Testing" %} selected="selected" {% endif %}>A/B Testing</option>
+                    <option value="Data Visualization" {% if update_job_info["subcategory2"] == "Data Visualization" %} selected="selected" {% endif %}>Data Visualization</option>
+                    <option value="Data Extraction / ETL" {% if update_job_info["subcategory2"] == "Data Extraction / ETL" %} selected="selected" {% endif %}>Data Extraction / ETL</option>
+                    <option value="Data Mining & Management" {% if update_job_info["subcategory2"] == "Data Mining & Management" %} selected="selected" {% endif %}>Data Mining & Management</option>
+                    <option value="Machine Learning" {% if update_job_info["subcategory2"] == "Machine Learning" %} selected="selected" {% endif %}>Machine Learning</option>
+                    <option value="Quantitative Analysis" {% if update_job_info["subcategory2"] == "Quantitative Analysis" %} selected="selected" {% endif %}>Quantitative Analysis</option>
+                    <option value="Other - Data Science & Analytics" {% if update_job_info["subcategory2"] == "Other - Data Science & Analytics" %} selected="selected" {% endif %}>Other - Data Science & Analytics</option>
 
                 </select>
                 <div id="subcategory2" name="Subcategory" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Title</div><div class="LabeledElement">
-                <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="" onblur="onValueInput(name, value)">
+                <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="{{ update_job_info["title"] }}" onblur="onValueInput(name, value)">
                 <div class="RecommendationLabel">Number of words:</div> <div id="title_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Description</div><div class="LabeledElement">
-                <textarea class="ReadInput" name="snippet" placeholder="Description" rows="10" cols="30" value="" onblur="onValueInput(name, value)"></textarea>
+                <textarea class="ReadInput" name="snippet" placeholder="Description" rows="10" cols="30" value="" onblur="onValueInput(name, value)">{{ update_job_info["description"] }}</textarea>
                 <div class="RecommendationLabel">Number of words:</div> <div id="snippet_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
-{#                <div class="Label">Type of Project</div><div class="LabeledElement">#}
-{#                <select name="category">#}
-{#                    <option value="One-time project">One-time project</option>#}
-{#                    <option value="Ongoing project">Ongoing project</option>#}
-{#                    <option value="I am not sure">I am not sure</option>#}
-{#                </select>#}
-{#                </div>#}
-
                 <div class="Label">Number of Freelancers (will not be sent)</div><div class="LabeledElement">
-                <input class="ReadInput" type="number" min="1" step="1" name="freelancer_count" size=50 maxlength=120 value="1"  onblur="onValueInput(name, value)">
+                <input class="ReadInput" type="number" min="1" step="1" name="freelancer_count" size=50 maxlength=120 value=1  onblur="onValueInput(name, value)">
                 <div id="freelancer_count" name="Number of Freelancers" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Skills</div><div class="LabeledElement">
@@ -116,24 +115,17 @@
 
                 <div class="Label">Payment Type</div><div class="LabeledElement">
                 <select class="ReadInput" id="JobType" name="job_type" onchange="jobTypeSwitch()"  onblur="onValueInput(name, value)">
-                    <option value="hourly">Pay by the hour</option>
-                    <option value="fixed-price">Fixed price</option>
+                    <option value="hourly" {% if update_job_info["job_type"] == "hourly" %} selected="selected" {% endif %}>Pay by the hour</option>
+                    <option value="fixed-price" {% if update_job_info["job_type"] == "fixed-price" %} selected="selected" {% endif %}>Fixed price</option>
                 </select>
                 <div id="job_type" name="Payment Type" class="LiveRecommendation"></div></div>
 
                 <span class="IfFixed"><div class="Label">Budget in $</div><div class="LabeledElement">
-                <input id="BudgetInput" class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)">
+                <input id="BudgetInput" class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)" value={{ update_job_info["budget"] }}>
                 <div id="budget" name="Budget" class="LiveRecommendation"></div></div></span>
 
                  <div class="Label">Duration in hours <span class="IfFixed" style="display: none">(will not be sent)</span> </div><div class="LabeledElement">
-{#                <select name="duration">#}
-{#                    <option value="1">Less than 1 week</option>#}
-{#                    <option value="2">Less than 1 month</option>#}
-{#                    <option value="3">1 to 3 months</option>#}
-{#                    <option value="3">3 to 6 months</option>#}
-{#                    <option value="3">More than 6 months</option>#}
-{#                </select>#}
-                     <input class="ReadInput" type="number" min="0" step="1" name="duration" size=50 maxlength=120  onblur="onValueInput(name, value)">
+                     <input class="ReadInput" type="number" min="0" step="1" name="duration" size=50 maxlength=120  onblur="onValueInput(name, value)" value={{ update_job_info["duration"] }}>
                 <div id="total_hours" name="Duration in hours" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Duration in weeks (will not be sent)</div><div class="LabeledElement">
@@ -158,15 +150,19 @@
 
                 <div class="Label">Visibility</div><div class="LabeledElement">
                 <select class="ReadInput" name="visibility"  onblur="onValueInput(name, value)">
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                    <option value="invite-only">Invite only</option>
+                    <option value="public" {% if update_job_info["visibility"] == "public" %} selected="selected" {% endif %}>Public</option>
+                    <option value="private" {% if update_job_info["visibility"] == "private" %} selected="selected" {% endif %}>Private</option>
+                    <option value="invite-only" {% if update_job_info["visibility"] == "invite-only" %} selected="selected" {% endif %}>Invite only</option>
                 </select>
                 </div>
 
                 <div style="margin-top: 15px; float: right; width: 50%; min-width: 250px;">
                     <div style="display: inline-block; width: 47%; min-width: 170px;"><input type="submit" value="Model Predictions" name="submit" class="Button ButtonFull" id="ModelButton"></div>
+                {% if update_job_info %}
+                    <div style="display: inline-block; width: 47%; margin-left:3%; min-width: 170px;"><input type="submit" value="Update Job" name="submit" class="Button ButtonFull" id="UpdateButton"></div>
+                {% else %}
                     <div style="display: inline-block; width: 47%; margin-left:3%; min-width: 170px;"><input type="submit" value="Submit Job" name="submit" class="Button ButtonFull" id="SubmitButton"></div>
+                {% endif %}
                 </div>
             </form>
         </div>
