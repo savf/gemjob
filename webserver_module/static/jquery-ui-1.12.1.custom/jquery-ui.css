@@ -1,6 +1,6 @@
-/*! jQuery UI - v1.12.1 - 2017-06-26
+/*! jQuery UI - v1.12.1 - 2017-07-15
 * http://jqueryui.com
-* Includes: core.css, datepicker.css, theme.css
+* Includes: core.css, accordion.css, datepicker.css, theme.css
 * To view and modify this theme, visit http://jqueryui.com/themeroller/?scope=&folderName=le-frog&cornerRadiusShadow=4px&offsetLeftShadow=4px&offsetTopShadow=4px&thicknessShadow=0px&opacityShadow=30&bgImgOpacityShadow=0&bgTextureShadow=diagonals_small&bgColorShadow=aaaaaa&opacityOverlay=30&bgImgOpacityOverlay=15&bgTextureOverlay=diagonals_thick&bgColorOverlay=444444&iconColorError=cd0a0a&fcError=2b2b2b&borderColorError=fad000&bgImgOpacityError=95&bgTextureError=diagonals_thick&bgColorError=ffdc2e&iconColorHighlight=4eb305&fcHighlight=363636&borderColorHighlight=f9dd34&bgImgOpacityHighlight=55&bgTextureHighlight=glass&bgColorHighlight=fbf5d0&iconColorActive=ffffff&fcActive=ffffff&borderColorActive=72b42d&bgImgOpacityActive=30&bgTextureActive=highlight_hard&bgColorActive=285c00&iconColorHover=ffffff&fcHover=ffffff&borderColorHover=8bd83b&bgImgOpacityHover=50&bgTextureHover=highlight_soft&bgColorHover=4eb305&iconColorDefault=ffffff&fcDefault=ffffff&borderColorDefault=45930b&bgImgOpacityDefault=60&bgTextureDefault=highlight_soft&bgColorDefault=4ca20b&iconColorContent=72b42d&fcContent=ffffff&borderColorContent=72b42d&bgImgOpacityContent=10&bgTextureContent=inset_soft&bgColorContent=285c00&iconColorHeader=ffffff&fcHeader=ffffff&borderColorHeader=3f7506&bgImgOpacityHeader=33&bgTextureHeader=highlight_soft&bgColorHeader=3a8104&cornerRadius=10px&fsDefault=1.1em&fwDefault=normal&ffDefault=Lucida%20Grande%2CLucida%20Sans%2CArial%2Csans-serif
 * Copyright jQuery Foundation and other contributors; Licensed MIT */
 
@@ -89,6 +89,19 @@
 	left: 0;
 	width: 100%;
 	height: 100%;
+}
+.ui-accordion .ui-accordion-header {
+	display: block;
+	cursor: pointer;
+	position: relative;
+	margin: 2px 0 0 0;
+	padding: .5em .5em .5em .7em;
+	font-size: 100%;
+}
+.ui-accordion .ui-accordion-content {
+	padding: 1em 2.2em;
+	border-top: 0;
+	overflow: auto;
 }
 .ui-datepicker {
 	width: 17em;

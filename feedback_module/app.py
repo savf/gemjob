@@ -27,7 +27,7 @@ pd.set_option('display.max_columns', 200)
 app = Flask(__name__)
 api = Api(app)
 
-TARGET_NAME = 'client_feedback'
+TARGET_NAME = 'feedback_for_client'
 
 GLOBAL_VARIABLE = {}
 
@@ -58,7 +58,9 @@ class Predictions(Resource):
             app.logger.info("{} Prediction: {}".format(TARGET_NAME,
                                                        prediction))
 
-            return {TARGET_NAME: prediction}
+            return {TARGET_NAME: {'prediction': prediction,
+                                  'stats': local_variable['feature_importances']}
+                    }
 
         return {}
 
@@ -83,24 +85,53 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            return "<h1>Feedback Module</h1><p>Model used: </p>" + str(model_name)
+            content = "<h1>Feedback Module</h1><p>Model used: </p>" + str(
+                model_name)
         else:
             return "<h1>Feedback Module</h1><p>Not setup!</p>"
+        if "feature_importances" in local_variable:
+            importances = local_variable['feature_importances']
+            content = content + "<p> Text determines {:.2f}% of the prediction, " \
+                .format(importances['text'] * 100)
+            content = content + "with the title ({:.2f}%), " \
+                                "description ({:.2f}%) " \
+                                "and skills ({:.2f}%) <br/>".format(importances['title'] * 100,
+                                                                    importances['snippet'] * 100,
+                                                                    importances['skills'] * 100)
+            content = content + "The length of the title " \
+                                "determines {:.2f}%, " \
+                .format(importances['title_length'] * 100)
+            content = content + "the length of the description {:.2f}% " \
+                .format(importances['snippet_length'] * 100)
+            content = content + "and the number of skills {:.2f}%</p>" \
+                .format(importances['skills_number'] * 100)
+            del importances['text']
+            del importances['title']
+            del importances['snippet']
+            del importances['skills']
+            del importances['snippet_length']
+            del importances['skills_number']
+            del importances['title_length']
+            content = content + "<p> The non-text attributes make up the rest:"
+            for key, value in importances.iteritems():
+                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value * 100)
+        return content
     except Exception as e:
         return "<h1>Feedback Module</h1><p>Never updated</p>"
 
 
 def build_feedback_model(connection):
     try:
-        model, columns, min, max, vectorizers =\
+        model, columns, min, max, vectorizers, feature_importances =\
             feedback_model_production(connection, label_name=TARGET_NAME,
-                                      normalization=True)
+                                      normalization=False)
         local_variable = {}
         local_variable["model"] = model
         local_variable["columns"] = columns
         local_variable["min"] = min
         local_variable["max"] = max
         local_variable["vectorizers"] = vectorizers
+        local_variable["feature_importances"] = feature_importances
 
         global GLOBAL_VARIABLE
         GLOBAL_VARIABLE = local_variable

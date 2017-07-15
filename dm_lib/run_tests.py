@@ -1,8 +1,9 @@
 from dm_data_exploration import explore_data
 from dm_data_preparation import *
 from dm_text_mining import *
-from dm_budgetModel import budget_model_development
-from dm_feedbackModel import feedback_model_development
+from dm_budgetModel import budget_model_development, budget_model_production
+from dm_feedbackModel import feedback_model_development, \
+    feedback_model_production
 from parameters import *
 from dm_clustering import test_clustering
 
@@ -64,9 +65,11 @@ db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
 connection = rdb.connect(RDB_HOST, RDB_PORT)
 try:
     # prepare_data("data/found_jobs_4K_extended.json")
-    # budget_model("data/found_jobs_4K_extended.json", connection)
+    # budget_model_development("data/found_jobs_4K_extended.json", connection)
+    # budget_model_production(connection)
     # jobtype_model("data/found_jobs_4K_extended.json")
-    feedback_model_development("data/found_jobs_4K_extended.json", connection)
+    # feedback_model_development("data/found_jobs_4K_extended.json", connection)
+    feedback_model_production(connection, normalization=False)
     # experience_level_model("data/found_jobs_4K_extended.json")
     # test_text_mining()
     # explore_data("data/found_jobs_4K_extended.json")

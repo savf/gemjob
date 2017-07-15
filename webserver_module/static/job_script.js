@@ -59,19 +59,31 @@ $(document).ready(function() {
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result && Object.keys(data.result).length > 0) {
-                var content = '';
+                var info = "<p style='margin-bottom:20px'>We use machine learning models to predict key metrics for the job-posting you prepared.</p>" +
+                    "<p style='margin-bottom:20px'>In contrast to the real-time predictions, we use individual models for each metric which have " +
+                    "all been precisely tuned to achieve very accurate results. These models do however require that all form values are filled, " +
+                    "hence why they are only available as soon as the form has been filled in completely.</p>" +
+                    "<br/><p style='margin-bottom:20px'>Click on any prediction to see which form values influenced the prediction the most.</p>";
+                $("#PopUpContent").html("")
+                $("#PopUpContent").append(info)
+                var accordion_div = $("<div/>",{
+                    id: "PopUpPredictions"
+                });
+                $("#PopUpContent").append(accordion_div);
                 for(var key in data.result) {
                     if(key == 'budget') {
-                        content += 'We propose a budget of ' + data.result[key] + '<br>';
+                        markupStats(key, "We propose a budget of " + data.result[key].prediction.toFixed(0), data.result[key].stats, accordion_div)
                     }
-                    else if(key == 'client_feedback') {
-                        content += 'Your overall feedback might change to ' + data.result[key] + '<br>';
+                    else if(key == 'feedback_for_client') {
+                        markupStats(key, "We predict that freelancers working on this job will give you an overall feedback of " + data.result[key].prediction.toFixed(1), data.result[key].stats, accordion_div)
                     }
-                    else if(key == 'job_type') {
-                        content += 'You should make this a ' + data.result[key] + ' job </br>';
-                    }
+
                 }
-                showPopUp("Model Predictions", content);
+                showPopUp("Model Predictions");
+                $("#PopUpPredictions").accordion({
+                    active: false,
+                    collapsible: true
+                });
                 $("#Status").text("Model predictions complete").addClass("OK").removeClass("Warning");
             }
             else{
@@ -91,6 +103,82 @@ $(document).ready(function() {
 	$('#UpdateButton').prop("disabled",true).addClass("Disabled");
 
 });
+
+function markupStats(attribute, title, stats, element) {
+    var header = $("<h3>");
+    header.html(title);
+    // First the text-related attributes
+    var stats_content = $("<div>");
+    if('text' in stats) {
+        var text_content = "<p>The form's text fields determine " + (stats.text*100).toFixed(0) + "% of the prediction, " +
+            "where the title determines " + (stats.title*100).toFixed(0) +
+            "%, the length of the title " + (stats.title_length*100).toFixed(0) +
+            "%, the description " + (stats.snippet*100).toFixed(0) + "%, the " +
+            "individual skill tags " + (stats.skills*100).toFixed(0) + "% and the " +
+            "number of skills " + (stats.skills_number*100).toFixed(0) + "% of the overall prediction result.";
+        delete stats.text; delete stats.title; delete stats.title_length;
+        delete stats.snippet; delete stats.skills; delete stats.skills_number;
+    }
+    var normal_content = "<p> The non-text attributes influence the prediction with the following percentages:</p>";
+    var bar_chart = $("<div/>",{
+        id: "stats_chart_" + attribute,
+        style: "min-width: 310px; max-width: 800px; height: 400px; margin: 0 auto"
+    });
+    var sorted_attributes = Object.keys(stats).sort(function(a,b){return stats[b]-stats[a]});
+    var importances = [];
+    for(var key in sorted_attributes) {
+        importances.push(Math.round((stats[sorted_attributes[key]]*100) * 1e2) / 1e2)
+    }
+    for(var key in sorted_attributes) {
+        sorted_attributes[key] = dict[sorted_attributes[key]].en
+    }
+    element.append(header);
+    stats_content.html(text_content + normal_content);
+    element.append(stats_content);
+    stats_content.append(bar_chart);
+    // Bar chart container has been added to the DOM -> generate bar chart
+    Highcharts.chart('stats_chart_' + attribute, {
+        chart: {
+            type: 'bar'
+        },
+        title: {
+            text: 'Importance of the non-text Values'
+        },
+        xAxis: {
+            categories: sorted_attributes,
+            title: {
+                text: null
+            }
+        },
+        yAxis: {
+            min: 0,
+            title: {
+                text: 'Importance (percentage)',
+                align: 'high'
+            },
+            labels: {
+                overflow: 'justify'
+            }
+        },
+        tooltip: {
+            valueSuffix: ' %'
+        },
+        plotOptions: {
+            bar: {
+                dataLabels: {
+                    enabled: true
+                }
+            }
+        },
+        credits: {
+            enabled: true
+        },
+        series: [{
+            showInLegend: false,
+            data: importances
+        }]
+    });
+}
 
 function adjustToSize() {
     var isMobileSize = $(window).width() <= maxWidthMobile;
@@ -212,7 +300,9 @@ function initPopUp(){
 
 function showPopUp(title, htmlContent) {
     popUpTitle.text(title);
-    popUpContent.html(htmlContent);
+    if(htmlContent !== undefined) {
+        popUpContent.html(htmlContent);
+    }
     popUpBackground.show();
     popUp.show();
     popUp.css("top", Math.max(0, (($(window).height() - popUp.outerHeight()) / 2) + $(window).scrollTop()) + "px");

@@ -190,3 +190,45 @@ def print_model_evaluation(model, df_test, label_name,
                                      predictions, label_name, num_of_rows=20)
     return results
 
+
+def generate_regression_stats(data_frame, model):
+    feature_importances = pd.DataFrame(columns=data_frame.columns)
+    for estimator in model.estimators_:
+        importances = pd.DataFrame([estimator.feature_importances_],
+                                   columns=data_frame.columns)
+        feature_importances = feature_importances.append(importances,
+                                                         ignore_index=True)
+    # The BaggingRegressor predicts the mean prediction of all involved regressors
+    # so using the mean of the feature importances is justified
+    feature_importances_mean = feature_importances.mean().sort_values(ascending=False)
+
+    text = {'text': [], 'title': [], 'snippet': [], 'skills': []}
+    engineered_text = ['snippet_length', 'skills_number', 'title_length']
+    categorical = {'client_country': [], 'subcategory2': [], 'experience_level': [],
+                   'job_type': []}
+    numerical = {}
+
+    for column in feature_importances_mean.keys():
+        if feature_importances_mean.loc[column] > 0:
+            if column.startswith('$token') or column in engineered_text:
+                text['text'].append(column)
+                for text_element in ['title', 'snippet', 'skills']:
+                    if column.startswith('$token_' + text_element):
+                        text[text_element].append(column)
+                if column in engineered_text:
+                    text[column] = [column]
+            else:
+                if column.startswith(tuple(categorical.keys())):
+                    for key, value in categorical.iteritems():
+                        if column.startswith(key):
+                            categorical[key].append(column)
+                else:
+                    numerical[column] = [column]
+
+    importances = text.copy()
+    importances.update(categorical)
+    importances.update(numerical)
+    for key, value in importances.iteritems():
+        importances[key] = feature_importances_mean.loc[importances[key]].sum()
+
+    return importances

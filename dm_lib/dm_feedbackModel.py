@@ -1,10 +1,11 @@
 from sklearn.ensemble import BaggingRegressor, RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, \
-    mutual_info_regression
+    mutual_info_regression, VarianceThreshold
 from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
-from dm_general import evaluate_regression, print_predictions_comparison
+from dm_general import evaluate_regression, print_predictions_comparison, \
+    generate_regression_stats
 from dm_text_mining import add_text_tokens_to_data_frame
 
 
@@ -20,10 +21,9 @@ def prepare_data_feedback_model(data_frame, label_name):
     """
 
     # drop columns where we don't have user data or are unnecessary
-    drop_unnecessary = ["client_country", "client_jobs_posted",
-                        "client_past_hires",
-                        "client_payment_verification_status",
-                        "feedback_for_client", "feedback_for_freelancer"]
+    drop_unnecessary = ["client_payment_verification_status",
+                        "feedback_for_freelancer", "client_feedback",
+                        "total_charge"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # convert everything to numeric
@@ -76,6 +76,9 @@ def prepare_single_job_feedback_model(data_frame, label_name,
     # normalize
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
+    else:
+        data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+        data_frame.fillna(0, inplace=True)
 
     # order according to cluster_columns, since scikit does not look at labels!
     data_frame = data_frame.reindex_axis(columns, axis=1)
@@ -83,7 +86,8 @@ def prepare_single_job_feedback_model(data_frame, label_name,
     return data_frame
 
 
-def create_model(df_train, label_name, is_classification, selectbest=False):
+def create_model(df_train, label_name, is_classification,
+                 selectbest=False, variance_threshold=False):
     """ Create feedback model for regression or classification
 
     :param df_train: Pandas DataFrame holding the data to be trained
@@ -94,6 +98,8 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
     :type is_classification: bool
     :param selectbest: False (=0) or number of features to be used
     :type selectbest: int
+    :param variance_threshold: Only select columns with variance > threshold
+    :type variance_threshold: bool
     :return: Model and columns of dataset
     """
     # separate target
@@ -105,6 +111,11 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
             selector = SelectKBest(f_classif, k=selectbest)
         else:
             selector = SelectKBest(mutual_info_regression, k=selectbest)
+        selector.fit(df_train, df_target_train)
+        relevant_indices = selector.get_support(indices=True)
+        df_train = df_train.iloc[:, relevant_indices]
+    elif variance_threshold:
+        selector = VarianceThreshold(threshold=(.8 * (1 - .8)))
         selector.fit(df_train, df_target_train)
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
@@ -126,7 +137,7 @@ def feedback_model_development(file_name, connection=None):
     :param connection: RethinkDB connection to load the data (optional)
     :type connection: rethinkdb.net.ConnectionInstance
     """
-    label_name = "client_feedback"
+    label_name = "feedback_for_client"
     feedback_classification = False
 
     #data_frame = prepare_data(file_name)
@@ -134,30 +145,35 @@ def feedback_model_development(file_name, connection=None):
     data_frame = prepare_data_feedback_model(data_frame, label_name)
 
     print "\n\n########## Regression including text\n"
-    df_train, df_test = train_test_split(data_frame, train_size=0.8)
+    data_frame, text_data = separate_text(data_frame, label_name)
+    data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
+                                                            text_data)
+    # df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    df_train, df_train_text = separate_text(df_train, label_name)
-    df_test, df_test_text = separate_text(df_test, label_name)
-
+    # df_train, df_train_text = separate_text(df_train, label_name)
+    # df_test, df_test_text = separate_text(df_test, label_name)
+    #
     # df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
     #                                                       df_train_text)
     # print "Added text tokens to train set"
-    #
+
     # df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
     #                                            vectorizers=vectorizers)
     #
     # print "Added text tokens to test set"
 
-    model, columns = create_model(df_train, label_name,
-                                  feedback_classification, selectbest=5)
+    model, columns = create_model(data_frame, label_name,
+                                  feedback_classification,
+                                  selectbest=False,
+                                  variance_threshold=True)
 
     print "Built model with following columns: {}".format(columns)
 
-    predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
-
-    evaluate_regression(df_test, predictions, label_name)
-
-    print_predictions_comparison(df_test, predictions, label_name, 50)
+    # predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
+    #
+    # evaluate_regression(df_test, predictions, label_name)
+    #
+    # print_predictions_comparison(df_test, predictions, label_name, 50)
 
     # print_correlations(data_frame, label_name)
 
@@ -190,8 +206,8 @@ def predict(data_frame, label_name, model, min=None, max=None):
     return prediction
 
 
-def feedback_model_production(connection, label_name='client_feedback',
-                              normalization=True):
+def feedback_model_production(connection, label_name='feedback_for_client',
+                              normalization=False):
     """ Learn model for label 'client_feedback' on whole dataset and return it
     
     :param connection: RethinkDB connection
@@ -206,17 +222,19 @@ def feedback_model_production(connection, label_name='client_feedback',
     data_frame = load_data_frame_from_db(connection)
     data_frame = prepare_data_feedback_model(data_frame, label_name)
 
-    data_frame = treat_outliers_deletion(data_frame)
     data_frame, text_data = separate_text(data_frame, label_name=label_name)
-    # data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
-    #                                                         text_data)
-    vectorizers = None
+    data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
+                                                            text_data)
     if normalization:
         data_frame, min, max = normalize_min_max(data_frame)
     else:
         min, max = [None, None]
 
     model, columns = create_model(data_frame, label_name,
-                                  feedback_classification, selectbest=3)
+                                  feedback_classification,
+                                  selectbest=False,
+                                  variance_threshold=True)
 
-    return model, columns, min, max, vectorizers
+    importances = generate_regression_stats(data_frame[columns], model)
+
+    return model, columns, min, max, vectorizers, importances
