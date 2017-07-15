@@ -57,7 +57,7 @@
             <p><span class="TableStyle">Similar jobs found:</span> <span id="cluster_size" class="TableStyle">None</span></p>
         </div></div>
         <div class="Text">
-            <p><span class="TableStyle">Predicted Job rating:</span> <span id="feedback_for_client" class="TableStyle">None</span></p>
+            <p><span class="TableStyle">Predicted job rating:</span> <span id="feedback_for_client" name="Predicted job rating for client" class="TableStyle">None</span></p>
         </div>
     </div>
 
@@ -121,9 +121,9 @@
                 </select>
                 <div id="job_type" name="Payment Type" class="LiveRecommendation"></div></div>
 
-                <div class="Label">Budget in $ <span class="IfHourly">(will not be sent)</span></div><div class="LabeledElement">
-                <input class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)">
-                <div id="budget" name="Budget" class="LiveRecommendation"></div></div>
+                <span class="IfFixed"><div class="Label">Budget in $</div><div class="LabeledElement">
+                <input id="BudgetInput" class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)">
+                <div id="budget" name="Budget" class="LiveRecommendation"></div></div></span>
 
                  <div class="Label">Duration in hours <span class="IfFixed" style="display: none">(will not be sent)</span> </div><div class="LabeledElement">
 {#                <select name="duration">#}
@@ -165,8 +165,8 @@
                 </div>
 
                 <div style="margin-top: 15px; float: right; width: 50%; min-width: 250px;">
-                    <div style="display: inline-block; width: 47%; margin-right:3%"><input type="submit" value="Review Job" name="submit" class="Button ButtonFull" id="ReviewButton"></div>
-                    <div style="display: inline-block; width: 47%;"><input type="submit" value="Submit Job" name="submit" class="Button ButtonFull" id="SubmitButton"></div>
+                    <div style="display: inline-block; width: 47%; min-width: 170px;"><input type="submit" value="Model Predictions" name="submit" class="Button ButtonFull" id="ModelButton"></div>
+                    <div style="display: inline-block; width: 47%; margin-left:3%; min-width: 170px;"><input type="submit" value="Submit Job" name="submit" class="Button ButtonFull" id="SubmitButton"></div>
                 </div>
             </form>
         </div>
