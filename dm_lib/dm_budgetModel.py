@@ -50,8 +50,7 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
         data_frame.dropna(subset=['total_charge'], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary for budget
-    drop_unnecessary = ["client_country", "client_jobs_posted",
-                        "client_past_hires", "client_payment_verification_status",
+    drop_unnecessary = ["client_payment_verification_status",
                         "feedback_for_client", "feedback_for_freelancer"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
@@ -202,9 +201,15 @@ def budget_model_development(file_name, connection):
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
         print "##### Without Outlier Treatment:"
-        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=True)
-        print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
-
+        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=False)
+        # print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
+        feature_importances = pd.DataFrame(columns=df_train.columns)
+        for estimator in model.estimators_:
+            importances = pd.DataFrame([estimator.feature_importances_],
+                                       columns=df_train.columns)
+            feature_importances = feature_importances.append(importances,
+                                                             ignore_index=True)
+        
         # print "##### With Text Tokens, With Outlier Treatment:"
         # # add tokens to data frame
         # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
@@ -268,14 +273,9 @@ def budget_model_production(connection, budget_name='budget', normalization=True
     model, columns = create_model(data_frame, budget_name,
                                   is_classification=budget_classification,
                                   selectbest=False)
-    feature_importances = pd.DataFrame(columns=data_frame.columns)
-    for estimator in model.estimators_:
-        importances = pd.DataFrame([estimator.feature_importances_],
-                                   columns=data_frame.columns)
-        feature_importances = feature_importances.append(importances,
-                                                         ignore_index=True)
+    importances = generate_regression_stats(data_frame, model)
 
-    return model, columns, min, max, vectorizers, feature_importances
+    return model, columns, min, max, vectorizers, importances
 
 
 def predict(data_frame, label_name, model, min=None, max=None):

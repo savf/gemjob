@@ -171,6 +171,12 @@ def make_attributes_safe(raw_job):
         elif key == 'client_reviews_count':
             if not is_int(value):
                 raw_job[key] = 0
+        elif key == 'client_jobs_posted':
+            if not is_int(value):
+                raw_job[key] = 0
+        elif key == 'client_past_hires':
+            if not is_int(value):
+                raw_job[key] = 0
         elif key == 'duration':
             if not is_int(value):
                 raw_job[key] = 0
