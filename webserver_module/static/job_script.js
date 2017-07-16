@@ -9,6 +9,10 @@ var skills_selected = [];
 form_values["skills"] = "";
 
 $(document).ready(function() {
+    Highcharts.setOptions({
+        colors: [ 'darkgreen', 'green', '#c5e0b4', '#e2f0d9','#70ad47']
+    });
+
 	adjustToSize();
 	$( "#Datepicker" ).datepicker({ dateFormat: 'mm-dd-yy' });
 	jobTypeSwitch();
@@ -61,11 +65,11 @@ $(document).ready(function() {
             if (data && data.result && Object.keys(data.result).length > 0) {
                 var info = "<p style='margin-bottom:20px'>We use machine learning models to predict key metrics for the job-posting you prepared.</p>" +
                     "<p style='margin-bottom:20px'>In contrast to the real-time predictions, we use individual models for each metric which have " +
-                    "all been precisely tuned to achieve very accurate results. These models do however require that all form values are filled, " +
+                    "all been precisely tuned to achieve more accurate results. These models do however require that all form values are filled, " +
                     "hence why they are only available as soon as the form has been filled in completely.</p>" +
                     "<br/><p style='margin-bottom:20px'>Click on any prediction to see which form values influenced the prediction the most.</p>";
-                $("#PopUpContent").html("")
-                $("#PopUpContent").append(info)
+                $("#PopUpContent").html("");
+                $("#PopUpContent").append(info);
                 var accordion_div = $("<div/>",{
                     id: "PopUpPredictions"
                 });
@@ -402,7 +406,61 @@ function showStats(element){
 
         if (typeof cluster_predictions[element.attr("id")] === 'string') {
             content += "<tr valign='top'> <td>Majority:</td>  <td>" + cluster_predictions[element.attr("id")] + "</td> </tr>" +
-                "<tr valign='top'> <td>Value counts:</td>  <td>" + cluster_predictions[element.attr("id") + "_value_counts"] + "</td> </tr> </table>";
+                "<tr valign='top'> <td>Value counts:</td>  <td>" + cluster_predictions[element.attr("id") + "_value_counts"] + "</td> </tr> </table>" +
+                "<div id='BoxPlotLiveRecommendation'></div>";
+
+            showPopUp(element.attr("name") + ":", content);
+
+            var value_counts_names = [];
+            var value_counts_values = [];
+            var value_counts = cluster_predictions[element.attr("id") + "_value_counts"].split("<br>");
+            for (var i = 0; i < value_counts.length-1; i++){
+                var name_value_pair = value_counts[i].split(":");
+                value_counts_names.push(name_value_pair[0]);
+                var v_begin = name_value_pair[2].indexOf("'>")+2;
+                var v_end = name_value_pair[2].indexOf("</");
+                value_counts_values.push(parseInt(name_value_pair[2].substring(v_begin, v_end)));
+            }
+
+            Highcharts.chart('BoxPlotLiveRecommendation', {
+                chart: {
+                    type: 'bar'
+                },
+                title: {
+                    text: 'Value counts in cluster'
+                },
+                xAxis: {
+                    categories: value_counts_names,
+                    title: {
+                        text: null
+                    }
+                },
+                yAxis: {
+                    min: 0,
+                    title: {
+                        text: 'Count',
+                        align: 'high'
+                    },
+                    labels: {
+                        overflow: 'justify'
+                    }
+                },
+                plotOptions: {
+                    bar: {
+                        dataLabels: {
+                            enabled: true
+                        }
+                    }
+                },
+                credits: {
+                    enabled: true
+                },
+                series: [{
+                    showInLegend: false,
+                    data: value_counts_values
+                }]
+            });
+
         }
         else {
             var median = cluster_predictions[element.attr("id")];
@@ -419,10 +477,51 @@ function showStats(element){
                 "<tr valign='top'> <td>3rd quantile:</td>  <td>" + cluster_predictions[element.attr("id") + "_75quantile"] + "</td> </tr> " +
                 "<tr valign='top'> <td>Max:</td>  <td>" + cluster_predictions[element.attr("id") + "_max"] + "</td> </tr> " +
                 "</table>" +
-                "<p>" + hint + "</p>";
+                "<p>" + hint + "</p>"+
+                "<div id='BoxPlotLiveRecommendation'></div>";
+
+            showPopUp(element.attr("name") + ":", content);
+
+            Highcharts.chart('BoxPlotLiveRecommendation', {
+                chart: {
+                    type: 'boxplot'
+                },
+                title: {
+                    text: ""
+                },
+                legend: {
+                    enabled: false
+                },
+                yAxis: {
+                    title: {
+                        text: element.attr("id")
+                    },
+                    plotLines: [{
+                        value: cluster_predictions[element.attr("id") + "_mean"],
+                        color: 'green',
+                        width: 1,
+                        zIndex: 20,
+                        label: {
+                            text: 'Mean: '+cluster_predictions[element.attr("id") + "_mean"],
+                            align: 'center',
+                            style: {
+                                color: 'darkgreen'
+                            }
+                        }
+                    }]
+                },
+                series: [{
+                    name: element.attr("id"),
+                    data: [
+                        [   cluster_predictions[element.attr("id") + "_min"],
+                            cluster_predictions[element.attr("id") + "_25quantile"],
+                            median,
+                            cluster_predictions[element.attr("id") + "_75quantile"],
+                            cluster_predictions[element.attr("id") + "_max"]]
+                    ]
+                }]
+
+            });
         }
-
-
-        showPopUp(element.attr("name") + ":", content);
     }
 }

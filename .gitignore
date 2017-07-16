@@ -7,3 +7,4 @@
 /budget_module/dm*
 .DS_Store
 cluster_module/parameters.py
+database_module/rethinkdb_data/log_file
