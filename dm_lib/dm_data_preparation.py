@@ -160,8 +160,9 @@ def make_attributes_safe(raw_job):
     """
     for key, value in raw_job.iteritems():
         if key == 'budget':
-            if not is_int(value):
-                raw_job[key] = -1
+            if not is_float(value):
+                if not is_int(value):
+                    raw_job[key] = 0
         elif key == 'client_country':
             if not is_str(value):
                 raw_job[key] = ""
@@ -178,11 +179,13 @@ def make_attributes_safe(raw_job):
             if not is_int(value):
                 raw_job[key] = 0
         elif key == 'duration':
-            if not is_int(value):
-                raw_job[key] = 0
+            if not is_float(value):
+                if not is_int(value):
+                    raw_job[key] = 0
         elif key == 'duration_weeks_median':
-            if not is_int(value):
-                raw_job[key] = 0
+            if not is_float(value):
+                if not is_int(value):
+                    raw_job[key] = 0
         elif key == 'experience_level':
             if is_int(value):
                 if not 1 <= int(value) <= 3:
