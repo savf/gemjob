@@ -10,7 +10,7 @@ form_values["skills"] = "";
 
 $(document).ready(function() {
     Highcharts.setOptions({
-        colors: [ 'darkgreen', 'green', '#c5e0b4', '#e2f0d9','#70ad47']
+        colors: [ '#70ad47', 'green', '#c5e0b4', '#e2f0d9','#70ad47']
     });
 
 	adjustToSize();
@@ -76,10 +76,20 @@ $(document).ready(function() {
                 $("#PopUpContent").append(accordion_div);
                 for(var key in data.result) {
                     if(key == 'budget') {
-                        markupStats(key, "We propose a budget of " + data.result[key].prediction.toFixed(0), data.result[key].stats, accordion_div)
+                        markupStats(key, "We propose a budget of $" + data.result[key].prediction.toFixed(0), data.result[key].stats, accordion_div)
                     }
                     else if(key == 'feedback_for_client') {
                         markupStats(key, "We predict that freelancers working on this job will give you an overall feedback of " + data.result[key].prediction.toFixed(1), data.result[key].stats, accordion_div)
+                    }
+                    else if(key == 'job_type') {
+                        prediction = data.result[key].prediction
+                        if(prediction == "Hourly") {
+                            markupStats(key, "This job might work best with hourly billing.", data.result[key].stats, accordion_div)
+                        }
+                        else {
+                            markupStats(key, "We propose you make this a fixed-price job.", data.result[key].stats, accordion_div)
+                        }
+
                     }
 
                 }
@@ -114,12 +124,12 @@ function markupStats(attribute, title, stats, element) {
     // First the text-related attributes
     var stats_content = $("<div>");
     if('text' in stats) {
-        var text_content = "<p>The form's text fields determine " + (stats.text*100).toFixed(0) + "% of the prediction, " +
-            "where the title determines " + (stats.title*100).toFixed(0) +
-            "%, the length of the title " + (stats.title_length*100).toFixed(0) +
-            "%, the description " + (stats.snippet*100).toFixed(0) + "%, the " +
-            "individual skill tags " + (stats.skills*100).toFixed(0) + "% and the " +
-            "number of skills " + (stats.skills_number*100).toFixed(0) + "% of the overall prediction result.";
+        var text_content = "<p>The form's text fields determine " + stats.text.importance.toFixed(0) + "% of the prediction, " +
+            "where the title determines " + stats.title.importance.toFixed(0) +
+            "%, the length of the title " + stats.title_length.importance.toFixed(0) +
+            "%, the description " + stats.snippet.importance.toFixed(0) + "%, the " +
+            "individual skill tags " + stats.skills.importance.toFixed(0) + "% and the " +
+            "number of skills " + stats.skills_number.importance.toFixed(0) + "% of the overall prediction result.";
         delete stats.text; delete stats.title; delete stats.title_length;
         delete stats.snippet; delete stats.skills; delete stats.skills_number;
     }
@@ -128,10 +138,12 @@ function markupStats(attribute, title, stats, element) {
         id: "stats_chart_" + attribute,
         style: "min-width: 310px; max-width: 800px; height: 400px; margin: 0 auto"
     });
-    var sorted_attributes = Object.keys(stats).sort(function(a,b){return stats[b]-stats[a]});
+    var sorted_attributes = Object.keys(stats).sort(function(a,b){return stats[b].importance-stats[a].importance});
     var importances = [];
+    var errors = [];
     for(var key in sorted_attributes) {
-        importances.push(Math.round((stats[sorted_attributes[key]]*100) * 1e2) / 1e2)
+        importances.push(stats[sorted_attributes[key]].importance);
+        errors.push(stats[sorted_attributes[key]].error);
     }
     for(var key in sorted_attributes) {
         sorted_attributes[key] = dict[sorted_attributes[key]].en
@@ -142,46 +154,47 @@ function markupStats(attribute, title, stats, element) {
     stats_content.append(bar_chart);
     // Bar chart container has been added to the DOM -> generate bar chart
     Highcharts.chart('stats_chart_' + attribute, {
-        chart: {
-            type: 'bar'
-        },
+    chart: {
+        type: 'bar'
+    },
+    title: {
+        text: 'Importance of the non-text values'
+    },
+    xAxis: [{
+        categories: sorted_attributes
+    }],
+    yAxis: {
+        min: 0,
         title: {
-            text: 'Importance of the non-text Values'
+            text: 'Importance (percentage)',
+            align: 'high'
         },
-        xAxis: {
-            categories: sorted_attributes,
-            title: {
-                text: null
-            }
-        },
-        yAxis: {
-            min: 0,
-            title: {
-                text: 'Importance (percentage)',
-                align: 'high'
-            },
-            labels: {
-                overflow: 'justify'
-            }
-        },
+        labels: {
+            overflow: 'justify'
+        }
+    },
+
+    tooltip: {
+        shared: true
+    },
+
+    series: [{
+        showInLegend: false,
+        name: 'Importance',
+        type: 'column',
+        data: importances,
         tooltip: {
-            valueSuffix: ' %'
-        },
-        plotOptions: {
-            bar: {
-                dataLabels: {
-                    enabled: true
-                }
-            }
-        },
-        credits: {
-            enabled: true
-        },
-        series: [{
-            showInLegend: false,
-            data: importances
-        }]
-    });
+            pointFormat: '<span style="font-weight: bold; color: {series.color}">{series.name}</span>: <b>{point.y:.2f} %</b> '
+        }
+    }, {
+        type: 'errorbar',
+        data: errors,
+        tooltip: {
+            pointFormat: '(error range: {point.low}-{point.high} %)<br/>'
+        }
+    }
+    ]
+});
 }
 
 function adjustToSize() {

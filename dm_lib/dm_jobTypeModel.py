@@ -4,7 +4,8 @@ from sklearn.feature_selection import SelectKBest, f_classif, \
 from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
-from dm_general import evaluate_classification, print_predictions_comparison
+from dm_general import evaluate_classification, print_predictions_comparison, \
+    generate_model_stats
 from dm_text_mining import add_text_tokens_to_data_frame
 
 
@@ -24,7 +25,7 @@ def prepare_data_jobtype_model(data_frame, label_name, relative_sampling):
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_payment_verification_status",
                         "feedback_for_client", "feedback_for_freelancer",
-                        "total_charge"]
+                        "total_charge", "budget"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # balance data set so ratio of hourly and fixed is 1:1
@@ -211,7 +212,7 @@ def jobtype_model_production(connection, normalization=True):
     data_frame = prepare_data_jobtype_model(data_frame, label_name,
                                             relative_sampling=False)
 
-    data_frame = treat_outliers_deletion(data_frame)
+    # data_frame = treat_outliers_deletion(data_frame)
     data_frame, text_data = separate_text(data_frame, label_name=label_name)
     data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
                                                             text_data)
@@ -224,4 +225,6 @@ def jobtype_model_production(connection, normalization=True):
     model, columns = create_model(data_frame, label_name,
                                   jobtype_classification, selectbest=False)
 
-    return model, columns, min, max, vectorizers
+    importances = generate_model_stats(data_frame, model)
+
+    return model, columns, min, max, vectorizers, importances

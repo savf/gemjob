@@ -48,14 +48,17 @@ class Predictions(Resource):
                                                  local_variable['min'],
                                                  local_variable['max'],
                                                  local_variable['vectorizers'])
-
+            # No min,max needed for denormalization, since target
+            # is categorical (Hourly/Fixed)
             prediction = predict(normalized_data, TARGET_NAME,
                                  local_variable['model'])
 
             app.logger.info("{} Prediction: {}".format(TARGET_NAME,
                                                        prediction))
 
-            return {TARGET_NAME: prediction}
+            return {TARGET_NAME: {'prediction': prediction,
+                                  'stats': local_variable['feature_importances']}
+                    }
 
         return {}
 
@@ -80,30 +83,64 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            return "<h1>Job type Module</h1><p>Model used: </p>" + str(model_name)
+            content = "<h1>Job Type Module</h1><p>Model used: </p>" + str(
+                model_name)
         else:
-            return "<h1>Job type Module</h1><p>Not setup!</p>"
+            return "<h1>Job Type Module</h1><p>Not setup!</p>"
+        if "feature_importances" in local_variable:
+            importances = local_variable['feature_importances']
+            content = content + "<p> Text determines {:.2f}% of the prediction, " \
+                .format(importances['text']['importance'])
+            content = content + "with the title ({:.2f}%), " \
+                                "description ({:.2f}%) " \
+                                "and skills ({:.2f}%) <br/>".format(importances['title']['importance'],
+                                                                    importances['snippet']['importance'],
+                                                                    importances['skills']['importance'])
+            content = content + "The length of the title " \
+                                "determines {:.2f}%, " \
+                .format(importances['title_length']['importance'])
+            content = content + "the length of the description {:.2f}% " \
+                .format(importances['snippet_length']['importance'])
+            content = content + "and the number of skills {:.2f}%</p>" \
+                .format(importances['skills_number']['importance'])
+            del importances['text']
+            del importances['title']
+            del importances['snippet']
+            del importances['skills']
+            del importances['snippet_length']
+            del importances['skills_number']
+            del importances['title_length']
+            content = content + "<p> The non-text attributes make up the rest:"
+            for key, value in importances.iteritems():
+                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value['importance'])
+        return content
     except Exception as e:
+        app.logger.error(e)
         return "<h1>Job type Module</h1><p>Never updated</p>"
 
 
 def build_jobtype_model(connection):
     try:
-        model, columns, min, max, vectorizers =\
+        build_start = time.time()
+        model, columns, min, max, vectorizers, feature_importances =\
             jobtype_model_production(connection, normalization=True)
-
+        build_end = time.time()
+        logging.info("{} build took {} seconds."
+                     .format(TARGET_NAME, build_end - build_start))
         local_variable = {}
         local_variable["model"] = model
         local_variable["columns"] = columns
         local_variable["min"] = min
         local_variable["max"] = max
         local_variable["vectorizers"] = vectorizers
+        local_variable["feature_importances"] = feature_importances
 
         global GLOBAL_VARIABLE
         GLOBAL_VARIABLE = local_variable
 
         return True
-    except:
+    except Exception as e:
+        app.logger.error(e)
         return False
 
 

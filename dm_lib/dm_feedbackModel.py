@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
 from dm_general import evaluate_regression, print_predictions_comparison, \
-    generate_regression_stats
+    generate_model_stats
 from dm_text_mining import add_text_tokens_to_data_frame
 
 
@@ -235,6 +235,6 @@ def feedback_model_production(connection, label_name='feedback_for_client',
                                   selectbest=False,
                                   variance_threshold=True)
 
-    importances = generate_regression_stats(data_frame[columns], model)
+    importances = generate_model_stats(data_frame[columns], model)
 
     return model, columns, min, max, vectorizers, importances

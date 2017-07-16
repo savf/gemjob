@@ -101,6 +101,9 @@ def prepare_single_job_budget_model(data_frame, label_name,
     # normalize
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
+    else:
+        data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)
+        data_frame.fillna(0, inplace=True)
 
     # order according to cluster_columns, since scikit does not look at labels!
     data_frame = data_frame.reindex_axis(columns, axis=1)
@@ -273,7 +276,7 @@ def budget_model_production(connection, budget_name='budget', normalization=True
     model, columns = create_model(data_frame, budget_name,
                                   is_classification=budget_classification,
                                   selectbest=False)
-    importances = generate_regression_stats(data_frame, model)
+    importances = generate_model_stats(data_frame, model)
 
     return model, columns, min, max, vectorizers, importances
 

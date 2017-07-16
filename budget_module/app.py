@@ -8,7 +8,6 @@ import os
 working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 import copy
 import logging
-from logging.handlers import RotatingFileHandler
 import time
 import rethinkdb as rdb
 from flask import Flask, request
@@ -87,25 +86,26 @@ def start():
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
             model_name = local_variable["model"].__class__.__name__
-            content = "<h1>Budget Module</h1><p>Model used: </p>" + str(model_name)
+            content = "<h1>Budget Module</h1><p>Model used: </p>" + str(
+                model_name)
         else:
             return "<h1>Budget Module</h1><p>Not setup!</p>"
         if "feature_importances" in local_variable:
             importances = local_variable['feature_importances']
-            content = content + "<p> Text determines {:.2f}% of the prediction, "\
-                .format(importances['text']*100)
+            content = content + "<p> Text determines {:.2f}% of the prediction, " \
+                .format(importances['text']['importance'])
             content = content + "with the title ({:.2f}%), " \
                                 "description ({:.2f}%) " \
-                                "and skills ({:.2f}%) <br/>".format(importances['title']*100,
-                                                                  importances['snippet']*100,
-                                                                  importances['skills']*100)
+                                "and skills ({:.2f}%) <br/>".format(importances['title']['importance'],
+                                                                    importances['snippet']['importance'],
+                                                                    importances['skills']['importance'])
             content = content + "The length of the title " \
-                                "determines {:.2f}%, "\
-                .format(importances['title_length']*100)
-            content = content + "the length of the description {:.2f}% "\
-                .format(importances['snippet_length']*100)
-            content = content + "and the number of skills {:.2f}%</p>"\
-                .format(importances['skills_number']*100)
+                                "determines {:.2f}%, " \
+                .format(importances['title_length']['importance'])
+            content = content + "the length of the description {:.2f}% " \
+                .format(importances['snippet_length']['importance'])
+            content = content + "and the number of skills {:.2f}%</p>" \
+                .format(importances['skills_number']['importance'])
             del importances['text']
             del importances['title']
             del importances['snippet']
@@ -115,18 +115,22 @@ def start():
             del importances['title_length']
             content = content + "<p> The non-text attributes make up the rest:"
             for key, value in importances.iteritems():
-                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value * 100)
+                content = content + "<br/><b>" + key + "</b>: {:.2f}%".format(value['importance'])
         return content
     except Exception as e:
+        app.logger.error(e)
         return "<h1>Budget Module</h1><p>Never updated</p>"
 
 
 def build_budget_model(connection):
     try:
+        build_start = time.time()
         model, columns, min, max, vectorizers, feature_importances =\
             budget_model_production(connection, budget_name=TARGET_NAME,
                                     normalization=True)
-
+        build_end = time.time()
+        logging.info("{} build took {} seconds."
+                     .format(TARGET_NAME, build_end - build_start))
         local_variable = {}
         local_variable["model"] = model
         local_variable["columns"] = columns
@@ -139,7 +143,8 @@ def build_budget_model(connection):
         GLOBAL_VARIABLE = local_variable
 
         return True
-    except:
+    except Exception as e:
+        logging.error(e)
         return False
 
 
@@ -157,7 +162,7 @@ def budget_model_built(max_tries=-1):
 
             is_setup = build_budget_model(connection)
         except Exception as e:
-            app.logger.error(e.message)
+            logging.error(e.message)
             if connection is not None:
                 connection.close()
             time.sleep(5)
@@ -171,6 +176,7 @@ def budget_model_built(max_tries=-1):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     app.logger.setLevel(logging.INFO)
     if budget_model_built(max_tries=3):
         app.run(debug=True, use_debugger=False, use_reloader=False,

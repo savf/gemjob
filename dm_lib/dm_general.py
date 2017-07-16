@@ -2,6 +2,7 @@ import os
 import sys
 
 import pandas as pd
+import numpy as np
 from sklearn.metrics import explained_variance_score, mean_squared_error, \
     mean_absolute_error, accuracy_score
 
@@ -191,15 +192,14 @@ def print_model_evaluation(model, df_test, label_name,
     return results
 
 
-def generate_regression_stats(data_frame, model):
+def generate_model_stats(data_frame, model):
     feature_importances = pd.DataFrame(columns=data_frame.columns)
     for estimator in model.estimators_:
         importances = pd.DataFrame([estimator.feature_importances_],
                                    columns=data_frame.columns)
         feature_importances = feature_importances.append(importances,
                                                          ignore_index=True)
-    # The BaggingRegressor predicts the mean prediction of all involved regressors
-    # so using the mean of the feature importances is justified
+
     feature_importances_mean = feature_importances.mean().sort_values(ascending=False)
 
     text = {'text': [], 'title': [], 'snippet': [], 'skills': []}
@@ -228,7 +228,17 @@ def generate_regression_stats(data_frame, model):
     importances = text.copy()
     importances.update(categorical)
     importances.update(numerical)
-    for key, value in importances.iteritems():
-        importances[key] = feature_importances_mean.loc[importances[key]].sum()
+    importances_iteration = importances.copy()
+    for key, value in importances_iteration.iteritems():
+        column_indices = [data_frame.columns.get_loc(column) for column in
+                          importances[key]]
+        std = np.std([sub_model.feature_importances_[column_indices].sum()
+                      for sub_model in model.estimators_], axis=0)
+        importance = feature_importances_mean.loc[importances[key]].sum()
+        importances[key] = {'importance': round(importance*100, 2),
+                            'error': [round(max(0.0, min(importance - std, 1.0))*100, 2),
+                                      round(max(0.0, min(importance + std, 1.0))*100, 2)]}
+        if importances[key]['importance'] == 0.0:
+            del importances[key]
 
     return importances
