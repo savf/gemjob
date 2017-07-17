@@ -308,6 +308,7 @@ function addSkillToList(skillItem){
             }
 
             updateRealTimePredictions();
+            form_values["skills"] = getSkillsString();
         }
     });
 
