@@ -96,11 +96,13 @@
                 <div id="subcategory2" name="Subcategory" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Title</div><div class="LabeledElement">
-                <input class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="{{ update_job_info["title"] }}" onblur="onValueInput(name, value)">
+                <input id="TitleInput" class="ReadInput" type="text" name="title" placeholder="Title" size=50 value="{{ update_job_info["title"] }}" onblur="onValueInput(name, value)">
+                <div id="TitleWordCount" class="WordCount"></div>
                 <div class="RecommendationLabel">Number of words:</div> <div id="title_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Description</div><div class="LabeledElement">
-                <textarea class="ReadInput" name="snippet" placeholder="Description" rows="10" cols="30" value="" onblur="onValueInput(name, value)">{{ update_job_info["description"] }}</textarea>
+                <textarea id="SnippetTextArea" class="ReadInput" name="snippet" placeholder="Description" rows="10" cols="30" value="" onblur="onValueInput(name, value)">{{ update_job_info["description"] }}</textarea>
+                <div id="SnippetWordCount" class="WordCount"></div>
                 <div class="RecommendationLabel">Number of words:</div> <div id="snippet_length"  name="Number of words" class="LiveRecommendation"></div></div>
 
                 <div class="Label">Number of Freelancers (will not be sent)</div><div class="LabeledElement">

@@ -360,6 +360,15 @@ a.JobSent:hover, a.JobSent:active, a.JobSent:visited{
     text-decoration: underline;
 }
 
+.WordCount{
+    color: #9EE493;
+    float: right;
+    display: block;
+    width: 100%;
+    margin-top: -6px;
+    margin-bottom: 6px;
+}
+
 /* Formatting */
 
 .Warning{

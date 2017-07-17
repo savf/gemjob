@@ -99,6 +99,7 @@ $(document).ready(function() {
                     collapsible: true
                 });
                 $("#Status").text("Model predictions complete").addClass("OK").removeClass("Warning");
+                adjustPopUp()
             }
             else{
                 $("#Status").text("Model predictions failed").addClass("Warning").removeClass("OK");
@@ -166,6 +167,8 @@ $(document).ready(function() {
 	$('#ModelButton').prop("disabled",true).addClass("Disabled");
 	$('#SubmitButton').prop("disabled",true).addClass("Disabled");
 	$('#UpdateButton').prop("disabled",true).addClass("Disabled");
+
+	initWordCount();
 
 });
 
@@ -374,13 +377,17 @@ function showPopUp(title, htmlContent) {
         popUpContent.html(htmlContent);
     }
     popUpBackground.show();
-    popUp.show();
-    popUp.css("top", Math.max(0, (($(window).height() - popUp.outerHeight()) / 2) + $(window).scrollTop()) + "px");
+    popUp.show()
+    adjustPopUp()
 }
 
 function hidePopUp(){
     popUpBackground.hide();
     popUp.hide();
+}
+
+function adjustPopUp(){
+    popUp.css("top", Math.max(0, (($(window).height() - popUp.outerHeight()) / 2) + $(window).scrollTop()) + "px");
 }
 
 function updateRealTimePredictions(){
@@ -525,7 +532,7 @@ function showStats(element){
                     data: value_counts_values
                 }]
             });
-
+            adjustPopUp()
         }
         else {
             var median = cluster_predictions[element.attr("id")];
@@ -587,6 +594,28 @@ function showStats(element){
                 }]
 
             });
+            adjustPopUp()
         }
     }
+}
+
+function initWordCount() {
+    updateWordCount($("#TitleInput"), $("#TitleWordCount"));
+    updateWordCount($("#SnippetTextArea"), $("#SnippetWordCount"));
+    $("#TitleInput").keyup(function() {
+        updateWordCount($("#TitleInput"), $("#TitleWordCount"));
+    });
+    $("#SnippetTextArea").keyup(function() {
+        updateWordCount($("#SnippetTextArea"), $("#SnippetWordCount"));
+    });
+}
+
+function updateWordCount(inputField, outputField) {
+    var word_num = 0;
+    if (inputField.val() != "")
+        word_num = inputField.val().split(" ").length;
+    var exp_string = " word";
+    if (word_num != 1)
+        exp_string+="s";
+    outputField.text(word_num + exp_string);
 }
