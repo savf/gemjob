@@ -154,6 +154,7 @@ a:hover{
     min-height: 80px;
     box-shadow: 0px 5px 7px rgba(0, 0, 0, 0.2);
     min-width: 280px;
+    z-index: 10;
 }
 
 .Header a, .Header a:hover{
@@ -223,6 +224,7 @@ a:hover{
     margin-right: 2%;
     display: inline-block;
     vertical-align: top;
+    text-align: left;
 }
 .TableStyle:nth-child(even){
     color: darkgreen;
@@ -345,6 +347,19 @@ a.Button:hover{
     margin-top: 30px;
 }
 
+.JobSent, a.JobSent, a.JobSent:hover, a.JobSent:active, a.JobSent:visited{
+    text-align: center;
+    font-size: 30px;
+    color: darkgreen;
+    margin-top: 30px;
+    text-decoration: none;
+    display: block;
+}
+
+a.JobSent:hover, a.JobSent:active, a.JobSent:visited{
+    text-decoration: underline;
+}
+
 /* Formatting */
 
 .Warning{
@@ -353,6 +368,13 @@ a.Button:hover{
 
 .OK{
     color: green !important;
+}
+
+.Hint{
+    background: #e2f0d9;
+    color: darkgreen;
+    line-height: 25px;
+    padding: 3px;
 }
 
 /* PopUp */

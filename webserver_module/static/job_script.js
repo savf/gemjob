@@ -112,6 +112,57 @@ $(document).ready(function() {
         e.preventDefault();
         return false;
     });
+
+    $('#SubmitButton').bind('click', function(e) {
+        $("#Status").text("Submitting job ...").removeClass("Warning").removeClass("OK");
+        $('#SubmitButton').prop("disabled",true).addClass("Disabled");
+
+        $.getJSON($SCRIPT_ROOT + '/submit_job', form_values).done(function (data) {
+            if (data && data.result && data.result.length > 0) {
+                $("#Status").text("Job submitted").addClass("OK").removeClass("Warning");
+                $("#FormSectionText").html("<a href='/' class='JobSent'>Success</a>")
+            }
+            else {
+                $("#Status").text("Submitting job failed").addClass("Warning").removeClass("OK");
+                showPopUp("Error", "Submitting job failed")
+            }
+            $('#SubmitButton').prop("disabled",false).removeClass("Disabled");
+
+        }).fail(function( jqxhr, textStatus, error ) {
+            $('#SubmitButton').prop("disabled",false).removeClass("Disabled");
+            $("#Status").text("Submitting job failed").addClass("Warning").removeClass("OK");
+            showPopUp("Error", "Submitting job failed")
+        });
+
+        e.preventDefault();
+        return false;
+    });
+
+    $('#UpdateButton').bind('click', function(e) {
+        $("#Status").text("Updating job ...").removeClass("Warning").removeClass("OK");
+        $('#UpdateButton').prop("disabled",true).addClass("Disabled");
+
+        $.getJSON($SCRIPT_ROOT + '/update_job/id=' + job_id, form_values).done(function (data) {
+            if (data && data.result && data.result == "updated") {
+                $("#Status").text("Job updated").addClass("OK").removeClass("Warning");
+                $("#FormSectionText").html("<a href='/' class='JobSent'>Success</a>")
+            }
+            else {
+                $("#Status").text("Updating job failed").addClass("Warning").removeClass("OK");
+                showPopUp("Error", "Updating job failed")
+            }
+            $('#UpdateButton').prop("disabled",false).removeClass("Disabled");
+
+        }).fail(function( jqxhr, textStatus, error ) {
+            $('#UpdateButton').prop("disabled",false).removeClass("Disabled");
+            $("#Status").text("Updating job failed").addClass("Warning").removeClass("OK");
+            showPopUp("Error", "Updating job failed")
+        });
+
+        e.preventDefault();
+        return false;
+    });
+
 	$('#ModelButton').prop("disabled",true).addClass("Disabled");
 	$('#SubmitButton').prop("disabled",true).addClass("Disabled");
 	$('#UpdateButton').prop("disabled",true).addClass("Disabled");
@@ -256,6 +307,8 @@ function addSkillToList(skillItem){
             updateRealTimePredictions();
         }
     });
+
+    form_values["skills"] = getSkillsString();
 }
 
 function skill_input() {
@@ -334,7 +387,6 @@ function updateRealTimePredictions(){
 
     // get predictions
     $("#Status").text("Updating recommendations ...").removeClass("Warning").removeClass("OK");
-    form_values["skills"] = getSkillsString();
 
     $.getJSON($SCRIPT_ROOT + '/get_realtime_predictions', form_values).done(function (data) {
         var time = new Date();

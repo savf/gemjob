@@ -7,7 +7,7 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-module_urls = {'D': 'http://data_module:5000/', 'DM': 'http://data_mining_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/', 'FE': 'http://feedback_module:5004/', 'JO': 'http://jobtype_module:5005/'}
+module_urls = {'D': 'http://data_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/', 'FE': 'http://feedback_module:5004/', 'JO': 'http://jobtype_module:5005/'}
 # module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003/', 'FE': 'http://localhost:5004/', 'JO': 'http://localhost:5005/'}
 
 GLOBAL_VARIABLE = {}
@@ -181,6 +181,7 @@ def job_existing(id):
                                timeout=30)
         update_job_info = client.hr.get_job(id)
         pretty_print_dict(update_job_info)
+        update_job_info["job_id"] = id
         if update_job_info["category2"] != "Data Science & Analytics":
             return job(client=client, warning="The selected job is not a Data Science job!")
         return job(client=client, update_job_info=update_job_info)
@@ -233,8 +234,8 @@ def get_realtime_predictions():
     try:
         result = requests.post(module_urls['CL']+"get_predictions/", json=json_data)
         return jsonify(result=result.content)
-        # return jsonify(result="Not implemented")
-    except:
+    except Exception as e:
+        print "Exception: {}".format(e)
         return None # jsonify(result='Server not responding')
 
 
@@ -250,6 +251,69 @@ def get_model_predictions():
         except Exception as e:
             print "Exception: {}".format(e)
     return jsonify(result=predictions)
+
+
+@app.route('/submit_job')
+def submit_job():
+    json_data = request.args.to_dict()
+    try:
+        access_token = session['access_token']
+        access_token_secret = session['access_token_secret']
+        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                               oauth_access_token=access_token,
+                               oauth_access_token_secret=access_token_secret,
+                               timeout=30)
+        user_info = session.get('user_info')
+        team_id = user_info['teams'][0]['reference']
+
+        skills = json_data.get("skills", "")
+        skills = skills.split()
+
+        result = client.hr.post_job(buyer_team_reference=team_id,
+                                    title=json_data.get("title", ""),
+                                    job_type=json_data.get("job_type", ""),
+                                    description=json_data.get("snippet", ""),
+                                    visibility=json_data.get("visibility", ""),
+                                    category2="Data Science & Analytics",
+                                    subcategory2=json_data.get("subcategory2", ""),
+                                    start_date=json_data.get("start_date", ""),
+                                    budget=json_data.get("budget", 10),
+                                    duration=json_data.get("duration", 10),
+                                    skills=skills)
+        return jsonify(result=result['job']['reference'])
+    except Exception as e:
+        print "Exception: {}".format(e)
+        return None
+
+
+@app.route('/update_job/id=<string:id>')
+def update_job(id):
+    json_data = request.args.to_dict()
+    try:
+        access_token = session['access_token']
+        access_token_secret = session['access_token_secret']
+        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                               oauth_access_token=access_token,
+                               oauth_access_token_secret=access_token_secret,
+                               timeout=30)
+        user_info = session.get('user_info')
+        team_id = user_info['teams'][0]['reference']
+
+        result = client.hr.update_job(job_id=id, buyer_team_reference=team_id,
+                                    title=json_data.get("title", ""),
+                                    description=json_data.get("snippet", ""),
+                                    visibility=json_data.get("visibility", ""),
+                                    category2="Data Science & Analytics",
+                                    subcategory2=json_data.get("subcategory2", ""),
+                                    start_date=json_data.get("start_date", ""),
+                                    budget=json_data.get("budget", 10),
+                                    duration=json_data.get("duration", 10),
+									status='open')
+        return jsonify(result=result['job']['message'])
+    except Exception as e:
+        print "Exception: {}".format(e)
+        return None
+
 
 if __name__ == '__main__':
     app.secret_key = 'xyz'

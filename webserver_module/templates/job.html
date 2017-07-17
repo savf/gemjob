@@ -28,6 +28,7 @@
         form_values["client_reviews_count"] = {{ client_info["client_reviews_count"] }};
         form_values["client_jobs_posted"] = {{ client_info["client_jobs_posted"] }};
         form_values["client_past_hires"] = {{ client_info["client_past_hires"] }};
+        job_id = "{{ update_job_info["job_id"] }}";
 
         var skills_preselected = [{% if update_job_info["skills"] %}{% set list_of_skills = update_job_info["skills"].split(',') %}{% for skill in list_of_skills %}"{{ skill }}",{% endfor %}{% endif %}];
 
@@ -68,7 +69,7 @@
     </div>
 
     <div class="Section">
-        <div class="Text">
+        <div id="FormSectionText" class="Text">
             <form action="." method="POST">
 
                 {% if warning %}
@@ -112,6 +113,11 @@
                 <p id="SkillsList" style="margin-top:-3px;margin-bottom: 5px;"></p>
                 <div class="RecommendationLabel">Number of skills:</div> <div id="skills_number"  name="Number of skills" class="LiveRecommendation"></div></div>
 
+                {% if update_job_info %}
+                    <p class="Hint">Hint: Upwork does not allow you to update the skills! They will remain unchanged in the updated job.</p>
+                    <br><br>
+                {% endif %}
+
                 <div class="Label">Start Date</div><div class="LabeledElement">
                 <input class="ReadInput" id="Datepicker" type="text" name="start_date" size=50 value="{{ current_date }}"  onblur="onValueInput(name, value)">
                 </div>
@@ -122,6 +128,11 @@
                     <option value="fixed-price" {% if update_job_info["job_type"] == "fixed-price" %} selected="selected" {% endif %}>Fixed price</option>
                 </select>
                 <div id="job_type" name="Payment Type" class="LiveRecommendation"></div></div>
+
+                {% if update_job_info %}
+                    <p class="Hint">Hint: Upwork does not allow you to update the payment type! It will remain unchanged in the updated job.</p>
+                    <br><br>
+                {% endif %}
 
                 <span class="IfFixed"><div class="Label">Budget in $</div><div class="LabeledElement">
                 <input id="BudgetInput" class="ReadInput" type="number" min="0" step="1" name="budget" size=50 maxlength=120  onblur="onValueInput(name, value)" value={{ update_job_info["budget"] }}>
