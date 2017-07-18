@@ -75,6 +75,11 @@ def print_predictions_comparison(df, predictions, label_name, num_of_rows=10):
     pd.reset_option('display.max_rows')
 
 
+def mape_vectorized(a, b):
+    mask = a != 0
+    return (np.fabs(a - b)*100/a)[mask].mean()
+
+
 def evaluate_regression(df, predictions, label_name, printing=True):
     """ Print explained variance, mean absolute error and mean squared error for given regression results
 
@@ -91,15 +96,17 @@ def evaluate_regression(df, predictions, label_name, printing=True):
         block_printing()
 
     print "### Evaluation of " + label_name + " ###"
-    exp_var_sc = explained_variance_score(df[label_name], predictions)
+    exp_var_sc = explained_variance_score(df, predictions)
     print "## Explained variance score (best is 1.0): ", exp_var_sc
-    abs_err = mean_absolute_error(df[label_name], predictions)
+    abs_err = mean_absolute_error(df, predictions)
     print "## Mean absolute error: ", abs_err
-    sq_err = mean_squared_error(df[label_name], predictions)
+    sq_err = mean_squared_error(df, predictions)
     print "## Mean squared error: ", sq_err
+    mape = mape_vectorized(df, predictions)
+    print "## Mean absolute percentage error: {:.1f}%".format(mape)
 
     enable_printing()
-    return exp_var_sc, abs_err, sq_err
+    return exp_var_sc, abs_err, sq_err, mape
 
 
 def evaluate_regression_csv(df, predictions, label_name, predicted_with_attribute, model_name, parameters, runtime):
@@ -182,9 +189,9 @@ def print_model_evaluation(model, df_test, label_name,
             df_target_test, predictions, label_name, printing=not csv)
         results.append(accuracy)
     else:
-        exp_var_sc, abs_err, sq_err = evaluate_regression(
+        exp_var_sc, abs_err, sq_err, mape = evaluate_regression(
             df_target_test, predictions, label_name, printing=not csv)
-        results.extend([exp_var_sc, abs_err, sq_err])
+        results.extend([exp_var_sc, abs_err, sq_err, mape])
 
     if not csv:
         print_predictions_comparison(pd.DataFrame({label_name: df_target_test}),

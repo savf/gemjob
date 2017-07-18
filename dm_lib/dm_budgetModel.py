@@ -1,10 +1,14 @@
+from sklearn import svm, linear_model, decomposition
+
 from dm_general import *
 from sklearn.ensemble import BaggingRegressor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, \
-    mutual_info_regression
+    mutual_info_regression, VarianceThreshold
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.model_selection import train_test_split
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
@@ -111,13 +115,34 @@ def prepare_single_job_budget_model(data_frame, label_name,
     return data_frame
 
 
-def create_model(df_train, label_name, is_classification, selectbest=False):
+def dimensionality_reduction(df_train, df_test, label_name):
+    """ Perform LSA dimensionality reduction
+
+    Latent semantic analysis is better for sparse data like in our case
+    with the tf-idf text tokens
+
+    :param df_train: Pandas DataFrame holding the training data
+    :param df_test: Pandas DataFrame holding the test data
+    :param label_name: Target label
+    :return: Reduced DataFrames
+    """
+    lsa = decomposition.TruncatedSVD(n_components=50)
+    lsa = lsa.fit(df_train)
+    df_train = lsa.transform(df_train)
+    df_test = lsa.transform(df_test)
+
+    return df_train, df_test, lsa
+
+
+def create_model(df_train, label_name, is_classification,
+                 selectbest=False, variance_threshold=False):
     """ Create budget model for regression or classification
 
     :param df_train: Pandas DataFrame holding the data to be trained
     :param label_name: Budget label to learn ('budget' or 'total_charge')
     :param is_classification: Whether classification should be used
     :param selectbest: False or number of features to select
+    :param variance_threshold: Feature selection with variance threshold
     :return: Model and selected columns
     """
     # separate target
@@ -132,8 +157,15 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
         selector.fit(df_train, df_target_train)
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
+    if variance_threshold:
+        selector = VarianceThreshold(threshold=(.8 * (1 - .8)))
+        selector.fit(df_train, df_target_train)
+        relevant_indices = selector.get_support(indices=True)
+        df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
-        model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        # model = linear_model.Ridge(alpha=.5)
+        model = svm.SVR(kernel='rbf')
+        # model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
         model = RandomForestClassifier(n_estimators=100)
 
@@ -203,30 +235,34 @@ def budget_model_development(file_name, connection):
         # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
 
-        print "##### Without Outlier Treatment:"
-        model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=False)
+        # print "##### Without Outlier Treatment:"
+        # model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=False)
         # print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
-        feature_importances = pd.DataFrame(columns=df_train.columns)
-        for estimator in model.estimators_:
-            importances = pd.DataFrame([estimator.feature_importances_],
-                                       columns=df_train.columns)
-            feature_importances = feature_importances.append(importances,
-                                                             ignore_index=True)
         
         # print "##### With Text Tokens, With Outlier Treatment:"
-        # # add tokens to data frame
-        # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
-        # df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
-        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification)
+        df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
+        df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
+        # df_train_outl, min, max = normalize_min_max(df_train_outl)
+        # df_test_outl, _, _ = normalize_min_max(df_test_outl, min, max)
+        df_train_target_outl = df_train_outl[label_name]
+        df_train_outl.drop(labels=[label_name], axis=1, inplace=True)
+        df_test_target_outl = df_test_outl[label_name]
+        df_test_outl.drop(labels=[label_name], axis=1, inplace=True)
+        df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
+        model = svm.SVR()
+        model.fit(df_train_outl, df_train_target_outl)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
-        #
+        predictions = model.predict(df_test_outl)
+        evaluate_regression(df_test_target_outl, predictions, label_name)
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
+        # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
+        # df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
         # model, _ = create_model(df_train_outl, label_name, budget_classification)
         # print_model_evaluation(model, df_test_outl, label_name, budget_classification)
-        #
+
         # print "##### With Text Tokens, Without Outlier Treatment:"
-        # # add tokens to data frame
         # df_train, vectorizers = add_text_tokens_to_data_frame(df_train, text_train)
         # df_test, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
         # model, _ = create_model(df_train, label_name, budget_classification)
