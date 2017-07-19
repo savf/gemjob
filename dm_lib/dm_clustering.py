@@ -772,6 +772,10 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         errors_euc_rw = 0
         errors_mod = 0
 
+        if tc in numeric_columns:
+            unnormalized_data[tc+"_prediction"] = 0
+        else:
+            unnormalized_data[tc + "_prediction"] = ""
 
         for index, row in normalized_data.iterrows():
             print "\n#### Current row:", index
@@ -796,20 +800,24 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                 if np.isnan(median):
                     print "#ERROR: no median found!"
                     errors_euc = errors_euc+1
+                    unnormalized_data.set_value(index, tc + "_prediction", 0)
                 else :
                     abs_err = abs(actual - median)
                     abs_err_euclidean = abs_err_euclidean + abs_err
                     print "# Euclidean Distance:", median, "Error:", abs_err
+                    unnormalized_data.set_value(index, tc + "_prediction", median)
 
                 if do_reweighting:
                     median = clusters[cluster_index_euc_rw][tc].median()
                     if np.isnan(median):
                         print "#ERROR: no median found!"
                         errors_euc_rw = errors_euc_rw + 1
+                        unnormalized_data.set_value(index, tc + "_prediction", 0)
                     else:
                         abs_err = abs(actual - median)
                         abs_err_euclidean_rw = abs_err_euclidean_rw + abs_err
                         print "# Euclidean Distance Reweighted:", median, "Error:", abs_err
+                        unnormalized_data.set_value(index, tc + "_prediction", median)
 
                 median = clusters[cluster_index_pred][tc].median()
                 if np.isnan(median):
@@ -831,6 +839,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                 if majority == actual:
                     correct_euclidean = correct_euclidean + 1
                 print "Majority voting:", majority
+                unnormalized_data.set_value(index, tc + "_prediction", majority)
 
                 if do_reweighting:
                     print "# Euclidean Distance Reweighted:"
@@ -843,6 +852,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
                     if majority == actual:
                         correct_euclidean_rw = correct_euclidean_rw + 1
                     print "Majority voting:", majority
+                    unnormalized_data.set_value(index, tc + "_prediction", majority)
 
                 print "# Model Prediction:"
                 print "Cluster shape:", clusters[cluster_index_pred][tc].shape[0]
@@ -871,6 +881,8 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
             print "#### Correct Model:", correct_predict, "in %:", float(correct_predict) / float(normalized_data.shape[0])
         print "#### Number of rows:", normalized_data.shape[0]
         print "#### Number of rows predicted to be in outlier cluster (removed from clusters):", numb_in_outlier_cluster
+
+        return unnormalized_data
 
 
 def test_clustering(file_name, method="Mean-Shift"):
@@ -907,6 +919,10 @@ def test_clustering(file_name, method="Mean-Shift"):
     df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
     # predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
-    predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
+    unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
+
+    print "\n"
+    evaluate_regression(unnormalized_data['budget'], unnormalized_data['budget_prediction'], 'budget')
+
