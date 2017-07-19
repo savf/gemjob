@@ -59,22 +59,23 @@ def predict_knn(unnormalized_data, normalized_train, normalized_test, k, target_
                 # print "Majority voting:", majority
                 unnormalized_data.set_value(index_test, tc + "_prediction", majority)
 
+
         if tc in numeric_columns:
             print "### Abs Error:", abs_err_predict / float(normalized_test.shape[0])
         else:
             print "### Correctly predicted:", correct_predict, "in %:", float(correct_predict) / float(normalized_test.shape[0])
         print "### Number of test rows:", normalized_test.shape[0]
 
-        return unnormalized_data
+        return unnormalized_data.loc[normalized_test.index]
 
 
-def test_knn(file_name):
+def test_knn(file_name, target="budget"):
     """ Test k nearest neighbors for predictions (with test and train set)
 
     :param file_name: JSON file containing all data
     :type file_name: str
-    :param method: Clustering Method to use: "Mean-Shift", "K-Means" or "DBSCAN"
-    :type method: str
+    :param target: Target label to predict
+    :type target: str
     """
 
     data_frame = prepare_data(file_name)
@@ -85,17 +86,20 @@ def test_knn(file_name):
     # in app, train data would be prepared in db
     df_train, min, max, vectorizers = prepare_data_clustering(df_train, z_score_norm=False, add_text=True)
 
-    # # balance data set for experience_level or job_type
-    # df_test = balance_data_set(df_test, "job_type", relative_sampling=False)
-
-    # remove rows without budget to predict_comparison budget
-    df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
-    df_test.dropna(subset=["budget"], how='any', inplace=True)
+    if target == "budget":
+        # remove rows without budget to predict_comparison budget
+        df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
+        df_test.dropna(subset=["budget"], how='any', inplace=True)
+    elif target == "job_type" or target == "experience_level" or target == "subcategory2":
+        df_test = balance_data_set(df_test, target, relative_sampling=False)
 
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, df_train.columns, min, max, vectorizers=vectorizers, weighting=True)
 
-    unnormalized_data = predict_knn(data_frame_original.copy(), df_train.copy(), df_test.copy(), k=15, target_columns=['budget'])
+    unnormalized_data = predict_knn(data_frame_original.copy(), df_train.copy(), df_test.copy(), k=15, target_columns=[target])
 
     print "\n"
-    evaluate_regression(unnormalized_data['budget'], unnormalized_data['budget_prediction'], 'budget')
+    if target == "budget":
+        evaluate_regression(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)
+    elif target == "job_type" or target == "experience_level" or target == "subcategory2":
+        evaluate_classification(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)

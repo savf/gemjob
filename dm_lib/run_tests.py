@@ -1,12 +1,13 @@
-from dm_data_exploration import explore_data
+# from dm_data_exploration import explore_data
 from dm_data_preparation import *
-from dm_lib.dm_jobTypeModel import jobtype_model_production
+from dm_jobTypeModel import jobtype_model_production
 from dm_text_mining import *
 from dm_budgetModel import budget_model_development, budget_model_production
 from dm_feedbackModel import feedback_model_development, \
     feedback_model_production
 from parameters import *
 from dm_clustering import test_clustering
+from dm_knn import test_knn
 
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
@@ -60,23 +61,25 @@ def test_text_mining():
 RDB_HOST = "192.168.99.100"
 
 #run
-# test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
-db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
+test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift", target="budget")
+# test_knn("data/found_jobs_4K_extended.json", target="budget")
 
-connection = rdb.connect(RDB_HOST, RDB_PORT)
-try:
-    # prepare_data("data/found_jobs_4K_extended.json")
-    budget_model_development("data/found_jobs_4K_extended.json", connection)
-    # budget_model_production(connection)
-    # jobtype_model_production(connection)
-    # feedback_model_development("data/found_jobs_4K_extended.json", connection)
-    # feedback_model_production(connection, normalization=False)
-    # experience_level_model("data/found_jobs_4K_extended.json")
-    # test_text_mining()
-    # explore_data("data/found_jobs_4K_extended.json")
-    # test_knn("data/found_jobs_4K_extended.json")
-except RqlRuntimeError as e:
-    print 'Database error: {}'.format(e)
-finally:
-    connection.close()
+# db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
+#
+# connection = rdb.connect(RDB_HOST, RDB_PORT)
+# try:
+#     # prepare_data("data/found_jobs_4K_extended.json")
+#     budget_model_development("data/found_jobs_4K_extended.json", connection)
+#     # budget_model_production(connection)
+#     # jobtype_model_production(connection)
+#     # feedback_model_development("data/found_jobs_4K_extended.json", connection)
+#     # feedback_model_production(connection, normalization=False)
+#     # experience_level_model("data/found_jobs_4K_extended.json")
+#     # test_text_mining()
+#     # explore_data("data/found_jobs_4K_extended.json")
+#     # test_knn("data/found_jobs_4K_extended.json")
+# except RqlRuntimeError as e:
+#     print 'Database error: {}'.format(e)
+# finally:
+#     connection.close()
 
