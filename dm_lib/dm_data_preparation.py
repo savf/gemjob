@@ -43,7 +43,7 @@ def create_data_frame(file_name):
     return df
 
 
-def db_setup(file_name, host='localhost', port='28015'):
+def db_setup(file_name, connection=None, host='localhost', port='28015'):
     """ Create DB and table if they don't exist, then insert jobs
 
     The database_module needs to be running and the host variable
@@ -52,6 +52,8 @@ def db_setup(file_name, host='localhost', port='28015'):
 
     :param file_name: File name where data is stored
     :type file_name: str
+    :param connection: RethinkDB connection
+    :type connection: rethinkdb.net.ConnectionInstance
     :param host: RethinkDB host
     :type host: str
     :param port: RethinkDB port
@@ -59,13 +61,14 @@ def db_setup(file_name, host='localhost', port='28015'):
     """
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
-
-    connection = rdb.connect(host, port)
+    if connection is None:
+        connection = rdb.connect(host, port)
     try:
         if not rdb.db_list().contains(database).run(connection):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
+        if rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection):
             data_frame = prepare_data(file_name)
             data_frame.date_created = data_frame.date_created.apply(
                 lambda time: time.to_pydatetime().replace(
@@ -95,6 +98,9 @@ def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
     try:
         if connection is None:
             connection = rdb.connect(host, port)
+
+        if rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection):
+            db_setup(JOBS_FILE, connection=connection, host=host, port=port)
 
         jobs_cursor = rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).run(connection)
         jobs = list(jobs_cursor)

@@ -83,12 +83,7 @@ def start():
 
 
 def cluster_data(connection):
-    if connection is not None:
-        data_in_db = not rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection)
-    else:
-        data_in_db = True
-
-    if data_in_db:
+    try:
         # load data
         if connection is None:
             data_frame = prepare_data("data/found_jobs_4K_extended.json")
@@ -113,8 +108,9 @@ def cluster_data(connection):
         print "# new clusters stored"
 
         return True
-
-    return False
+    except Exception as e:
+        print 'DB error:', e
+        return False
 
 
 def clustering_setup(max_tries=-1):
