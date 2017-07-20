@@ -882,16 +882,18 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         print "#### Number of rows:", normalized_data.shape[0]
         print "#### Number of rows predicted to be in outlier cluster (removed from clusters):", numb_in_outlier_cluster
 
-        return unnormalized_data
+        return unnormalized_data.loc[normalized_data.index]
 
 
-def test_clustering(file_name, method="Mean-Shift"):
+def test_clustering(file_name, method="Mean-Shift", target="budget"):
     """ Test clustering for predictions (with test and train set)
 
     :param file_name: JSON file containing all data
     :type file_name: str
     :param method: Clustering Method to use: "Mean-Shift", "K-Means" or "DBSCAN"
     :type method: str
+    :param target: Target label to predict
+    :type target: str
     """
 
     data_frame = prepare_data(file_name)
@@ -908,21 +910,24 @@ def test_clustering(file_name, method="Mean-Shift"):
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
 
-    # # balance data set for experience_level, subcategory2 or job_type
-    # df_test = balance_data_set(df_test, "subcategory2", relative_sampling=False)
-
-    # remove rows without budget to predict_comparison budget
-    df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
-    df_test.dropna(subset=["budget"], how='any', inplace=True)
+    if target == "budget":
+        # remove rows without budget to predict_comparison budget
+        df_test.ix[df_test.job_type == 'Hourly', 'budget'] = None
+        df_test.dropna(subset=["budget"], how='any', inplace=True)
+    elif target == "job_type" or target == "experience_level" or target == "subcategory2":
+        df_test = balance_data_set(df_test, target, relative_sampling=False)
 
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
 
     # predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
-    unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
+    # unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
+    unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=[target], do_reweighting=False)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
 
     print "\n"
-    evaluate_regression(unnormalized_data['budget'], unnormalized_data['budget_prediction'], 'budget')
-
+    if target == "budget":
+        evaluate_regression(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
+    elif target == "job_type" or target == "experience_level" or target == "subcategory2":
+        evaluate_classification(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)

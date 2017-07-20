@@ -1,4 +1,4 @@
-from dm_data_exploration import explore_data
+# from dm_data_exploration import explore_data
 from dm_data_preparation import *
 from dm_lib.dm_jobTypeModel import jobtype_model_production, \
     jobtype_model_development
@@ -8,6 +8,7 @@ from dm_feedbackModel import feedback_model_development, \
     feedback_model_production
 from parameters import *
 from dm_clustering import test_clustering
+from dm_knn import test_knn
 
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
