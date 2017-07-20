@@ -7,8 +7,6 @@ from sklearn.feature_selection import SelectKBest, f_classif, \
     mutual_info_regression, VarianceThreshold
 from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.model_selection import train_test_split
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
 
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
@@ -163,9 +161,7 @@ def create_model(df_train, label_name, is_classification,
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
-        # model = linear_model.Ridge(alpha=.5)
-        model = svm.SVR(kernel='rbf')
-        # model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
         model = RandomForestClassifier(n_estimators=100)
 

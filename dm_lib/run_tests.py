@@ -1,6 +1,7 @@
 from dm_data_exploration import explore_data
 from dm_data_preparation import *
-from dm_lib.dm_jobTypeModel import jobtype_model_production
+from dm_lib.dm_jobTypeModel import jobtype_model_production, \
+    jobtype_model_development
 from dm_text_mining import *
 from dm_budgetModel import budget_model_development, budget_model_production
 from dm_feedbackModel import feedback_model_development, \
@@ -60,8 +61,8 @@ def test_text_mining():
 RDB_HOST = "192.168.99.100"
 
 #run
-# test_clustering("data/found_jobs_4K_extended.json", "Mean-Shift")
-db_setup("data/found_jobs_4K_extended.json", host=RDB_HOST)
+# test_clustering(JOBS_FILE, "Mean-Shift")
+db_setup(JOBS_FILE, host=RDB_HOST)
 
 connection = rdb.connect(RDB_HOST, RDB_PORT)
 try:
@@ -69,6 +70,7 @@ try:
     budget_model_development("data/found_jobs_4K_extended.json", connection)
     # budget_model_production(connection)
     # jobtype_model_production(connection)
+    # jobtype_model_development("data/found_jobs_4K_extended.json", connection)
     # feedback_model_development("data/found_jobs_4K_extended.json", connection)
     # feedback_model_production(connection, normalization=False)
     # experience_level_model("data/found_jobs_4K_extended.json")

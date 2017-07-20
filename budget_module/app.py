@@ -31,6 +31,7 @@ TARGET_NAME = 'budget'
 
 GLOBAL_VARIABLE = {}
 
+
 class Predictions(Resource):
 
     def post(self):

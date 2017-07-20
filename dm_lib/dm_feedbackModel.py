@@ -144,37 +144,37 @@ def feedback_model_development(file_name, connection=None):
     data_frame = load_data_frame_from_db(connection)
     data_frame = prepare_data_feedback_model(data_frame, label_name)
 
-    print "\n\n########## Regression including text\n"
-    data_frame, text_data = separate_text(data_frame, label_name)
-    data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame,
-                                                            text_data)
-    # df_train, df_test = train_test_split(data_frame, train_size=0.8)
+    df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    # df_train, df_train_text = separate_text(df_train, label_name)
-    # df_test, df_test_text = separate_text(df_test, label_name)
-    #
-    # df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
-    #                                                       df_train_text)
-    # print "Added text tokens to train set"
+    df_train, df_train_text = separate_text(df_train, label_name)
+    df_test, df_test_text = separate_text(df_test, label_name)
 
-    # df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
-    #                                            vectorizers=vectorizers)
-    #
-    # print "Added text tokens to test set"
+    df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
+                                                          df_train_text)
+    print "Added text tokens to train set"
 
-    model, columns = create_model(data_frame, label_name,
+    df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
+                                               vectorizers=vectorizers)
+
+    print "Added text tokens to test set"
+
+    model, columns = create_model(df_train, label_name,
                                   feedback_classification,
                                   selectbest=False,
                                   variance_threshold=True)
 
-    print "Built model with following columns: {}".format(columns)
+    # print "Built model with following columns: {}".format(columns)
 
-    # predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
-    #
-    # evaluate_regression(df_test, predictions, label_name)
-    #
+    predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
+
+    # evaluate_regression(df_test[label_name], predictions, label_name)
+
     # print_predictions_comparison(df_test, predictions, label_name, 50)
 
+    # Test predictions for feedbacks < 3.0
+    threshold = 3.0
+    evaluate_regression(df_test.loc[df_test['feedback_for_client'] < threshold, 'feedback_for_client'],
+                        predictions[np.where(df_test['feedback_for_client'] < threshold)], label_name)
     # print_correlations(data_frame, label_name)
 
 

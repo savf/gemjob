@@ -66,7 +66,7 @@ class Update(Resource):
         return {"success": success}
 
 
-api.add_resource(Update, '/update_clusters/')
+api.add_resource(Update, '/update_clusters/', '/update_model/')
 
 
 @app.route('/')

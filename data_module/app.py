@@ -6,15 +6,21 @@
 
 import json
 import os
+
+from dm_lib.dm_data_preparation import prepare_data
+from dm_lib.parameters import *
+
 working_dir = os.path.dirname(os.path.realpath(__file__)) + '/'
 os.environ['HTTPLIB_CA_CERTS_PATH'] = working_dir + 'cacert.pem'
 
 from time import strftime, gmtime
 
 import sys
+import grequests
 import rethinkdb as rdb
 import upwork
 from dateutil import tz
+import requests
 from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
@@ -31,6 +37,7 @@ RDB_HOST = 'database_module'
 RDB_PORT = 28015
 RDB_DB = 'datasets'
 RDB_JOB_TABLE = 'jobs'
+RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
 RDB_PROFILE_TABLE = 'job_profiles'
 
 max_tries = 10
@@ -54,6 +61,11 @@ def db_setup():
 
 ###### class begin
 class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
+
+    mining_module_urls = {'CL': 'http://cluster_module:5002/',
+                          'BU': 'http://budget_module:5003/',
+                          'FE': 'http://feedback_module:5004/',
+                          'JO': 'http://jobtype_module:5005/'}
 
     # Print iterations progress
     def print_progress(self, iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
@@ -110,6 +122,151 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             return 0
         return first % second
 
+    @staticmethod
+    def clamp(value, lower, upper):
+        return max(lower, min(value, upper))
+
+    def enrich_with_job_profiles(self, client, found_jobs,
+                                 save_incrementally=False, stored_job_profiles=None):
+        """ Add additional features to a given list of jobs obtained from Upwork
+
+        :param client: Upwork Client to access the API
+        :param found_jobs: List with jobs obtained from Upwork
+        :param save_incrementally: Whether to save in 10% steps
+        :param stored_job_profiles: Job profiles already requested from Upwork
+        :return:
+        """
+        job_profiles = []
+        counter = 0
+        for job in found_jobs:
+            # Save already found profiles in 10% progress steps
+            if save_incrementally and self.safe_modulo(counter, int(round(len(found_jobs) / 10))) == 0:
+                try:
+                    with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                        f.truncate()
+                        f.write(json.dumps(found_jobs))
+                    with open(working_dir + strftime("job_profiles_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                        f.truncate()
+                        f.write(json.dumps(job_profiles))
+                except Exception as e:
+                    print '\r\n Problems writing to JSON file, aborted.\r\n'
+            try:
+                del job_profile
+            except:
+                pass
+
+            if stored_job_profiles is None:
+                for i in range(0, max_tries):
+                    try:
+                        job_profile = client.job.get_job_profile(job["id"].encode('UTF-8'))
+                        if job_profile['ciphertext'] == job['id']:
+                            # Replace the key 'ciphertext' with 'id' to make it easier to use with RethinkDB later
+                            job_profile.pop('ciphertext')
+                            job_profile['id'] = job['id']
+                        break
+                    except Exception as e:
+                        if hasattr(e, 'code') and e.code == 403:
+                            print '\r\n Profile access denied for job {} \r\n'.format(job['id'])
+                            break
+                        print 'Number of tries for job profile: {}'.format(
+                            str(i))
+                        print e
+            else:
+                if job['id'] in stored_job_profiles:
+                    job_profile = stored_job_profiles[job['id']]
+            try:
+                job_profiles.append(job_profile)
+                counter += 1
+                self.print_progress(counter, len(found_jobs),
+                                    prefix='Progress:',
+                                    suffix='Complete', bar_length=50)
+                assignment_info = job_profile['assignment_info']['info']
+                # For jobs with only a single freelancer, assignment_info directly contains the info
+                if not isinstance(assignment_info, list):
+                    assignment_info = [assignment_info]
+                # Create the divisors to build the average of the individual feedback elements
+                divisor_client = float(len(assignment_info))
+                divisor_freelancer = float(len(assignment_info))
+                for info in assignment_info:
+                    if 'feedback_for_buyer' not in info:
+                        divisor_client -= 1.0
+                    elif 'feedback_for_provider' not in info:
+                        divisor_freelancer -= 1.0
+
+                total_charge = 0
+                total_hours = 0
+                durations = []
+                feedbacks = {}
+                for info in assignment_info:
+                    if 'total_charge' in info and self.is_float(info['total_charge']):
+                        total_charge += float(info['total_charge'])
+                    if 'tot_hours' in info and self.is_int(info['tot_hours']):
+                        current_total_hours = int(info['tot_hours'])
+                        total_hours += current_total_hours
+                    else:
+                        current_total_hours = None
+                    if 'start_date' in info and 'end_data' in info \
+                            and self.is_int(info['start_date']) and self.is_int(info['end_data']):
+                        # duration is captured in weeks
+                        duration = (datetime.fromtimestamp(int(info['end_data']) / 1000) -
+                                    datetime.fromtimestamp(int(info['start_date']) / 1000)).days / 7.0
+                        duration = int(round(duration, 0))
+                        if 'workload' in job:
+                            if job['workload'] == "Less than 10 hrs/week":
+                                if current_total_hours:
+                                    duration = self.clamp(duration, current_total_hours / 10, current_total_hours / 1)
+                            elif job['workload'] == "10-30 hrs/week":
+                                if current_total_hours:
+                                    duration = self.clamp(duration, current_total_hours / 30, current_total_hours / 10)
+                            elif job['workload'] == "30+ hrs/week":
+                                if current_total_hours:
+                                    duration = min(current_total_hours / 30, duration)
+                        durations.append(duration)
+                    elif current_total_hours and 'workload' in job:
+                        if job['workload'] == "Less than 10 hrs/week":
+                            duration = int(round(current_total_hours / 5.0, 0))
+                        elif job['workload'] == "10-30 hrs/week":
+                            duration = int(round(current_total_hours / 15.0, 0))
+                        else:
+                            duration = int(round(current_total_hours / 30.0, 0))
+                        durations.append(duration)
+                    if 'feedback_for_provider' in info:
+                        for feedback in \
+                                info['feedback_for_provider']['scores']['score']:
+                            if 'feedback_for_freelancer_{}'.format(
+                                    feedback['label'].lower()) in feedbacks:
+                                feedbacks[
+                                    'feedback_for_freelancer_{}'.format(feedback['label'].lower())] \
+                                    += float(feedback['score']) / divisor_freelancer
+                            else:
+                                feedbacks[
+                                    'feedback_for_freelancer_{}'.format(feedback['label'].lower())] \
+                                    = float(feedback['score']) / divisor_freelancer
+                    if 'feedback_for_buyer' in info:
+                        for feedback in info['feedback_for_buyer']['scores']['score']:
+                            if 'feedback_for_client_{}'.format(
+                                    feedback['label'].lower()) in feedbacks:
+                                feedbacks[
+                                    'feedback_for_client_{}'.format(feedback['label'].lower())] \
+                                    += float(feedback['score']) / divisor_client
+                            else:
+                                feedbacks[
+                                    'feedback_for_client_{}'.format(feedback['label'].lower())] \
+                                    = float(feedback['score']) / divisor_client
+                if 'op_contractor_tier' in job_profile \
+                        and self.is_int(job_profile['op_contractor_tier']):
+                    job['experience_level'] = int(job_profile['op_contractor_tier'])
+                job.update(feedbacks)
+                job['freelancer_count'] = int(len(assignment_info))
+                job['total_charge'] = float(total_charge)
+                job['total_hours'] = total_hours
+                job['duration_weeks_median'] = self.median(durations)
+                job['duration_weeks_total'] = sum(durations)
+            except Exception as e:
+                print "Enriching job {} with additional data failed: {}" \
+                    .format(job['id'], e)
+        return found_jobs, job_profiles
+
     ### post request
     def post(self):
         json_data = request.get_json(force=True)
@@ -139,18 +296,18 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
         exception = "None"
 
+        # connect to Upwork
+        client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
+                               oauth_access_token=credentials.oauth_access_token,
+                               oauth_access_token_secret=credentials.oauth_access_token_secret,
+                               timeout=30)
+
         # assemble data in multiple iterations because of maximum number of data we can request
         for p in range(0, pages):
 
             if p == pages - 1:
                 _sample_size = (sample_size % max_request_size) if (sample_size % max_request_size) != 0 else sample_size
             # print 'paging: ' + str(p * max_request_size) + ';' + str(_sample_size)
-
-            # connect to Upwork
-            client = upwork.Client(public_key=credentials.public_key, secret_key=credentials.secret_key,
-                                   oauth_access_token=credentials.oauth_access_token,
-                                   oauth_access_token_secret=credentials.oauth_access_token_secret,
-                                   timeout=30)
 
             query_data = {'q': '*', 'category2': 'Data Science & Analytics',
                           'job_status': 'completed', 'days_posted': days_posted}
@@ -178,106 +335,26 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
 
         if found_jobs is not None:
 
-            job_profiles = []
-            counter = 0
-            for job in found_jobs:
-                # Save already found profiles in 10% progress steps
-                if self.safe_modulo(counter, int(round(len(found_jobs)/10))) == 0:
-                    try:
-                        with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
-                            f.truncate()
-                            f.write(json.dumps(found_jobs))
-                        with open(working_dir + strftime("job_profiles_%d.%m.-%H%M.json", gmtime()), "a+") as f:
-                            f.truncate()
-                            f.write(json.dumps(job_profiles))
-                    except Exception as e:
-                        print '\r\n Problems writing to JSON file, aborted.\r\n'
+            # Uncomment to load from files instead from Upwork
+            #
+            # with open(working_dir + "job_profiles_complete.json") as f:
+            #     job_profiles = json.load(f)
+            # stored_profiles = {}
+            # for job_profile in job_profiles:
+            #     stored_profiles[job_profile['id']] = job_profile
+            #
+            # with open(working_dir + "found_jobs_4K.json") as f:
+            #     found_jobs = json.load(f)
 
-                for i in range(0, max_tries):
-                    try:
-                        job_profile = client.job.get_job_profile(job["id"].encode('UTF-8'))
-                        if job_profile['ciphertext'] == job['id']:
-                            # Replace the key 'ciphertext' with 'id' to make it easier to use with RethinkDB later
-                            job_profile.pop('ciphertext')
-                            job_profile['id'] = job['id']
-
-                            job_profiles.append(job_profile)
-                            counter += 1
-                            self.print_progress(counter, len(found_jobs), prefix = 'Progress:', suffix = 'Complete', bar_length = 50)
-                            assignment_info = job_profile['assignment_info']['info']
-                            # For jobs with only a single freelancer, assignment_info directly contains the info
-                            if not isinstance(assignment_info, list):
-                                assignment_info = [assignment_info]
-                            # Create the divisor to build the average of the individual feedback elements
-                            divisor = float(len(assignment_info))
-                            for info in assignment_info:
-                                if 'feedback_for_buyer' not in info and 'feedback_for_provider' not in info:
-                                    divisor -= 1.0
-
-                            total_charge = 0
-                            total_hours = 0
-                            durations = []
-                            feedbacks = {}
-                            for info in assignment_info:
-                                if 'total_charge' in info and self.is_float(info['total_charge']):
-                                    total_charge += float(info['total_charge'])
-                                if 'tot_hours' in info and self.is_int(info['tot_hours']):
-                                    current_total_hours = int(info['tot_hours'])
-                                    total_hours += current_total_hours
-                                else:
-                                    current_total_hours = None
-                                if 'start_date' in info and 'end_data' in info \
-                                    and self.is_int(info['start_date']) and self.is_int(info['end_data']):
-                                        # duration is captured in weeks
-                                        duration = (datetime.fromtimestamp(int(info['end_data'])/1000) -
-                                                    datetime.fromtimestamp(int(info['start_date'])/1000)).days/7
-                                        if 'workload' in job:
-                                            if job['workload'] == "Less than 10 hrs/week":
-                                                if current_total_hours:
-                                                    duration = max(current_total_hours/10,
-                                                                   min(duration, int(info['tot_hours'])/1))
-                                            elif job['workload'] == "10-30 hrs/week":
-                                                if current_total_hours:
-                                                    duration = max(current_total_hours/30,
-                                                                   min(duration, int(info['tot_hours'])/10))
-                                            elif job['workload'] == "30+ hrs/week":
-                                                if current_total_hours:
-                                                    duration = min(current_total_hours/30,
-                                                                   duration)
-                                        durations.append(duration)
-                                if 'feedback_for_provider' in info:
-                                    for feedback in info['feedback_for_provider']['scores']['score']:
-                                        if 'feedback_for_freelancer_{}'.format(feedback['label'].lower()) in feedbacks:
-                                            feedbacks['feedback_for_freelancer_{}'.format(feedback['label'].lower())]\
-                                                += float(feedback['score']) / divisor
-                                        else:
-                                            feedbacks['feedback_for_freelancer_{}'.format(feedback['label'].lower())]\
-                                                = float(feedback['score']) / divisor
-                                if 'feedback_for_buyer' in info:
-                                    for feedback in info['feedback_for_buyer']['scores']['score']:
-                                        if 'feedback_for_client_{}'.format(feedback['label'].lower()) in feedbacks:
-                                            feedbacks['feedback_for_client_{}'.format(feedback['label'].lower())]\
-                                                += float(feedback['score']) / divisor
-                                        else:
-                                            feedbacks['feedback_for_client_{}'.format(feedback['label'].lower())]\
-                                                = float(feedback['score']) / divisor
-                            if 'op_contractor_tier' in job_profile and self.is_int(job_profile['op_contractor_tier']):
-                                job['experience_level'] = int(job_profile['op_contractor_tier'])
-                            job.update(feedbacks)
-                            job['freelancer_count'] = int(len(assignment_info))
-                            job['total_charge'] = float(total_charge)
-                            job['total_hours'] = total_hours
-                            job['duration_weeks_median'] = self.median(durations)
-                            job['duration_weeks_total'] = sum(durations)
-                        break
-                    except Exception as e:
-                        if hasattr(e, 'code') and e.code == 403:
-                            print '\r\n Profile access denied for job {} \r\n'.format(job['id'])
-                            break
-                        print 'Number of tries for job profile: {}'.format(str(i))
-                        print e
+            found_jobs, job_profiles = self.enrich_with_job_profiles(client, found_jobs,
+                                                                     save_incrementally=True)
 
             with open(working_dir + strftime("found_jobs_%d.%m.-%H%M.json", gmtime()), "a+") as f:
+                f.truncate()
+                f.write(json.dumps(found_jobs))
+
+            # store the jobs for all the mining modules as fallback
+            with open(working_dir + "dm_lib/" + JOBS_FILE, "a+") as f:
                 f.truncate()
                 f.write(json.dumps(found_jobs))
 
@@ -286,7 +363,29 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 f.write(json.dumps(job_profiles))
 
             response = rdb.table(RDB_JOB_TABLE).insert(found_jobs, conflict="replace").run(g.rdb_conn)
-            rdb.table(RDB_PROFILE_TABLE).insert(job_profiles, conflict="replace").run(g.rdb_conn)
+
+            if not rdb.table_list().contains(RDB_JOB_OPTIMIZED_TABLE).run(g.rdb_conn):
+                rdb.table_create(RDB_JOB_OPTIMIZED_TABLE).run(g.rdb_conn)
+            else:
+                rdb.table(RDB_JOB_OPTIMIZED_TABLE).delete().run(g.rdb_conn)
+
+            # prepare data with dm_lib
+            data_frame = prepare_data(file_name='', jobs=found_jobs)
+            data_frame.date_created = data_frame.date_created.apply(
+                lambda time: time.to_pydatetime().replace(
+                    tzinfo=rdb.make_timezone("+02:00"))
+            )
+            data_frame['id'] = data_frame.index
+            rdb.table(RDB_JOB_OPTIMIZED_TABLE).insert(
+                data_frame.to_dict('records'), conflict="replace").run(g.rdb_conn)
+
+            # make all mining modules aware of the data refresh
+            update_urls = [module_url + "update_model/" for module_url in self.mining_module_urls.values()]
+            try:
+                rs = (grequests.post(u) for u in update_urls)
+                grequests.map(rs)
+            except Exception as e:
+                print "Exception: {}".format(e)
 
             success_criterion = len(found_jobs) == sample_size and response['inserted'] > 0
             if len(found_jobs) != sample_size:

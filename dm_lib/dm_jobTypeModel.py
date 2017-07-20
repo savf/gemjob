@@ -126,16 +126,17 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
     return model, df_train.columns
 
 
-def jobtype_model_development(file_name):
+def jobtype_model_development(file_name, connection):
     """ Learn model for label 'job_type' and return it
 
     :param file_name: File name of JSON file containing the data
     :type file_name: str
+    :param connection: RethinkDB connection
     """
     label_name = "job_type"
 
     #data_frame = prepare_data(file_name)
-    data_frame = load_data_frame_from_db()
+    data_frame = load_data_frame_from_db(connection)
     data_frame = prepare_data_jobtype_model(data_frame, label_name,
                                             relative_sampling=False)
 
@@ -155,7 +156,7 @@ def jobtype_model_development(file_name):
                                                vectorizers=vectorizers)
 
     model, columns = create_model(df_train, label_name,
-                                  is_classification=True, selectbest=10)
+                                  is_classification=True, selectbest=False)
 
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
 

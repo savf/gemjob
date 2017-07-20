@@ -1,4 +1,4 @@
-FROM python:2.7-alpine
+FROM savf/python-27-data-science
 RUN mkdir /data_module
 ADD requirements.txt /data_module
 WORKDIR /data_module

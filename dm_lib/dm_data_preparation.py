@@ -25,21 +25,23 @@ def get_detailed_feedbacks_names():
                  'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
 
 
-def create_data_frame(file_name):
+def create_data_frame(file_name, jobs=None):
     """ Load data from json file and return as pandas DataFrame
 
     :param file_name: JSON filename
     :type file_name: str
+    :param jobs: Jobs as list of dict, not from file
+    :type jobs: list(dict())
     :return: DataFrame with data from JSON file
     :rtype: pandas.DataFrame
     """
-
-    with open(_working_dir + file_name, "r") as f:
-        found_jobs = f.read()
-    data = json.loads(found_jobs)
+    if jobs is None:
+        with open(_working_dir + file_name, "r") as f:
+            found_jobs = f.read()
+        jobs = json.loads(found_jobs)
 
     # normalize json because of nested client data
-    df = pd.io.json.json_normalize(data)
+    df = pd.io.json.json_normalize(jobs)
     return df
 
 
@@ -240,15 +242,17 @@ def make_attributes_safe(raw_job):
                 raw_job[key] = "30+ hrs/week"
 
 
-def prepare_data(file_name):
+def prepare_data(file_name, jobs=None):
     """ Clean data
 
     :param file_name: File name where data is stored
     :type file_name: str
+    :param jobs: List of jobs in dicts
+    :type jobs: list(dict())
     :return: Cleaned DataFrame
     :rtype: pandas.DataFrame
     """
-    data_frame = create_data_frame(file_name)
+    data_frame = create_data_frame(file_name, jobs)
     data_frame.columns = [c.replace('.', '_') for c in
                           data_frame.columns]  # so we can access a column with "data_frame.client_reviews_count"
 
@@ -257,8 +261,7 @@ def prepare_data(file_name):
 
     # convert total_charge and freelancer_count to number
     data_frame["total_charge"] = pd.to_numeric(data_frame["total_charge"])
-    data_frame["freelancer_count"] = pd.to_numeric(
-        data_frame["freelancer_count"])
+    data_frame["freelancer_count"] = pd.to_numeric(data_frame["freelancer_count"])
 
     # TODO: client_payment_verification_status may be static as well (or practically static)
     # Remove static and key attributes
