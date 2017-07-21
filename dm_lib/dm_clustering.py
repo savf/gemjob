@@ -74,7 +74,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
         return data_frame, min, max, vectorizers
 
 
-def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True, do_log_transform=True):
     """ Clean and prepare data specific to clustering
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -133,6 +133,11 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     for col in data_frame.columns:
         if col not in cluster_columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
+
+    # transform
+    if do_log_transform:
+        data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name="", add_to_df=False)
+
     # normalize
     data_frame, _, _ = normalize_min_max(data_frame, min, max)
 
@@ -493,7 +498,7 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, mi
     return kmeans, clusters, centroids, min, max, vectorizers
 
 
-def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
+def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3, do_log_transform=True):
     """ Cluster using mean-shift algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.65 WITH removing columns
@@ -517,6 +522,9 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    if do_log_transform:
+        data_frame = treat_outliers_deletion(data_frame, budget_name="")
+        data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name="", add_to_df=False)
     # print data_frame[0:5]
 
     if find_best_params:
@@ -552,6 +560,7 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     centroids = pd.DataFrame(ms.cluster_centers_, columns=data_frame.columns)
 
     silhouette_score = metrics.silhouette_score(data_frame, labels)
+    print "silhouette_score =",silhouette_score
 
     # cluster the original data frame
     data_frame["cluster_label"] = labels
@@ -903,12 +912,15 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
     data_frame_original_test = df_test.copy()
 
     if method == "Mean-Shift":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train, find_best_params=False, do_explore=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=False)
+        model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=True)
     elif method == "K-Means":
         model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, do_explore=False)
+        # model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_kmeans(df_train_log, find_best_params=False, do_explore=False)
     # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
+        # model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_dbscan(df_train_log, find_best_params=False, do_explore=False)
 
     if target == "budget":
         # remove rows without budget to predict_comparison budget
@@ -918,16 +930,22 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
         df_test = balance_data_set(df_test, target, relative_sampling=False)
 
     # prepare test data
-    df_test = prepare_test_data_clustering(df_test, centroids.columns, min, max, vectorizers=vectorizers, weighting=True)
+    df_test_log = prepare_test_data_clustering(df_test.copy(), centroids_log.columns, min_log, max_log, vectorizers=vectorizers_log, weighting=True, do_log_transform=True)
+    df_test = prepare_test_data_clustering(df_test.copy(), centroids.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=False)
 
     # predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
     # unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
-    unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=[target], do_reweighting=False)
+    unnormalized_data = predict_comparison(model, data_frame_original_test.copy(), df_test, clusters, centroids, target_columns=[target], do_reweighting=False)
+    unnormalized_data_log = predict_comparison(model_log, data_frame_original_test.copy(), df_test_log, clusters_log, centroids_log, target_columns=[target], do_reweighting=False)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
 
     print "\n"
     if target == "budget":
         evaluate_regression(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
+        print "\nLog transfomed:"
+        evaluate_regression(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
         evaluate_classification(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
+        print "\nLog transfomed:"
+        evaluate_classification(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)

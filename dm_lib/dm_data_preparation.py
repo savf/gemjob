@@ -3,7 +3,7 @@ import os
 import json
 import pandas as pd
 import numpy as np
-from math import log
+from math import log, exp
 import random
 import rethinkdb as rdb
 from rethinkdb import RqlDriverError, RqlRuntimeError
@@ -467,9 +467,10 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
     # TODO: Check if additional attributes could benefit from outlier treatment
     attributes_to_consider = ['total_hours', 'duration_weeks_median']
 
-    if budget_name == "total_charge":
+    if budget_name == "total_charge" or budget_name == "":
         attributes_to_consider.append('total_charge')
-    elif data_frame['budget'].dtype.name != "category":
+
+    if budget_name == "budget" or budget_name == "" and (data_frame['budget'].dtype.name != "category"):
         attributes_to_consider.append('budget')
 
     # TODO: Not very efficient -> maybe something with apply and any?
@@ -485,7 +486,7 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
     """ Transform attributes with a lot of outliers/strong differences to log scale
 
     :param data_frame: Data Frame
-    :type data_frame: pandas.NDFrame
+    :type data_frame: pandas.DataFrame
     :param label_name: Target label that will be learned
     :type label_name: str
     :param budget_name: Use either "budget" or "total_charge"
@@ -503,10 +504,11 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
     # no log for target label (budget or total_charge)
 
     if label_name != budget_name:
-        if budget_name == "total_charge":
-            attributes.append("total_charge")
-        else:
-            attributes.append("budget")
+        if budget_name == "total_charge" or budget_name == "":
+            attributes.append('total_charge')
+
+        if budget_name == "budget" or budget_name == "" and (data_frame['budget'].dtype.name != "category"):
+            attributes.append('budget')
 
     prefix = ""
     if add_to_df:
@@ -517,6 +519,19 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
             data_frame[prefix+attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else log(float(row)))
 
     return data_frame
+
+
+def revert_log_scale(series):
+    """ Revert log scale e.g. for predicted label
+
+    :param series: Series
+    :type series: pandas.Series
+    """
+
+    # Hint: There is no job with a budget of 1$ in the data (would not be allowed!) -> 0 is always 0
+    series = series.apply(lambda row: 0 if row == 0 else exp(float(row)))
+
+    return series
 
 
 def balance_data_set(data_frame, label_name, relative_sampling=False, printing=True):

@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
+import matplotlib.pyplot as plt
 
 
 def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
@@ -215,7 +216,11 @@ def budget_model_development(file_name, connection):
         df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
         # treat outliers
-        df_train_outl, df_test_outl = treat_outliers(df_train.copy(), df_test.copy(), label_name, label_name, add_to_df=True)
+        df_train_outl, df_test_outl = treat_outliers(df_train.copy(), df_test.copy(), label_name, label_name, add_to_df=False)
+        # print_data_frame("After Outlier treatment", df_train_outl)
+
+        # budget log scale
+        df_train_log, df_test_log = treat_outliers(df_train.copy(), df_test.copy(), "", label_name, add_to_df=False)
 
         # separate text
         df_train, text_train = separate_text(df_train)
@@ -223,6 +228,9 @@ def budget_model_development(file_name, connection):
         # separate text after outlier treatment
         df_train_outl, text_train_outl = separate_text(df_train_outl)
         df_test_outl, text_test_outl = separate_text(df_test_outl)
+        # separate text after loc scale
+        df_train_log, text_train_log = separate_text(df_train_log)
+        df_test_log, text_test_log = separate_text(df_test_log)
 
         # print "\n\n########## Do Text Mining\n"
         # do_text_mining(text_train, text_test, label_name, regression=True, max_features=5000)
@@ -235,22 +243,47 @@ def budget_model_development(file_name, connection):
         # model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=False)
         # print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
         
-        # print "##### With Text Tokens, With Outlier Treatment:"
+        print "\n##### With Text Tokens, With Outlier Treatment:"
         df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
         df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
-        # df_train_outl, min, max = normalize_min_max(df_train_outl)
-        # df_test_outl, _, _ = normalize_min_max(df_test_outl, min, max)
-        df_train_target_outl = df_train_outl[label_name]
-        df_train_outl.drop(labels=[label_name], axis=1, inplace=True)
+        # df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
+        model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
+        # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
+
         df_test_target_outl = df_test_outl[label_name]
         df_test_outl.drop(labels=[label_name], axis=1, inplace=True)
-        df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
-        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
-        model = svm.SVR()
-        model.fit(df_train_outl, df_train_target_outl)
-        # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
         predictions = model.predict(df_test_outl)
+
         evaluate_regression(df_test_target_outl, predictions, label_name)
+
+        plt.figure(1)
+        plt.scatter(df_test_target_outl.values, predictions)
+
+        print "\n##### With Text Tokens, With Outlier Treatment, Log scale:"
+        df_train_log, vectorizers = add_text_tokens_to_data_frame(df_train_log, text_train_log)
+        df_test_log, _ = add_text_tokens_to_data_frame(df_test_log, text_test_log, vectorizers=vectorizers)
+        model, _ = create_model(df_train_log.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
+        # print_model_evaluation(model, df_test_log.copy(), label_name, budget_classification)
+
+        df_test_target_log = df_test_log[label_name]
+        df_test_log.drop(labels=[label_name], axis=1, inplace=True)
+        predictions = model.predict(df_test_log)
+
+        evaluate_regression(df_test_target_log, predictions, label_name)
+
+        plt.figure(2)
+        plt.scatter(df_test_target_log.values, predictions)
+
+        print "\n## Revert log:"
+        df_test_target_log = revert_log_scale(df_test_target_log)
+        predictions = revert_log_scale(pd.Series(predictions))
+        evaluate_regression(df_test_target_log, predictions.values, label_name)
+
+        plt.figure(3)
+        plt.scatter(df_test_target_log.values, predictions.values)
+        plt.show()
+
+
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
         # df_train_outl, df_test_outl = normalize_test_train(df_train_outl, df_test_outl, label_name=label_name, z_score_norm=False, weighting=True)
         # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
@@ -265,7 +298,7 @@ def budget_model_development(file_name, connection):
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
         # treat outliers (no deletion because it changes target in test set as well)
-        df_outl = treat_outliers_log_scale(data_frame.copy(), label_name=label_name, budget_name=label_name, add_to_df=False)
+        df_outl = treat_outliers_log_scale(data_frame.copy(), label_name="", budget_name=label_name, add_to_df=False)
 
         # separate text
         data_frame, df_text = separate_text(data_frame)
@@ -298,6 +331,7 @@ def budget_model_production(connection, budget_name='budget', normalization=True
                                            budget_name, budget_classification)
 
     data_frame = treat_outliers_deletion(data_frame, budget_name=budget_name)
+    data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name=budget_name, add_to_df=False)
     data_frame, text_data = separate_text(data_frame, label_name=budget_name)
     data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame, text_data)
     if normalization:
