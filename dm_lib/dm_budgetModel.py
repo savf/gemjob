@@ -374,6 +374,8 @@ def predict(data_frame, label_name, model, min=None, max=None, is_log_transform=
 
     if is_log_transform:
         prediction = revert_log_scale(pd.Series(prediction))
+        if len(prediction) > 0:
+            prediction = prediction[0]
 
     return prediction
 

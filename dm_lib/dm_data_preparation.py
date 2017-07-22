@@ -45,7 +45,7 @@ def create_data_frame(file_name, jobs=None):
     return df
 
 
-def db_setup(file_name, connection=None, host='localhost', port='28015'):
+def db_setup(file_name, host='localhost', port='28015', connection=None):
     """ Create DB and table if they don't exist, then insert jobs
 
     The database_module needs to be running and the host variable
@@ -54,12 +54,12 @@ def db_setup(file_name, connection=None, host='localhost', port='28015'):
 
     :param file_name: File name where data is stored
     :type file_name: str
-    :param connection: RethinkDB connection
-    :type connection: rethinkdb.net.ConnectionInstance
     :param host: RethinkDB host
     :type host: str
     :param port: RethinkDB port
     :type port: str
+    :param connection: RethinkDB connection
+    :type connection: rethinkdb.net.ConnectionInstance
     """
     database = 'datasets'
     prepared_jobs_table = 'jobs_optimized'
