@@ -427,27 +427,27 @@ def prepare_single_job(json_data):
     return data_frame
 
 
-def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge", add_to_df=False):
-    """ Delete examples with heavy outliers
+# def treat_outliers(df_train, df_test, label_name="", budget_name="total_charge", add_to_df=False):
+#     """ Delete examples with heavy outliers
+#
+#     :param df_train: Data Frame containing train data
+#     :type df_train: pandas.DataFrame
+#     :param df_test: Data Frame containing test data
+#     :type df_test: pandas.DataFrame
+#     :param label_name: Target label that will be learned
+#     :type label_name: str
+#     :param budget_name: Use either "budget" or "total_charge"
+#     :type file_name: str
+#     :param add_to_df: add log scale as new attributes (True) or replace old attributes (False)
+#     :type add_to_df: bool
+#     """
+#     df_train = treat_outliers_deletion(df_train, budget_name)
+#     df_train = treat_outliers_log_scale(df_train, label_name, budget_name, add_to_df=add_to_df)
+#     df_test = treat_outliers_log_scale(df_test, label_name, budget_name, add_to_df=add_to_df)
+#     return df_train, df_test
 
-    :param df_train: Data Frame containing train data
-    :type df_train: pandas.DataFrame
-    :param df_test: Data Frame containing test data
-    :type df_test: pandas.DataFrame
-    :param label_name: Target label that will be learned
-    :type label_name: str
-    :param budget_name: Use either "budget" or "total_charge"
-    :type file_name: str
-    :param add_to_df: add log scale as new attributes (True) or replace old attributes (False)
-    :type add_to_df: bool
-    """
-    df_train = treat_outliers_deletion(df_train, budget_name)
-    df_train = treat_outliers_log_scale(df_train, label_name, budget_name, add_to_df=add_to_df)
-    df_test = treat_outliers_log_scale(df_test, label_name, budget_name, add_to_df=add_to_df)
-    return df_train, df_test
 
-
-def treat_outliers_deletion(data_frame, budget_name="total_charge"):
+def treat_outliers_deletion(data_frame, ignore_labels=[]):
     """ Delete examples with heavy outliers
     delete only in training set!!!!
 
@@ -464,33 +464,29 @@ def treat_outliers_deletion(data_frame, budget_name="total_charge"):
 
     outliers = ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr)))
 
-    # TODO: Check if additional attributes could benefit from outlier treatment
-    attributes_to_consider = ['total_hours', 'duration_weeks_median']
+    attributes = ['total_hours', 'duration_weeks_median', 'total_charge']
 
-    if budget_name == "total_charge" or budget_name == "":
-        attributes_to_consider.append('total_charge')
+    if data_frame['budget'].dtype.name != "category":
+        attributes.append('budget')
 
-    if budget_name == "budget" or budget_name == "" and (data_frame['budget'].dtype.name != "category"):
-        attributes_to_consider.append('budget')
+    for attr in attributes:
+        if attr in ignore_labels or attr not in data_frame.columns:
+            attributes.remove(attr)
 
-    # TODO: Not very efficient -> maybe something with apply and any?
-    outlier_indices = [idx for idx in data_frame.index if
-                       outliers[attributes_to_consider].loc[idx].any()]
+    outlier_indices = [idx for idx in data_frame.index if outliers[attributes].loc[idx].any()]
     del outliers
     data_frame.drop(outlier_indices, inplace=True)
 
     return data_frame
 
 
-def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charge", add_to_df=False):
+def transform_log_scale(data_frame, ignore_labels=[], add_to_df=False):
     """ Transform attributes with a lot of outliers/strong differences to log scale
 
     :param data_frame: Data Frame
     :type data_frame: pandas.DataFrame
-    :param label_name: Target label that will be learned
+    :param label_name: Label
     :type label_name: str
-    :param budget_name: Use either "budget" or "total_charge"
-    :type file_name: str
     :param add_to_df: add as new attributes (True) or replace old attributes (False)
     :type add_to_df: bool
     """
@@ -499,15 +495,15 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
                   "duration_weeks_median",
                   "client_jobs_posted",
                   "client_reviews_count",
-                  "client_past_hires"]
+                  "client_past_hires",
+                  'total_charge',
+                  'feedback_for_client',
+                  'feedback_for_freelancer',
+                  'client_feedback']
 
     # no log for target label (budget or total_charge)
 
-    if label_name != budget_name:
-        if budget_name == "total_charge" or budget_name == "":
-            attributes.append('total_charge')
-
-        if budget_name == "budget" or budget_name == "" and (data_frame['budget'].dtype.name != "category"):
+    if 'budget' in data_frame.columns and data_frame['budget'].dtype.name != "category":
             attributes.append('budget')
 
     prefix = ""
@@ -515,7 +511,7 @@ def treat_outliers_log_scale(data_frame, label_name="", budget_name="total_charg
         prefix = "log_"
 
     for attr in attributes:
-        if attr in data_frame.columns:
+        if attr in data_frame.columns and attr not in ignore_labels:
             data_frame[prefix+attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else log(float(row)))
 
     return data_frame
@@ -863,14 +859,14 @@ def normalize_test_train(df_train, df_test, label_name=None, z_score_norm=False,
 
     return df_train, df_test
 
-def reduce_tokens_to_single_job(normalized_job, normalized_centroids, text_weight=5):
+def reduce_tokens_to_single_job(normalized_job, normalized_data, text_weight=5):
     """ Remove tokens not existing in a single job and reweight -> more focus on user text
     IMPORTANT: usually we should pass a copy of the data, so centroids are still the same for other jobs
 
     :param normalized_job: Pandas DataFrame
     :type normalized_job: pd.DataFrame
-    :param normalized_centroids: Pandas DataFrame
-    :type normalized_centroids: pd.DataFrame
+    :param normalized_data: Pandas DataFrame
+    :type normalized_data: pd.DataFrame
     :return: Reweighted Pandas DataFrames with less tokens
     :rtype: pandas.DataFrame
     """
@@ -881,19 +877,19 @@ def reduce_tokens_to_single_job(normalized_job, normalized_centroids, text_weigh
             # remove old weighting
             old_len = len(token_names)
             normalized_job[token_names] = normalized_job[token_names] * old_len
-            normalized_centroids[token_names] = normalized_centroids[token_names] * old_len
+            normalized_data[token_names] = normalized_data[token_names] * old_len
             # remove tokens that are 0 in user job
             zero_tokens = list(normalized_job[token_names].loc[:, (normalized_job[token_names] == 0).any(axis=0)].columns)
             # print "\n## ZERO TOKENS: ##\n",zero_tokens[0:20]
             # print "# Removing", len(zero_tokens), "tokens and reweighting"
             normalized_job.drop(labels=zero_tokens, axis=1, inplace=True)
-            normalized_centroids.drop(labels=zero_tokens, axis=1, inplace=True)
+            normalized_data.drop(labels=zero_tokens, axis=1, inplace=True)
 
             # add new weighting
             remaining_columns = [x for x in token_names if x not in zero_tokens]
             new_len = old_len-len(zero_tokens)
             normalized_job[remaining_columns] = normalized_job[remaining_columns] * text_weight / new_len
-            normalized_centroids[remaining_columns] = normalized_centroids[remaining_columns] * text_weight / new_len
+            normalized_data[remaining_columns] = normalized_data[remaining_columns] * text_weight / new_len
 
 
-    return normalized_job, normalized_centroids
+    return normalized_job, normalized_data

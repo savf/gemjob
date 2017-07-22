@@ -151,30 +151,37 @@ def feedback_model_development(file_name, connection=None):
 
     df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
                                                           df_train_text)
-    print "Added text tokens to train set"
 
     df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
                                                vectorizers=vectorizers)
 
-    print "Added text tokens to test set"
+    # treat outliers
+    df_train_outl = treat_outliers_deletion(df_train.copy())
+    # budget log scale and outlier deletion
+    df_train_log = transform_log_scale(df_train_outl.copy(), add_to_df=False)
+    df_test_log = transform_log_scale(df_test.copy(), add_to_df=False)
 
-    model, columns = create_model(df_train, label_name,
-                                  feedback_classification,
-                                  selectbest=False,
-                                  variance_threshold=True)
-
-    # print "Built model with following columns: {}".format(columns)
-
+    print "\nNo changes:"
+    model, columns = create_model(df_train, label_name, feedback_classification, selectbest=False, variance_threshold=True)
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
+    evaluate_regression(df_test[label_name], predictions, label_name)
 
-    # evaluate_regression(df_test[label_name], predictions, label_name)
+    print "\nLog transformed and outliers deleted:"
+    model, columns = create_model(df_train_log, label_name, feedback_classification, selectbest=False, variance_threshold=True)
+    predictions = model.predict(df_test_log.ix[:, df_test_log.columns != label_name])
+    evaluate_regression(df_test_log[label_name], predictions, label_name)
+
+    print "\n## Revert log:"
+    df_test_target_log = revert_log_scale(df_test_log[label_name])
+    predictions = revert_log_scale(pd.Series(predictions))
+    evaluate_regression(df_test_target_log, predictions.values, label_name)
 
     # print_predictions_comparison(df_test, predictions, label_name, 50)
 
     # Test predictions for feedbacks < 3.0
-    threshold = 3.0
-    evaluate_regression(df_test.loc[df_test['feedback_for_client'] < threshold, 'feedback_for_client'],
-                        predictions[np.where(df_test['feedback_for_client'] < threshold)], label_name)
+    # threshold = 3.0
+    # evaluate_regression(df_test.loc[df_test['feedback_for_client'] < threshold, 'feedback_for_client'],
+    #                     predictions[np.where(df_test['feedback_for_client'] < threshold)], label_name)
     # print_correlations(data_frame, label_name)
 
 

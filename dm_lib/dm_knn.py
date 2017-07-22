@@ -1,6 +1,6 @@
 from dm_clustering import *
 
-def predict_knn(unnormalized_data, normalized_train, normalized_test, k, target_columns):
+def predict_knn(unnormalized_data, normalized_train, normalized_test, k, target_columns, do_reweighting=True):
 
     # get actual target_columns (dummies)
     actual_cols = []
@@ -14,8 +14,13 @@ def predict_knn(unnormalized_data, normalized_train, normalized_test, k, target_
     # get neighbors based on euclidean distance
     distances_dict = {}
     for index_test, row_test in normalized_test.iterrows():
-        distances = euclidean_distances(normalized_train, row_test.values.reshape(1, -1))
-        distances = pd.DataFrame(distances, columns=["distances"], index=normalized_train.index)
+        row_df = pd.DataFrame(row_test.values.reshape(1, -1), index=[0], columns=list(normalized_train.columns))
+        if do_reweighting:
+            row_df, normalized_train_rw = reduce_tokens_to_single_job(row_df.copy(), normalized_train.copy())
+        else:
+            normalized_train_rw = normalized_train
+        distances = euclidean_distances(normalized_train_rw, row_df)
+        distances = pd.DataFrame(distances, columns=["distances"], index=normalized_train_rw.index)
         distances.sort_values(by="distances", axis=0, inplace=True)
         # get k nearest
         distances_dict[index_test] = distances[0:k]
@@ -84,7 +89,7 @@ def test_knn(file_name, target="budget"):
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
     # in app, train data would be prepared in db
-    df_train, min, max, vectorizers = prepare_data_clustering(df_train, z_score_norm=False, add_text=True)
+    df_train, min, max, vectorizers = prepare_data_clustering(df_train, z_score_norm=False, add_text=True, do_log_transform=True)
 
     if target == "budget":
         # remove rows without budget to predict_comparison budget
@@ -94,12 +99,12 @@ def test_knn(file_name, target="budget"):
         df_test = balance_data_set(df_test, target, relative_sampling=False)
 
     # prepare test data
-    df_test = prepare_test_data_clustering(df_test, df_train.columns, min, max, vectorizers=vectorizers, weighting=True)
+    df_test = prepare_test_data_clustering(df_test, df_train.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=True)
 
-    unnormalized_data = predict_knn(data_frame_original.copy(), df_train.copy(), df_test.copy(), k=15, target_columns=[target])
+    unnormalized_data = predict_knn(data_frame_original.copy(), df_train.copy(), df_test.copy(), k=15, target_columns=[target], do_reweighting=False)
 
     print "\n"
-    if target == "budget":
+    if target in ["budget", "client_feedback", "feedback_for_client", "feedback_for_freelancer"]:
         evaluate_regression(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
         evaluate_classification(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)

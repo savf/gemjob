@@ -9,7 +9,7 @@ from dm_text_mining import add_text_tokens_to_data_frame
 
 ERROR_VALUE = -1
 
-def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weighting=True):
+def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weighting=True, do_log_transform=True):
     """ Clean and prepare data specific to clustering
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -54,6 +54,11 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
         data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame, text_data)
     else:
         vectorizers = {}
+
+    # transform to log scale where skewed distribution
+    treat_outliers_deletion(data_frame)
+    if do_log_transform:
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
 
     # normalize
     if z_score_norm:
@@ -134,9 +139,9 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
         if col not in cluster_columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
 
-    # transform
+    # transform to log scale where skewed distribution
     if do_log_transform:
-        data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name="", add_to_df=False)
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
 
     # normalize
     data_frame, _, _ = normalize_min_max(data_frame, min, max)
@@ -151,7 +156,7 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
 
     return data_frame
 
-def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True):
+def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectorizers=None, weighting=True, do_log_transform=True):
     """ Clean and prepare data specific to clustering
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -209,6 +214,10 @@ def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectori
             data_frame.drop(labels=[col], axis=1, inplace=True)
 
     print_data_frame("after adding all cols", data_frame)
+
+    # transform to log scale where skewed distribution
+    if do_log_transform:
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
 
     # normalize
     data_frame, _, _ = normalize_min_max(data_frame, min, max)
@@ -521,10 +530,8 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     data_frame_original = data_frame.copy()
 
     # prepare for clustering
-    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
-    if do_log_transform:
-        data_frame = treat_outliers_deletion(data_frame, budget_name="")
-        data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name="", add_to_df=False)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
+
     # print data_frame[0:5]
 
     if find_best_params:
@@ -941,7 +948,7 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
 
     print "\n"
-    if target == "budget":
+    if target in ["budget", "client_feedback", "feedback_for_client", "feedback_for_freelancer"]:
         evaluate_regression(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
         print "\nLog transfomed:"
         evaluate_regression(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)

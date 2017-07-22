@@ -63,23 +63,23 @@ RDB_HOST = "localhost"
 
 #run
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
+# test_knn(JOBS_FILE, target="feedback_for_client")
 db_setup(JOBS_FILE, host=RDB_HOST)
 
 connection = rdb.connect(RDB_HOST, RDB_PORT)
 try:
-    # prepare_data("data/found_jobs_4K_extended.json")
-    budget_model_development("data/found_jobs_4K_extended.json", connection)
+    # prepare_data(JOBS_FILE)
+    budget_model_development(JOBS_FILE, connection)
     # budget_model_production(connection)
     # jobtype_model_production(connection)
-    # jobtype_model_development("data/found_jobs_4K_extended.json", connection)
-    # feedback_model_development("data/found_jobs_4K_extended.json", connection)
+    # jobtype_model_development(JOBS_FILE, connection)
+    # feedback_model_development(JOBS_FILE, connection)
     # feedback_model_production(connection, normalization=False)
-    # experience_level_model("data/found_jobs_4K_extended.json")
+    # experience_level_model(JOBS_FILE)
     # test_text_mining()
-    # explore_data("data/found_jobs_4K_extended.json")
-    # test_knn("data/found_jobs_4K_extended.json")
+    # explore_data(JOBS_FILE)
+    # test_knn(JOBS_FILE)
 except RqlRuntimeError as e:
     print 'Database error: {}'.format(e)
 finally:
     connection.close()
-

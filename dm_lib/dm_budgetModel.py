@@ -10,10 +10,10 @@ from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 
-def prepare_data_budget_model(data_frame, label_name, budget_classification=False):
+def prepare_data_budget_model(data_frame, label_name, is_train_data, budget_classification=False, do_log_transform=True):
     """ Clean data specific to the budget model
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -60,14 +60,19 @@ def prepare_data_budget_model(data_frame, label_name, budget_classification=Fals
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name)
 
+    # transform to log scale where skewed distribution
+    if is_train_data:
+        treat_outliers_deletion(data_frame)
+    if do_log_transform:
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
+
     # print data_frame, "\n"
     # print_data_frame("After preparing for budget model", data_frame)
 
     return data_frame
 
 
-def prepare_single_job_budget_model(data_frame, label_name,
-                                    columns, min, max, vectorizers):
+def prepare_single_job_budget_model(data_frame, label_name, columns, min, max, vectorizers, do_log_transform=True):
     """ Prepare a data frame with a single job for prediction
 
     :param data_frame: Pandas DataFrame holding the single job
@@ -83,8 +88,7 @@ def prepare_single_job_budget_model(data_frame, label_name,
     :return: Data Frame with single job ready for prediction
     :rtype: pandas.DataFrame
     """
-    data_frame = prepare_data_budget_model(data_frame, label_name=label_name,
-                                           budget_classification=False)
+    data_frame = prepare_data_budget_model(data_frame, label_name=label_name, is_train_data=False, budget_classification=False)
 
     # handle text
     data_frame, text_data = separate_text(data_frame)
@@ -100,6 +104,10 @@ def prepare_single_job_budget_model(data_frame, label_name,
     for col in data_frame.columns:
         if col not in columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
+
+    # transform to log scale where skewed distribution
+    if do_log_transform:
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
 
     # normalize
     if min is not None and max is not None:
@@ -202,32 +210,28 @@ def budget_model_development(file_name, connection):
     label_name = "budget"
     budget_classification = False
     do_cross_val = False
-    # label_name = "total_charge"
 
     # data_frame = prepare_data(file_name)
     data_frame = load_data_frame_from_db(connection=connection)
 
     # prepare for model
-    data_frame = prepare_data_budget_model(data_frame, label_name, budget_classification=budget_classification)
-    # print_correlations(data_frame, label_name)
+    data_frame = prepare_data_budget_model(data_frame, label_name, is_train_data=False, budget_classification=budget_classification, do_log_transform=False)
 
     if not do_cross_val:
         # split
         df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
         # treat outliers
-        df_train_outl, df_test_outl = treat_outliers(df_train.copy(), df_test.copy(), label_name, label_name, add_to_df=False)
-        # print_data_frame("After Outlier treatment", df_train_outl)
-
-        # budget log scale
-        df_train_log, df_test_log = treat_outliers(df_train.copy(), df_test.copy(), "", label_name, add_to_df=False)
+        df_train_outl = treat_outliers_deletion(df_train.copy())
+        # budget log scale and outlier deletion
+        df_train_log = transform_log_scale(df_train_outl.copy(), add_to_df=False)
+        df_test_log = transform_log_scale(df_test.copy(), add_to_df=False)
 
         # separate text
-        df_train, text_train = separate_text(df_train)
+        # df_train, text_train = separate_text(df_train)
         df_test, text_test = separate_text(df_test)
         # separate text after outlier treatment
         df_train_outl, text_train_outl = separate_text(df_train_outl)
-        df_test_outl, text_test_outl = separate_text(df_test_outl)
         # separate text after loc scale
         df_train_log, text_train_log = separate_text(df_train_log)
         df_test_log, text_test_log = separate_text(df_test_log)
@@ -245,7 +249,7 @@ def budget_model_development(file_name, connection):
         
         print "\n##### With Text Tokens, With Outlier Treatment:"
         df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
-        df_test_outl, _ = add_text_tokens_to_data_frame(df_test_outl, text_test_outl, vectorizers=vectorizers)
+        df_test_outl, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
         # df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
         model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
         # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
@@ -256,8 +260,8 @@ def budget_model_development(file_name, connection):
 
         evaluate_regression(df_test_target_outl, predictions, label_name)
 
-        plt.figure(1)
-        plt.scatter(df_test_target_outl.values, predictions)
+        # plt.figure(1)
+        # plt.scatter(df_test_target_outl.values, predictions)
 
         print "\n##### With Text Tokens, With Outlier Treatment, Log scale:"
         df_train_log, vectorizers = add_text_tokens_to_data_frame(df_train_log, text_train_log)
@@ -271,17 +275,17 @@ def budget_model_development(file_name, connection):
 
         evaluate_regression(df_test_target_log, predictions, label_name)
 
-        plt.figure(2)
-        plt.scatter(df_test_target_log.values, predictions)
+        # plt.figure(2)
+        # plt.scatter(df_test_target_log.values, predictions)
 
         print "\n## Revert log:"
         df_test_target_log = revert_log_scale(df_test_target_log)
         predictions = revert_log_scale(pd.Series(predictions))
         evaluate_regression(df_test_target_log, predictions.values, label_name)
 
-        plt.figure(3)
-        plt.scatter(df_test_target_log.values, predictions.values)
-        plt.show()
+        # plt.figure(3)
+        # plt.scatter(df_test_target_log.values, predictions.values)
+        # plt.show()
 
 
         # print "##### With Text Tokens, With Outlier Treatment, With Normalization, With Weighting:"
@@ -297,16 +301,13 @@ def budget_model_development(file_name, connection):
         # model, _ = create_model(df_train, label_name, budget_classification)
         # print_model_evaluation(model, df_test, label_name, budget_classification)
     else:
-        # treat outliers (no deletion because it changes target in test set as well)
-        df_outl = treat_outliers_log_scale(data_frame.copy(), label_name="", budget_name=label_name, add_to_df=False)
+        data_frame = transform_log_scale(data_frame, add_to_df=False)
 
         # separate text
         data_frame, df_text = separate_text(data_frame)
-        # separate text after outlier treatment
-        df_outl, df_text_outl = separate_text(df_outl)
 
-        print "\n\n##### With Outlier Treatment:"
-        model, predictions, data_frame_target = create_model_cross_val(df_outl, label_name, budget_classification)
+        print "\n\n##### With Log transform, without text:"
+        model, predictions, data_frame_target = create_model_cross_val(data_frame, label_name, budget_classification)
         if budget_classification:
             evaluate_classification(data_frame_target, predictions, label_name)
         else:
@@ -314,7 +315,7 @@ def budget_model_development(file_name, connection):
         print_predictions_comparison(data_frame_target, predictions, label_name, 20)
 
 
-def budget_model_production(connection, budget_name='budget', normalization=True):
+def budget_model_production(connection, budget_name='budget', normalization=True, do_log_transform=True):
     """ Learn model for label 'budget' on whole dataset and return it
 
     :param connection: RethinkDB connection
@@ -327,11 +328,10 @@ def budget_model_production(connection, budget_name='budget', normalization=True
     budget_classification = False
 
     data_frame = load_data_frame_from_db(connection)
-    data_frame = prepare_data_budget_model(data_frame,
-                                           budget_name, budget_classification)
+    data_frame = prepare_data_budget_model(data_frame, budget_name, is_train_data=True, budget_classification=budget_classification, do_log_transform=do_log_transform)
 
-    data_frame = treat_outliers_deletion(data_frame, budget_name=budget_name)
-    data_frame = treat_outliers_log_scale(data_frame, label_name="", budget_name=budget_name, add_to_df=False)
+    data_frame = treat_outliers_deletion(data_frame)
+
     data_frame, text_data = separate_text(data_frame, label_name=budget_name)
     data_frame, vectorizers = add_text_tokens_to_data_frame(data_frame, text_data)
     if normalization:
@@ -347,7 +347,7 @@ def budget_model_production(connection, budget_name='budget', normalization=True
     return model, columns, min, max, vectorizers, importances
 
 
-def predict(data_frame, label_name, model, min=None, max=None):
+def predict(data_frame, label_name, model, min=None, max=None, is_log_transform=True):
     """ Predict budget for the given data frame
 
     :param data_frame: Pandas DataFrame holding the data for prediction
@@ -372,6 +372,9 @@ def predict(data_frame, label_name, model, min=None, max=None):
         if len(prediction_frame[label_name]) > 0:
             prediction = prediction_frame[label_name][0]
 
+    if is_log_transform:
+        prediction = revert_log_scale(pd.Series(prediction))
+
     return prediction
 
 
@@ -385,18 +388,12 @@ def budget_model_search(file_name):
     data_frame = load_data_frame_from_db()
 
     # prepare for model
-    data_frame = prepare_data_budget_model(data_frame, label_name,
-                                           budget_classification=budget_classification)
+    data_frame = prepare_data_budget_model(data_frame, label_name, is_train_data=False, budget_classification=budget_classification)
     # print_correlations(data_frame, label_name)
 
     if not do_cross_val:
         # split
         df_train, df_test = train_test_split(data_frame, train_size=0.8)
-
-        # treat outliers
-        df_train_outl, df_test_outl = treat_outliers(df_train.copy(),
-                                                     df_test.copy(), label_name,
-                                                     label_name, add_to_df=True)
 
         # separate text
         df_train, text_train = separate_text(df_train)
@@ -418,24 +415,17 @@ def budget_model_search(file_name):
             best_results = abs_err_list.index(min(abs_err_list))
             print ",".join([str(item) for item in [label_name, k] + result_collection[best_results]])
     else:
-        # treat outliers (no deletion because it changes target in test set as well)
-        df_outl = treat_outliers_log_scale(data_frame.copy(),
-                                           label_name=label_name,
-                                           budget_name=label_name,
-                                           add_to_df=False)
-
         # separate text
         data_frame, df_text = separate_text(data_frame)
         # separate text after outlier treatment
-        df_outl, df_text_outl = separate_text(df_outl)
+        data_frame, df_text = separate_text(data_frame)
 
         print "\n\n##### With Outlier Treatment:"
-        model, predictions, data_frame_target = create_model_cross_val(df_outl,
+        model, predictions, data_frame_target = create_model_cross_val(data_frame,
                                                                        label_name,
                                                                        budget_classification)
         if budget_classification:
             evaluate_classification(data_frame_target, predictions, label_name)
         else:
             evaluate_regression(data_frame_target, predictions, label_name)
-        print_predictions_comparison(data_frame_target, predictions, label_name,
-                                     20)
+        print_predictions_comparison(data_frame_target, predictions, label_name, 20)

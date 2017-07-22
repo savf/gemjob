@@ -85,10 +85,7 @@ def start():
 def cluster_data(connection):
     try:
         # load data
-        if connection is None:
-            data_frame = prepare_data("data/found_jobs_4K_extended.json")
-        else:
-            data_frame = load_data_frame_from_db(connection=connection)
+        data_frame = load_data_frame_from_db(connection=connection)
         print "# number of jobs in db:", data_frame.shape[0]
 
         # cluster using mean shift
