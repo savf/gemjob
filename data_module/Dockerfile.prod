@@ -1,0 +1,6 @@
+FROM savf/python-27-data-science
+ADD data_module /data_module
+ADD dm_lib /data_module/dm_lib
+WORKDIR /data_module
+RUN pip install -r requirements.txt
+CMD ["python", "app.py"]

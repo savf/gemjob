@@ -1,0 +1,76 @@
+version: '2'
+services:
+  webserver_module:
+    build:
+      context: ./webserver_module
+      dockerfile: Dockerfile.dev
+    container_name: webserver_module
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./webserver_module:/webserver_module
+
+  data_module:
+    build:
+      context: data_module/
+      dockerfile: Dockerfile.dev
+    container_name: data_module
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data_module:/data_module
+      - ./dm_lib:/data_module/dm_lib
+
+  cluster_module:
+    build:
+      context: cluster_module/
+      dockerfile: Dockerfile.dev
+    container_name: cluster_module
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./cluster_module:/cluster_module
+      - ./dm_lib:/cluster_module/dm_lib
+
+  budget_module:
+    build:
+      context: budget_module/
+      dockerfile: Dockerfile.dev
+    container_name: budget_module
+    ports:
+      - "5003:5003"
+    volumes:
+      - ./budget_module:/budget_module
+      - ./dm_lib:/budget_module/dm_lib
+
+  feedback_module:
+    build:
+      context: feedback_module/
+      dockerfile: Dockerfile.dev
+    container_name: feedback_module
+    ports:
+      - "5004:5004"
+    volumes:
+      - ./feedback_module:/feedback_module
+      - ./dm_lib:/feedback_module/dm_lib
+
+  jobtype_module:
+    build:
+      context: jobtype_module/
+      dockerfile: Dockerfile.dev
+    container_name: jobtype_module
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./jobtype_module:/jobtype_module
+      - ./dm_lib:/jobtype_module/dm_lib
+
+  database_module:
+    # https://hub.docker.com/_/rethinkdb/
+    image: rethinkdb:2.3.5
+    container_name: database_module
+    ports:
+      - "28015:28015"
+      - "8001:8080" # Admin interface
+    volumes:
+      - ./database_module:/data
