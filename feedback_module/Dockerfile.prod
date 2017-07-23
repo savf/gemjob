@@ -1,0 +1,7 @@
+FROM savf/python-27-data-science
+ADD feedback_module /feedback_module
+ADD dm_lib /feedback_module/dm_lib
+WORKDIR /feedback_module
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+CMD ["python", "app.py"]

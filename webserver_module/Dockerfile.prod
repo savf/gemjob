@@ -1,0 +1,6 @@
+FROM python:2.7-alpine
+ADD webserver_module /webserver_module
+ADD dm_lib /webserver_module/dm_lib
+WORKDIR /webserver_module
+RUN pip install -r requirements.txt
+CMD ["python", "app.py"]
