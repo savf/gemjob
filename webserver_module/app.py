@@ -7,8 +7,8 @@ import upwork
 import credentials
 import datetime
 from pretty_print import *
-module_urls = {'D': 'http://data_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/', 'FE': 'http://feedback_module:5004/', 'JO': 'http://jobtype_module:5005/'}
-# module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003/', 'FE': 'http://localhost:5004/', 'JO': 'http://localhost:5005/'}
+module_urls = {'D': 'http://data_module:5000/', 'DB': 'http://database_module:8080/', 'CL': 'http://cluster_module:5002/', 'BU': 'http://budget_module:5003/', 'FE': 'http://feedback_module:5004/', 'JO': 'http://jobtype_module:5005/', 'KNN': 'http://knn_module:5006/'}
+# module_urls = {'D': 'http://localhost:5000/', 'DM': 'http://localhost:5001/', 'DB': 'http://localhost:8001/', 'CL': 'http://localhost:5002/', 'BU': 'http://localhost:5003/', 'FE': 'http://localhost:5004/', 'JO': 'http://localhost:5005/', 'KNN': 'http://localhost:5006/'}
 
 GLOBAL_VARIABLE = {}
 
@@ -233,6 +233,17 @@ def get_realtime_predictions():
     json_data = request.args.to_dict()
     try:
         result = requests.post(module_urls['CL']+"get_predictions/", json=json_data)
+        return jsonify(result=result.content)
+    except Exception as e:
+        print "Exception: {}".format(e)
+        return None # jsonify(result='Server not responding')
+
+
+@app.route('/get_knn_predictions')
+def get_knn_predictions():
+    json_data = request.args.to_dict()
+    try:
+        result = requests.post(module_urls['KNN']+"get_predictions/", json=json_data)
         return jsonify(result=result.content)
     except Exception as e:
         print "Exception: {}".format(e)

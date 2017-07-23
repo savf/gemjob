@@ -344,7 +344,7 @@ def prepare_single_job(json_data):
 
     data_frame = pd.DataFrame(json_data, index=[0])
 
-    unnecessary_columns = ["visibility", "start_date", "url"]
+    unnecessary_columns = ["getExampleText", "visibility", "start_date", "url"]
     for c in unnecessary_columns:
         if c in data_frame.columns:
             data_frame.drop(labels=[c], axis=1, inplace=True)

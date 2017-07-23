@@ -63,7 +63,7 @@ RDB_HOST = "localhost"
 
 #run
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
-# test_knn(JOBS_FILE, target="feedback_for_client")
+# test_knn(JOBS_FILE, target="budget")
 db_setup(JOBS_FILE, host=RDB_HOST)
 
 connection = rdb.connect(RDB_HOST, RDB_PORT)

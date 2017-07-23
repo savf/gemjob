@@ -52,6 +52,12 @@ $(document).ready(function() {
         addSkillToList(skills_preselected[i]);
     }
 
+    $('#ExampleTextButton').bind('click', function(e) {
+        getExampleText();
+        e.preventDefault();
+        return false;
+    });
+
 	$('#ModelButton').bind('click', function(e) {
         $("#Status").text("Loading predictions ...").removeClass("Warning").removeClass("OK");
         $('#ModelButton').prop("disabled",true).addClass("Disabled");
@@ -619,4 +625,40 @@ function updateWordCount(inputField, outputField) {
     if (word_num != 1)
         exp_string+="s";
     outputField.text(word_num + exp_string);
+}
+
+function getExampleText(){
+
+    // get predictions
+    $("#Status").text("Getting sample texts ...").removeClass("Warning").removeClass("OK");
+
+	form_values["getExampleText"] = true;
+	// make sure text and title are updated, if button was pressed right after writing into text field
+	form_values["title"] = $("#SnippetTextArea").val();
+	form_values["snippet"] = $("#TitleInput").val();
+
+    $.getJSON($SCRIPT_ROOT + '/get_knn_predictions', form_values).done(function (data) {
+        var time = new Date();
+        try{
+            var knn_predictions = JSON.parse(data.result);
+
+            var content = "<p>The title and description shown below are taken from the most similar job to yours.</p>" +
+                    "<br><h2>Title:</h2>" +
+                    "<p>"+ knn_predictions["title_prediction"] +"</p>" +
+                    "<br><h2>Description:</h2>" +
+                    "<p>"+ knn_predictions["snippet_prediction"] +"</p>";
+
+			showPopUp("Example Text:", content);
+
+            $("#Status").text("Sample texts loaded at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("OK").removeClass("Warning");
+        }
+        catch (err) {
+            console.log("# Live Recommendation Error:");
+            console.log(err);
+            $("#Status").text("Getting sample texts failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
+        }
+    }).fail(function (jqxhr, textStatus, error) {
+        var time = new Date();
+        $("#Status").text("Getting sample texts failed at " + time.getHours() + "h" + time.getMinutes() + "min" + time.getSeconds() + "s").addClass("Warning").removeClass("OK");
+    });
 }

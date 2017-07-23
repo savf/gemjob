@@ -47,6 +47,14 @@ services:
     volumes:
       - ./jobtype_module:/jobtype_module
       - ./dm_lib:/jobtype_module/dm_lib
+  knn_module:
+    build: knn_module/
+    container_name: knn_module
+    ports:
+      - "5006:5006"
+    volumes:
+      - ./knn_module:/knn_module
+      - ./dm_lib:/knn_module/dm_lib
   database_module:
     # https://hub.docker.com/_/rethinkdb/
     image: rethinkdb:2.3.5

@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
 # import matplotlib.pyplot as plt
-
+# from seaborn import residplot
 
 def prepare_data_budget_model(data_frame, label_name, is_train_data, budget_classification=False, do_log_transform=True):
     """ Clean data specific to the budget model
@@ -262,6 +262,7 @@ def budget_model_development(file_name, connection):
 
         # plt.figure(1)
         # plt.scatter(df_test_target_outl.values, predictions)
+        # residplot(df_test_target_outl.values, predictions)
 
         print "\n##### With Text Tokens, With Outlier Treatment, Log scale:"
         df_train_log, vectorizers = add_text_tokens_to_data_frame(df_train_log, text_train_log)
@@ -277,6 +278,7 @@ def budget_model_development(file_name, connection):
 
         # plt.figure(2)
         # plt.scatter(df_test_target_log.values, predictions)
+        # residplot(df_test_target_log.values, predictions)
 
         print "\n## Revert log:"
         df_test_target_log = revert_log_scale(df_test_target_log)
@@ -284,6 +286,7 @@ def budget_model_development(file_name, connection):
         evaluate_regression(df_test_target_log, predictions.values, label_name)
 
         # plt.figure(3)
+        # residplot(df_test_target_log.values, predictions.values)
         # plt.scatter(df_test_target_log.values, predictions.values)
         # plt.show()
 
