@@ -102,7 +102,12 @@ $(document).ready(function() {
                 showPopUp("Model Predictions");
                 $("#PopUpPredictions").accordion({
                     active: false,
-                    collapsible: true
+                    collapsible: true,
+                    activate: function( event, ui ) {
+                        if(ui.newHeader.length > 0) {
+                            adjustPopUp();
+                        }
+                    }
                 });
                 $("#Status").text("Model predictions complete").addClass("OK").removeClass("Warning");
                 adjustPopUp()

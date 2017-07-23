@@ -410,6 +410,7 @@ a.JobSent:hover, a.JobSent:active, a.JobSent:visited{
     /*top: 50%;*/
     /*transform: translate(-50%, -50%);*/
     transform: translate(-50%);
+    /*transition: all 1s ease 0s;*/
 }
 
 #PopUpHeader{
