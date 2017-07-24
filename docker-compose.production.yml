@@ -77,6 +77,8 @@ services:
     image: rethinkdb:2.3.5
     container_name: database_module
     hostname: database_module.weave.local
+    ports:
+      - "8001:8080"
     networks:
       - weave
     dns: 172.17.0.1
