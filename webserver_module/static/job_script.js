@@ -15,7 +15,6 @@ $(document).ready(function() {
 
 	adjustToSize();
 	$( "#Datepicker" ).datepicker({ dateFormat: 'mm-dd-yy' });
-	jobTypeSwitch();
 
     skill_input();
 
@@ -52,6 +51,8 @@ $(document).ready(function() {
         addSkillToList(skills_preselected[i]);
     }
 
+    jobTypeSwitch();
+
     $('#ExampleTextButton').bind('click', function(e) {
         getExampleText();
         e.preventDefault();
@@ -61,11 +62,6 @@ $(document).ready(function() {
 	$('#ModelButton').bind('click', function(e) {
         $("#Status").text("Loading predictions ...").removeClass("Warning").removeClass("OK");
         $('#ModelButton').prop("disabled",true).addClass("Disabled");
-
-        // read all form fields
-        for (var i = 0; i < form_elements.length; i++) {
-            onValueInput(form_elements[i].name, form_elements[i].value, true);
-        }
 
         $.getJSON($SCRIPT_ROOT + '/get_model_predictions', form_values).done(function (data) {
             if (data && data.result && Object.keys(data.result).length > 0) {
@@ -369,12 +365,12 @@ function jobTypeSwitch() {
         $(".IfFixed").hide();
         delete form_values["budget"];
         $("#BudgetInput").val("");
-        min_filled_for_models = 17;
+        onValueInput("workload", $("#WorkloadSelect").val(), false);
     }
     else{
         $(".IfHourly").hide();
         $(".IfFixed").show();
-        min_filled_for_models = 18;
+        delete form_values["workload"];
     }
 }
 

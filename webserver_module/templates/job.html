@@ -162,13 +162,14 @@
                      <input class="ReadInput" type="number" min="0" step="1" name="duration_weeks_median" size=50 maxlength=120 onblur="onValueInput(name, value)">
                 <div id="duration_weeks_median"  name="Duration in weeks" class="LiveRecommendation"></div></div>
 
-                <div class="Label">Workload (will not be sent)</div><div class="LabeledElement">
-                <select class="ReadInput" name="workload"  onblur="onValueInput(name, value)">
+                <span class="IfHourly"><div class="Label">Workload (will not be sent)</div><div class="LabeledElement">
+                <select id="WorkloadSelect" class="ReadInput" name="workload"  onblur="onValueInput(name, value)">
                     <option value="Less than 10 hrs/week">Less than 10 hrs/week</option>
                     <option value="10-30 hrs/week">10-30 hrs/week</option>
                     <option value="30+ hrs/week">30+ hrs/week</option>
                 </select>
                 <div id="workload" name="Workload" class="LiveRecommendation"></div></div>
+                </span>
 
                 <div class="Label">Desired Experience Level (will not be sent)</div><div class="LabeledElement">
                 <select class="ReadInput" name="experience_level"  onblur="onValueInput(name, value)">
