@@ -25,20 +25,13 @@ from flask import Flask, g, abort, request
 from flask_restful import Resource, Api
 from rethinkdb.errors import RqlRuntimeError, RqlDriverError
 from datetime import datetime
+from dm_lib.parameters import *
 
 import credentials
 
 
 app = Flask(__name__)
 api = Api(app)
-
-# RDB_HOST = 'localhost'
-RDB_HOST = 'database_module'
-RDB_PORT = 28015
-RDB_DB = 'datasets'
-RDB_JOB_TABLE = 'jobs'
-RDB_JOB_OPTIMIZED_TABLE = 'jobs_optimized'
-RDB_PROFILE_TABLE = 'job_profiles'
 
 max_tries = 10
 max_request_size = 99

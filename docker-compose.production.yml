@@ -5,46 +5,84 @@ services:
       context: .
       dockerfile: webserver_module/Dockerfile.prod
     container_name: webserver_module
+    hostname: webserver_module.weave.local
     ports:
         - "8000:8000"
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   data_module:
     build:
       context: .
       dockerfile: data_module/Dockerfile.prod
     container_name: data_module
+    hostname: data_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   cluster_module:
     build:
       context: .
       dockerfile: cluster_module/Dockerfile.prod
     container_name: cluster_module
+    hostname: cluster_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   budget_module:
     build:
       context: .
       dockerfile: budget_module/Dockerfile.prod
     container_name: budget_module
+    hostname: budget_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   feedback_module:
     build:
       context: .
       dockerfile: feedback_module/Dockerfile.prod
     container_name: feedback_module
+    hostname: feedback_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   jobtype_module:
     build:
       context: .
       dockerfile: jobtype_module/Dockerfile.prod
     container_name: jobtype_module
+    hostname: jobtype_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   knn_module:
     build:
       context: .
       dockerfile: knn_module/Dockerfile.prod
     container_name: knn_module
+    hostname: knn_module.weave.local
+    networks:
+      - weave
+    dns: 172.17.0.1
 
   database_module:
     # https://hub.docker.com/_/rethinkdb/
     image: rethinkdb:2.3.5
     container_name: database_module
+    hostname: database_module.weave.local
+    ports:
+      - "8001:8080"
+    networks:
+      - weave
+    dns: 172.17.0.1
+
+networks:
+  weave:
+    external: true
