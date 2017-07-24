@@ -1,5 +1,6 @@
 var refreshInterval = 10000;
 var intervalId = -1;
+var module_ids = ['WS', 'D', 'DB', 'CL', 'BU', 'FE', 'JO', 'KNN'];
 
 $(document).ready(function() {
 
@@ -31,34 +32,19 @@ $(document).ready(function() {
 
 function check_module_status() {
     $.getJSON($SCRIPT_ROOT + '/is_online', {}).done( function (data) {
-        $("#WS").text(data.result['WS']);
-        $("#WS").addClass("OK").removeClass("Warning");
 
-        $("#D").text(data.result['D']);
-        if (data.result['D'] != 'online')
-            $("#D").addClass("Warning").removeClass("OK");
-        else
-            $("#D").removeClass("Warning").addClass("OK");
+        for (var i = 0; i < module_ids.length; i++) {
+            $("#"+module_ids[i]).text(data.result[module_ids[i]]);
+            if (data.result[module_ids[i]] != 'online')
+                $("#"+module_ids[i]).addClass("Warning").removeClass("OK");
+            else
+                $("#"+module_ids[i]).removeClass("Warning").addClass("OK");
+        }
 
-        $("#DM").text(data.result['DM']);
-        if (data.result['DM'] != 'online')
-            $("#DM").addClass("Warning").removeClass("OK");
-        else
-            $("#DM").removeClass("Warning").addClass("OK");
-
-        $("#DB").text(data.result['DB']);
-        if (data.result['DB'] != 'online')
-            $("#DB").addClass("Warning").removeClass("OK");
-        else
-            $("#DB").removeClass("Warning").addClass("OK");
     }).fail(function( jqxhr, textStatus, error ) {
-            $("#WS").text('offline');
-            $("#WS").addClass("Warning").removeClass("OK");
-            $("#D").text('offline');
-            $("#D").addClass("Warning").removeClass("OK");
-            $("#DM").text('offline');
-            $("#DM").addClass("Warning").removeClass("OK");
-            $("#DB").text('offline');
-            $("#DB").addClass("Warning").removeClass("OK");
-        });
+        for (var i = 0; i < module_ids.length; i++) {
+            $("#"+module_ids[i]).text('offline');
+            $("#"+module_ids[i]).addClass("Warning").removeClass("OK");
+        }
+    });
 }

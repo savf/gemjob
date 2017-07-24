@@ -96,7 +96,8 @@ def start():
         jobs_list = get_jobs(client, user_info['teams'])
         # print "### Jobs:"
         # pretty_print(jobs_list)
-        return render_template("index.html", first_name=first_name, last_name=last_name, profile_pic=profile_pic, jobs_list=jobs_list)
+        is_client = user_info['info']['capacity']['buyer'] == 'yes'
+        return render_template("index.html", first_name=first_name, last_name=last_name, profile_pic=profile_pic, jobs_list=jobs_list, is_client=is_client)
     except Exception as err:
         print err
         session.clear()
@@ -150,6 +151,7 @@ def job(client=None, update_job_info=None, warning=None):
                                    timeout=30)
         user_info = session.get('user_info')
         profile_pic = user_info['info']['portrait_32_img']
+        is_client = user_info['info']['capacity']['buyer'] == 'yes'
 
         if not GLOBAL_VARIABLE.has_key("skills_list"):
             skills_list = client.provider.get_skills_metadata()
@@ -164,7 +166,7 @@ def job(client=None, update_job_info=None, warning=None):
 
         client_info = get_client_data(client)
 
-        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=GLOBAL_VARIABLE["skills_list"], client_info=client_info, update_job_info=update_job_info, warning=warning)
+        return render_template("job.html", profile_pic=profile_pic, current_date=datetime.date.today().strftime("%m-%d-%Y"), skills_list=GLOBAL_VARIABLE["skills_list"], client_info=client_info, update_job_info=update_job_info, warning=warning, is_client=is_client)
     except Exception as err:
         print err
         session.clear()
@@ -209,22 +211,15 @@ def get_sample():
 
 @app.route('/is_online')
 def is_online():
-    status = {'D': 'offline', 'DM': 'offline', 'DB': 'offline', 'WS': 'online'}
-    try:
-        requests.get(module_urls['D'])
-        status['D'] = 'online'
-    except:
-        pass
-    try:
-        requests.get(module_urls['DM'])
-        status['DM'] = 'online'
-    except:
-        pass
-    try:
-        requests.get(module_urls['DB'])
-        status['DB'] = 'online'
-    except:
-        pass
+    status = {'WS': 'online'}
+
+    for url_key in module_urls.keys():
+        try:
+            requests.get(module_urls[url_key])
+            status[url_key] = 'online'
+        except:
+            status[url_key] = 'offline'
+
     return jsonify(result=status)
 
 

@@ -36,10 +36,22 @@
             <p><span class="TableStyle">Web Server:</span> <span id="WS" class="OK TableStyle">online</span></p>
         </div></div>
         <div class="Text">
-            <p><span class="TableStyle">Data-Module:</span> <span id="D" class="TableStyle">checking ...</span></p>
+            <p><span class="TableStyle">Data Module:</span> <span id="D" class="TableStyle">checking ...</span></p>
         </div>
         <div class="HighlightedSectionDark"><div class="Text">
-            <p><span class="TableStyle">Data Mining-Module:</span> <span id="DM" class="TableStyle">checking ...</span></p>
+            <p><span class="TableStyle">Cluster Module:</span> <span id="CL" class="TableStyle">checking ...</span></p>
+        </div></div>
+        <div class="Text">
+            <p><span class="TableStyle">Budget Model:</span> <span id="BU" class="TableStyle">checking ...</span></p>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span class="TableStyle">Feedback Model:</span> <span id="FE" class="TableStyle">checking ...</span></p>
+        </div></div>
+        <div class="Text">
+            <p><span class="TableStyle">Job-type Model:</span> <span id="JO" class="TableStyle">checking ...</span></p>
+        </div>
+        <div class="HighlightedSectionDark"><div class="Text">
+            <p><span class="TableStyle">KNN Module:</span> <span id="KNN" class="TableStyle">checking ...</span></p>
         </div></div>
         <div class="Text">
             <p><span class="TableStyle">Data Base:</span> <span id="DB" class="TableStyle">checking ...</span></p>
@@ -55,7 +67,7 @@
             {% endif %}
             <form action="." method="POST">
                 <input type="number" min="1" step="1" name="sample_size" placeholder="Sample Size" size=50 maxlength=120 value="">
-                <input type="number" min="0" step="1" name="days_posted" placeholder="Days Posted" size=50 maxlength=120 value="">
+                <input type="number" min="0" step="1" name="days_posted" placeholder="Oldest job (in days from now)" size=50 maxlength=120 value="">
                 <input type="number" min="0" step="1" name="page_offset" placeholder="Page Offset" size=50 maxlength=120 value="">
                 <input type="submit" value="Start" name="submit" class="Button" id="GetSample">
             </form>

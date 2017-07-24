@@ -126,26 +126,30 @@ $(document).ready(function() {
     });
 
     $('#SubmitButton').bind('click', function(e) {
-        $("#Status").text("Submitting job ...").removeClass("Warning").removeClass("OK");
-        $('#SubmitButton').prop("disabled",true).addClass("Disabled");
+        if(is_client) {
+            $("#Status").text("Submitting job ...").removeClass("Warning").removeClass("OK");
+            $('#SubmitButton').prop("disabled", true).addClass("Disabled");
 
-        $.getJSON($SCRIPT_ROOT + '/submit_job', form_values).done(function (data) {
-            if (data && data.result && data.result.length > 0) {
-                $("#Status").text("Job submitted").addClass("OK").removeClass("Warning");
-                $("#FormSectionText").html("<a href='/' class='JobSent'>Success</a>")
-            }
-            else {
+            $.getJSON($SCRIPT_ROOT + '/submit_job', form_values).done(function (data) {
+                if (data && data.result && data.result.length > 0) {
+                    $("#Status").text("Job submitted").addClass("OK").removeClass("Warning");
+                    $("#FormSectionText").html("<a href='/' class='JobSent'>Success</a>")
+                }
+                else {
+                    $("#Status").text("Submitting job failed").addClass("Warning").removeClass("OK");
+                    showPopUp("Error", "Submitting job failed")
+                }
+                $('#SubmitButton').prop("disabled", false).removeClass("Disabled");
+
+            }).fail(function (jqxhr, textStatus, error) {
+                $('#SubmitButton').prop("disabled", false).removeClass("Disabled");
                 $("#Status").text("Submitting job failed").addClass("Warning").removeClass("OK");
                 showPopUp("Error", "Submitting job failed")
-            }
-            $('#SubmitButton').prop("disabled",false).removeClass("Disabled");
-
-        }).fail(function( jqxhr, textStatus, error ) {
-            $('#SubmitButton').prop("disabled",false).removeClass("Disabled");
-            $("#Status").text("Submitting job failed").addClass("Warning").removeClass("OK");
-            showPopUp("Error", "Submitting job failed")
-        });
-
+            });
+        }
+        else{
+            showPopUp("Error", "You are logged in as a freelancer, the jobs created cannot be published.")
+        }
         e.preventDefault();
         return false;
     });

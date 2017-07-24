@@ -29,6 +29,11 @@
         form_values["client_jobs_posted"] = {{ client_info["client_jobs_posted"] }};
         form_values["client_past_hires"] = {{ client_info["client_past_hires"] }};
         job_id = "{{ update_job_info["job_id"] }}";
+        {% if is_client %}
+            var is_client = true;
+        {% else %}
+            var is_client = false;
+        {% endif %}
 
         var skills_preselected = [{% if update_job_info["skills"] %}{% set list_of_skills = update_job_info["skills"].split(',') %}{% for skill in list_of_skills %}"{{ skill }}",{% endfor %}{% endif %}];
 
@@ -74,6 +79,11 @@
 
                 {% if warning %}
                     <p class="Warning"> {{ warning }} </p><br>
+                {% endif %}
+
+                {% if not is_client %}
+                    <p class="Hint">You are logged in as a freelancer, the jobs created cannot be published.</p>
+                    <br><br>
                 {% endif %}
 
                 <div class="Label">Category</div><div class="LabeledElement">
