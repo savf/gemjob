@@ -32,37 +32,63 @@ api = Api(app)
 K = 15
 GLOBAL_VARIABLE = {}
 
-class Predictions(Resource):
+def get_knn_prediction(json_data, local_variable, target="text"):
+    if target == "text":
+        get_example_text = True
+    else:
+        get_example_text = False
+
+    data_frame = prepare_single_job(json_data)
+    unnormalized_data = data_frame.copy()
+
+    normalized_data, target_columns = prepare_single_job_clustering(data_frame,
+                                                                    local_variable["data_frame_normalized"].columns,
+                                                                    local_variable["min"], local_variable["max"],
+                                                                    vectorizers=local_variable["vectorizers"],
+                                                                    weighting=True, do_log_transform=True)
+
+    if target == "budget":
+        target_columns.append(target)
+
+    # Reweighting harms budget! Benefits subcategory however and shows more similar example snippet and title
+    predictions = predict_knn(unnormalized_data, local_variable["data_frame_original"], normalized_data,
+                              local_variable["data_frame_normalized"], k=K, target_columns=target_columns,
+                              do_reweighting=get_example_text, get_example_text=get_example_text)
+
+    predictions = predictions.to_dict('records')
+
+    print "\n\n### Predictions:"
+    print predictions
+
+    return predictions[0]
+
+
+class PredictionsText(Resource):
 
     def post(self):
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if local_variable.has_key("data_frame_normalized"):
             json_data = request.get_json(force=True)
-            getExampleText = json_data.pop("getExampleText", False)
-            if getExampleText == 'true' or getExampleText is True:
-                getExampleText = True
-            else:
-                getExampleText = False
-
-            data_frame = prepare_single_job(json_data)
-            unnormalized_data = data_frame.copy()
-
-            normalized_data, target_columns = prepare_single_job_clustering(data_frame, local_variable["data_frame_normalized"].columns, local_variable["min"], local_variable["max"], vectorizers=local_variable["vectorizers"], weighting=True, do_log_transform=True)
-
-            # Reweighting harms budget! Benefits subcategory however and shows more similar example snippet and title
-            predictions = predict_knn(unnormalized_data, local_variable["data_frame_original"], normalized_data, local_variable["data_frame_normalized"], k=K, target_columns=target_columns, do_reweighting=getExampleText)
-
-            predictions = predictions.to_dict('records')
-
-            print "\n\n### Predictions:"
-            print predictions
-
-            return predictions[0]
+            return get_knn_prediction(json_data, local_variable, target="text")
         else:
             return {}
 
 
-api.add_resource(Predictions, '/get_predictions/')
+api.add_resource(PredictionsText, '/get_predictions/text')
+
+
+class PredictionsBudget(Resource):
+
+    def post(self):
+        local_variable = copy.deepcopy(GLOBAL_VARIABLE)
+        if local_variable.has_key("data_frame_normalized"):
+            json_data = request.get_json(force=True)
+            return get_knn_prediction(json_data, local_variable, target="budget")
+        else:
+            return {}
+
+
+api.add_resource(PredictionsBudget, '/get_predictions/budget')
 
 
 class Update(Resource):

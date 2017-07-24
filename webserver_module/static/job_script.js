@@ -83,6 +83,10 @@ $(document).ready(function() {
                 for(var key in data.result) {
                     if(key == 'budget') {
                         markupStats(key, "We propose a budget of $" + data.result[key].prediction.toFixed(0), data.result[key].stats, accordion_div)
+
+                        if('KNN' in data.result) {
+                            knnPrediction("budget", data.result['KNN'], accordion_div)
+                        }
                     }
                     else if(key == 'feedback_for_client') {
                         markupStats(key, "We predict that freelancers working on this job will give you an overall feedback of " + data.result[key].prediction.toFixed(1), data.result[key].stats, accordion_div)
@@ -119,7 +123,7 @@ $(document).ready(function() {
 
         }).fail(function( jqxhr, textStatus, error ) {
             $('#ModelButton').prop("disabled",false).removeClass("Disabled");
-            $("#Status").text("Review failed").addClass("Warning").removeClass("OK");
+            $("#Status").text("Model predictions failed").addClass("Warning").removeClass("OK");
         });
         e.preventDefault();
         return false;
@@ -264,6 +268,86 @@ function markupStats(attribute, title, stats, element) {
     }
     ]
 });
+}
+
+function knnPrediction(attribute, data, element) {
+    var median = false;
+    try{
+        data = JSON.parse(data);
+        median = data[attribute+"_prediction"];
+    } catch (err){
+        median = false;
+    }
+
+    var title = "";
+    var content = "";
+    var chart = false;
+    if (median === false) {
+        title = "No second opinion for "+attribute+" found";
+        content = "<p>We looked at 15 similar jobs to yours and all of them are missing this field!</p>";
+    }
+    else {
+        title = "Second opinion on budget based on nearest neighbors: $"+median;
+        content = "<p>This alternative recommendation is based on the median of the 15 most similar jobs to yours. As opposed to the real-time predictions, we used kNN instead of clustering. With all form fields filled, this approach has proven to be the most accurate even though less scalable than clustering.</p>" +
+            "<p>Below, we show the statistics of the " + attribute + " attribute in a box plot:</p>";
+        chart = $("<div/>", {
+            id: "stats_chart_knn_" + attribute,
+            style: "min-width: 310px; max-width: 800px; height: 400px; margin: 0 auto"
+        });
+    }
+
+    var header = $("<h3>");
+    header.html(title);
+    var stats_content = $("<div>");
+
+    element.append(header);
+    stats_content.html(content);
+    element.append(stats_content);
+
+    if (chart !== false) {
+        stats_content.append(chart);
+
+        Highcharts.chart('stats_chart_knn_' + attribute, {
+            chart: {
+                type: 'boxplot'
+            },
+            title: {
+                text: ""
+            },
+            legend: {
+                enabled: false
+            },
+            yAxis: {
+                title: {
+                    text: element.attr("id")
+                },
+                plotLines: [{
+                    value: data[attribute + "_mean"],
+                    color: 'green',
+                    width: 1,
+                    zIndex: 20,
+                    label: {
+                        text: 'Mean: ' + data[attribute + "_mean"],
+                        align: 'center',
+                        style: {
+                            color: 'darkgreen'
+                        }
+                    }
+                }]
+            },
+            series: [{
+                name: element.attr("id"),
+                data: [
+                    [data[attribute + "_min"],
+                        data[attribute + "_25quantile"],
+                        median,
+                        data[attribute + "_75quantile"],
+                        data[attribute + "_max"]]
+                ]
+            }]
+
+        });
+    }
 }
 
 function adjustToSize() {
@@ -641,12 +725,11 @@ function getExampleText(){
     // get predictions
     $("#Status").text("Getting sample texts ...").removeClass("Warning").removeClass("OK");
 
-	form_values["getExampleText"] = true;
 	// make sure text and title are updated, if button was pressed right after writing into text field
 	form_values["title"] = $("#SnippetTextArea").val();
 	form_values["snippet"] = $("#TitleInput").val();
 
-    $.getJSON($SCRIPT_ROOT + '/get_knn_predictions', form_values).done(function (data) {
+    $.getJSON($SCRIPT_ROOT + '/get_knn_predictions/target=text', form_values).done(function (data) {
         var time = new Date();
         try{
             var knn_predictions = JSON.parse(data.result);

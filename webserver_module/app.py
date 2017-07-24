@@ -234,11 +234,11 @@ def get_realtime_predictions():
         return None # jsonify(result='Server not responding')
 
 
-@app.route('/get_knn_predictions')
-def get_knn_predictions():
+@app.route('/get_knn_predictions/target=<string:target>')
+def get_knn_predictions(target):
     json_data = request.args.to_dict()
     try:
-        result = requests.post(module_urls['KNN']+"get_predictions/", json=json_data)
+        result = requests.post(module_urls['KNN']+"get_predictions/"+target, json=json_data)
         return jsonify(result=result.content)
     except Exception as e:
         print "Exception: {}".format(e)
@@ -256,6 +256,11 @@ def get_model_predictions():
                 predictions[key] = value
         except Exception as e:
             print "Exception: {}".format(e)
+    try:
+        result = requests.post(module_urls['KNN'] + "get_predictions/budget", json=json_data)
+        predictions["KNN"] = result.content
+    except Exception as e:
+        print "Exception: {}".format(e)
     return jsonify(result=predictions)
 
 

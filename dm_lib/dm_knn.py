@@ -1,7 +1,10 @@
 from dm_clustering import *
 
-def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_predict, normalized_train, k, target_columns, do_reweighting=True):
+def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_predict, normalized_train, k, target_columns, do_reweighting=True, get_example_text=False):
     drop_unnecessary = ["skills", "title", "snippet", "client_country", "date_created", "client_reviews_count"]
+    for col in unnormalized_data_predict.columns:
+        if col not in target_columns:
+            drop_unnecessary.append(col)
     unnormalized_data_predict.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # get actual target_columns (dummies)
@@ -16,16 +19,24 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
     normalized_predict.drop(labels=actual_cols, axis=1, inplace=True)
 
     # setup prediction attributes
-    unnormalized_data_predict["title_prediction"] = ""
-    unnormalized_data_predict["snippet_prediction"] = ""
-    for tc in target_columns:
-        if tc in numeric_columns:
-            unnormalized_data_predict[tc + "_prediction"] = 0
-        else:
-            unnormalized_data_predict[tc + "_prediction"] = ""
+    if get_example_text:
+        unnormalized_data_predict["title_prediction"] = ""
+        unnormalized_data_predict["snippet_prediction"] = ""
+    else:
+        for tc in target_columns:
+            if tc in numeric_columns:
+                unnormalized_data_predict[tc + "_prediction"] = 0
+                unnormalized_data_predict[tc + "_mean"] = 0
+                unnormalized_data_predict[tc + "_min"] = 0
+                unnormalized_data_predict[tc + "_max"] = 0
+                unnormalized_data_predict[tc + "_std"] = 0
+                unnormalized_data_predict[tc + "_25quantile"] = 0
+                unnormalized_data_predict[tc + "_75quantile"] = 0
+            else:
+                unnormalized_data_predict[tc + "_prediction"] = ""
+                unnormalized_data_predict[tc + "_value_counts"] = ""
 
     # get neighbors based on euclidean distance
-    # distances_dict = {}
     for index_test, row_test in normalized_predict.iterrows():
         row_df = pd.DataFrame(row_test.values.reshape(1, -1), index=[0], columns=list(normalized_train.columns))
         if do_reweighting:
@@ -35,60 +46,37 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
         distances = euclidean_distances(normalized_train_rw, row_df)
         distances = pd.DataFrame(distances, columns=["distances"], index=normalized_train_rw.index)
         distances.sort_values(by="distances", axis=0, inplace=True)
-        # get k nearest
-        # distances_dict[index_test] = distances[0:k]
         neighbor_indices = distances[0:k].index.values
         neighbor_values = unnormalized_data_train.ix[neighbor_indices]
 
-        unnormalized_data_predict.set_value(index_test, "title_prediction", neighbor_values["title"][0])
-        unnormalized_data_predict.set_value(index_test, "snippet_prediction", neighbor_values["snippet"][0])
+        if get_example_text:
+            unnormalized_data_predict.set_value(index_test, "title_prediction", neighbor_values["title"][0])
+            unnormalized_data_predict.set_value(index_test, "snippet_prediction", neighbor_values["snippet"][0])
+        else:
+            for tc in target_columns:
 
-        # print "\n\n ######## Title ######## \n"
-        # print neighbor_values["title"][0]
-        # print "\n\n ######## Title Predicted ######## \n"
-        # print unnormalized_data_predict.loc[index_test]["title"]
-
-        for tc in target_columns:
-
-            # if tc in numeric_columns:
-            #     unnormalized_data_predict[tc+"_prediction"] = 0
-            # else:
-            #     unnormalized_data_predict[tc + "_prediction"] = ""
-            # # print "\n\n\n\n##### Predict label:", tc
-            # correct_predict = 0
-            # abs_err_predict = 0
-            #
-            # for index_test, row_test in normalized_predict.iterrows():
-                # print "\n#### Current row:", index_test
-                # actual = unnormalized_data_predict.loc[index_test][tc]
-                # print "## Actucal value:", actual
-                # print "## Neighbor values:"
-
-            # neighbor_indices = distances_dict[index_test].index.values
-            # neighbor_values = unnormalized_data_train.ix[neighbor_indices]
-
-            if tc in numeric_columns:
-                median = neighbor_values[tc].median()
-                # abs_err = abs(actual - median)
-                # abs_err_predict = abs_err_predict + abs_err
-                # print "# Median:", median, "Error:", abs_err
-                unnormalized_data_predict.set_value(index_test, tc + "_prediction", median)
-            else:
-                value_counts = neighbor_values[tc].value_counts()
-                if len(value_counts) > 0:
-                    majority = value_counts.idxmax(axis=1)
+                if tc in numeric_columns:
+                    unnormalized_data_predict.set_value(index_test, tc + "_prediction", neighbor_values[tc].median())
+                    unnormalized_data_predict.set_value(index_test, tc + "_mean", neighbor_values[tc].mean())
+                    unnormalized_data_predict.set_value(index_test, tc + "_min", neighbor_values[tc].min())
+                    unnormalized_data_predict.set_value(index_test, tc + "_max", neighbor_values[tc].max())
+                    unnormalized_data_predict.set_value(index_test, tc + "_std", neighbor_values[tc].std())
+                    unnormalized_data_predict.set_value(index_test, tc + "_25quantile", neighbor_values[tc].quantile(.25))
+                    unnormalized_data_predict.set_value(index_test, tc + "_75quantile", neighbor_values[tc].quantile(.75))
                 else:
-                    majority = np.NaN
-                # if majority == actual:
-                #     correct_predict = correct_predict + 1
-                # print "Majority voting:", majority
-                unnormalized_data_predict.set_value(index_test, tc + "_prediction", majority)
+                    value_counts = neighbor_values[tc].value_counts()
+                    if len(value_counts) > 0:
+                        majority = value_counts.idxmax(axis=1)
+                    else:
+                        majority = np.NaN
+                    unnormalized_data_predict.set_value(index_test, tc + "_prediction", majority)
 
-            # if tc in numeric_columns:
-            #     print "### Abs Error:", abs_err_predict / float(normalized_predict.shape[0])
-            # else:
-            #     print "### Correctly predicted:", correct_predict, "in %:", float(correct_predict) / float(normalized_predict.shape[0])
-            # print "### Number of test rows:", normalized_predict.shape[0]
+                    value_counts_string = ""
+                    for k, v in value_counts.iteritems():
+                        value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(
+                            v) + "</span><br>"
+
+                    unnormalized_data_predict.set_value(index_test, tc + "_value_counts", value_counts_string)
 
     return unnormalized_data_predict
 
