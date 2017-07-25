@@ -25,7 +25,7 @@ def prepare_data_jobtype_model(data_frame, label_name, relative_sampling):
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_payment_verification_status",
                         "feedback_for_client", "feedback_for_freelancer",
-                        "total_charge", "budget"]
+                        "total_charge", "budget", "workload"]
     data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
 
     # balance data set so ratio of hourly and fixed is 1:1

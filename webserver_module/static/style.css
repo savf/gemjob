@@ -163,7 +163,7 @@ a:hover{
 
 .AppTitle{
     float: left;
-    margin-left: 20px;
+    margin-left: 10px;
     color: white;
     line-height: 75px;
     font-size:36px;
@@ -172,6 +172,13 @@ a:hover{
 
 .AppTitle a{
     text-decoration: none;
+}
+
+.AppTitle img{
+    position: absolute;
+    top: 50%;
+    margin-top: -37px;
+    height: 74px;
 }
 
 .HeaderRight{
