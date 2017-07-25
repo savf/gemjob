@@ -1,4 +1,4 @@
-#<img src="gemjob_logo.jpg" width="516px"/>
+# <img src="gemjob_logo.jpg" width="516px"/>
 
 Gemjob is a tool to help clients optimize their job postings by giving them recommendations based on similar jobs.
 
