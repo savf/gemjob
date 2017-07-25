@@ -219,7 +219,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                         if job['workload'] == "Less than 10 hrs/week":
                             duration = int(round(current_total_hours / 5.0, 0))
                         elif job['workload'] == "10-30 hrs/week":
-                            duration = int(round(current_total_hours / 15.0, 0))
+                            duration = int(round(current_total_hours / 20.0, 0))
                         else:
                             duration = int(round(current_total_hours / 30.0, 0))
                         durations.append(duration)
@@ -329,7 +329,7 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
         if found_jobs is not None:
 
             # Uncomment to load from files instead from Upwork
-            #
+
             # with open(working_dir + "job_profiles_complete.json") as f:
             #     job_profiles = json.load(f)
             # stored_profiles = {}
@@ -338,6 +338,10 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
             #
             # with open(working_dir + "found_jobs_4K.json") as f:
             #     found_jobs = json.load(f)
+            #
+            # found_jobs, job_profiles = self.enrich_with_job_profiles(client, found_jobs,
+            #                                                          save_incrementally=False,
+            #                                                          stored_job_profiles=stored_profiles)
 
             found_jobs, job_profiles = self.enrich_with_job_profiles(client, found_jobs,
                                                                      save_incrementally=True)

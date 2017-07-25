@@ -622,7 +622,7 @@ def convert_to_numeric(data_frame, label_name):
     if 'workload' in data_frame.columns:
         # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
         data_frame.ix[data_frame.workload == "Less than 10 hrs/week", 'workload'] = 5
-        data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 15
+        data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 20
         data_frame.ix[data_frame.workload == "30+ hrs/week", 'workload'] = 30
         data_frame["workload"] = pd.to_numeric(data_frame["workload"])
 

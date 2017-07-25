@@ -1,6 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.colors import ListedColormap
 from pandas.core.dtypes.dtypes import CategoricalDtype
 from pandas.plotting import scatter_matrix
 import rethinkdb as rdb
@@ -239,6 +240,8 @@ def print_correlations(df, attr=None, store=False, method='spearman',
             ylabels = [label for label in ylabels if label not in set(dropped_columns)]
             ax1.set_yticklabels(ylabels[::-1])
             ax2.set_yticklabels(ylabels[::-1], rotation=0)
+        fig1.tight_layout()
+        fig2.tight_layout()
         plt.show()
 
     else:
@@ -589,6 +592,7 @@ def explore_data(file_name,budget_name="total_charge"):
     # connection.close()
 
     # data_frame = load_data_frame_from_db()
+    #
     # data_frame.drop(labels=['client_country'], axis=1, inplace=True)
     # data_frame = convert_to_numeric(data_frame, None)
 	#
@@ -627,3 +631,7 @@ def explore_data(file_name,budget_name="total_charge"):
     #             plot_crosstab_barchart(data_frame[attribute],
     #                                    data_frame[attribute2],
     #                                    normalize=True, store=True)
+
+    # print_correlations(data_frame[['feedback_for_freelancer', 'feedback_for_client']], store=True,
+    #                    xlabels=['feedback_for_freelancer', 'feedback_for_client'],
+    #                    ylabels=['feedback_for_freelancer', 'feedback_for_client'])
