@@ -196,11 +196,13 @@ function markupStats(attribute, title, stats, element) {
         var text_content = "<p>The form's text fields determine " + stats.text.importance.toFixed(0) + "% of the prediction, " +
             "where the title determines " + stats.title.importance.toFixed(0) +
             "%, the length of the title " + stats.title_length.importance.toFixed(0) +
-            "%, the description " + stats.snippet.importance.toFixed(0) + "%, the " +
-            "individual skill tags " + stats.skills.importance.toFixed(0) + "% and the " +
+            "%, the description " + stats.snippet.importance.toFixed(0) +
+            "%, the length of the description " + stats.snippet_length.importance.toFixed(0) +
+            "%, the individual skill tags " + stats.skills.importance.toFixed(0) + "% and the " +
             "number of skills " + stats.skills_number.importance.toFixed(0) + "% of the overall prediction result.";
         delete stats.text; delete stats.title; delete stats.title_length;
-        delete stats.snippet; delete stats.skills; delete stats.skills_number;
+        delete stats.snippet; delete stats.snippet_length;
+        delete stats.skills; delete stats.skills_number;
     }
     var normal_content = "<p> The non-text attributes influence the prediction with the following percentages:</p>";
     var bar_chart = $("<div/>",{

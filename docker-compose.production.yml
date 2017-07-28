@@ -7,7 +7,7 @@ services:
     container_name: webserver_module
     hostname: webserver_module.weave.local
     ports:
-        - "8000:8000"
+        - "80:8000"
     networks:
       - weave
     dns: 172.17.0.1
