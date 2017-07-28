@@ -20,6 +20,8 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     :type add_text: bool
     :param weighting: Do weighting
     :type weighting: bool
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: Cleaned Pandas DataFrame with only numerical attributes and either min/max or mean/std, if text added also vectorizers
     :rtype: pandas.DataFrame
     """
@@ -94,6 +96,8 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
     :param weighting: Do weighting
     :type weighting: bool
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: Cleaned Pandas DataFrame with only numerical attributes
     :rtype: pandas.DataFrame
     """
@@ -171,6 +175,8 @@ def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectori
     :type vectorizers: dict of sklearn.feature_extraction.text.CountVectorizer
     :param weighting: Do weighting
     :type weighting: bool
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: Cleaned Pandas DataFrame with only numerical attributes
     :rtype: pandas.DataFrame
     """
@@ -241,7 +247,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     :rtype: float
     """
     selected_nominal_colums = ['client_country', 'experience_level', 'job_type', 'subcategory2']
-    selected_numeric_colums = ['duration_weeks_median', 'duration_weeks_total', 'client_feedback',
+    selected_numeric_colums = ['duration_weeks_median', 'client_feedback', 'budget',
                                'feedback_for_client', 'feedback_for_freelancer', 'total_charge', 'skills_number',
                                'snippet_length']
 
@@ -321,7 +327,7 @@ def explore_clusters(clusters, original_data_frame, silhouette_score, name=""):
     return final_score
 
 
-def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
+def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3, do_log_transform=True):
     """ Cluster using DBSCAN algorithm
     silhouette_score about 0.58 without removing columns
     silhouette_score about 0.64 WITH removing columns
@@ -334,6 +340,8 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
     :type do_explore: bool
     :param min_rows_per_cluster: Minimum number of rows a cluster should have
     :type min_rows_per_cluster: int
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
@@ -348,7 +356,7 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
     data_frame_original = data_frame.copy()
 
     # prepare for clustering
-    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
     # print data_frame[0:5]
 
     if find_best_params:
@@ -386,7 +394,7 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
 
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(data_frame)
     labels = db.labels_
-    centroids = pd.DataFrame(db.cluster_centers_, columns=data_frame.columns)
+    # centroids = pd.DataFrame(db.cluster_centers_, columns=data_frame.columns)
 
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
     print "Number of clusters: ", n_clusters
@@ -399,7 +407,7 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
     if min_rows_per_cluster > 1:
         value_counts = data_frame["cluster_label"].value_counts()
         small_clusters = value_counts.loc[value_counts < min_rows_per_cluster]
-        centroids.drop(small_clusters.index, inplace=True)
+        # centroids.drop(small_clusters.index, inplace=True)
         data_frame = data_frame[-data_frame["cluster_label"].isin(list(small_clusters.index))]
         # #print
         # value_counts = data_frame["cluster_label"].value_counts()
@@ -418,10 +426,10 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
     if do_explore:
         explore_clusters(clusters, data_frame_original, silhouette_score, "DBSCAN")
 
-    return db, clusters, centroids, min, max, vectorizers
+    return db, clusters, None, min, max, vectorizers
 
 
-def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3):
+def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, min_rows_per_cluster=3, do_log_transform=True):
     """ Cluster using k-means algorithm
     silhouette_score about 0.54 (0.25 with z-score) without removing columns
     silhouette_score about 0.60 WITH removing columns
@@ -434,19 +442,21 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, mi
     :type do_explore: bool
     :param min_rows_per_cluster: Minimum number of rows a cluster should have
     :type min_rows_per_cluster: int
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
 
     min_n_clusters = 10
     max_n_clusters = 500
-    n_clusters = 98  # without text, min-max scaling
-    n_clusters = 93 # with text, min-max scaling
+    # n_clusters = 98  # without text, min-max scaling
+    n_clusters = 65 # with text, min-max scaling
 
     data_frame_original = data_frame.copy()
 
     # prepare for clustering
-    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True)
+    data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
     # print data_frame[0:5]
 
     if find_best_params:
@@ -521,11 +531,13 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     :type do_explore: bool
     :param min_rows_per_cluster: Minimum number of rows a cluster should have
     :type min_rows_per_cluster: int
+    :param do_log_transform: Log transform highly skewed data
+    :type do_log_transform: bool
     :return: model, clusters based on unnormalized data, centroids (normalized), min, max, vectorizers
     :rtype: multiple
     """
 
-    bandwidth = 0.9
+    bandwidth = 1.2
 
     data_frame_original = data_frame.copy()
 
@@ -539,7 +551,7 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
         best_bandwidth = -1
         config_num = 1
 
-        for bandwidth in np.arange(0.3, 2.0, 0.1):
+        for bandwidth in np.arange(0.5, 2.0, 0.1):
             # bandwidth = estimate_bandwidth(data_frame, quantile=q) # doesn't work, probably too much data
             print "\n## Config ", config_num, "---  bandwidth=", bandwidth, " ##"
             config_num = config_num+1
@@ -922,12 +934,11 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
         model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=False)
         model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=True)
     elif method == "K-Means":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train, find_best_params=False, do_explore=False)
-        # model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_kmeans(df_train_log, find_best_params=False, do_explore=False)
-    # TODO: With DBSCAN, clusters are based on density --> using centroids makes no sennse, have to cluster again!
+        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train.copy(), find_best_params=False, do_explore=False)
+        model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_kmeans(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=True)
     elif method == "DBSCAN":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=False, do_explore=False)
-        # model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_dbscan(df_train_log, find_best_params=False, do_explore=False)
+        model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=True, do_explore=True, do_log_transform=True)
+        return # With DBSCAN, clusters are based on density --> using centroids makes no sense and is also not possible.
 
     if target == "budget":
         # remove rows without budget to predict_comparison budget
