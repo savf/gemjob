@@ -662,6 +662,9 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     all_columns = list(clusters.itervalues().next().columns)
     all_columns = [x for x in all_columns if x not in ["cluster_label", "skills", "title", "snippet", "client_country", "date_created", "client_reviews_count", ]]
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
+
+    unnormalized_data = unnormalized_data[all_columns]
+
     # add stats columns
     for tc in all_columns:
         # if tc not in unnormalized_data.index and tc in numeric_columns:
@@ -681,7 +684,6 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
             unnormalized_data[tc + "_prediction"] = ""
             unnormalized_data[tc + "_value_counts"] = ""
 
-    unnormalized_data = unnormalized_data[all_columns]
     unnormalized_data["cluster_size"] = 0
 
     for index, _ in normalized_data.iterrows():
@@ -703,13 +705,14 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                 #     # unnormalized_data.set_value(index, tc, ERROR_VALUE)
                 # else:
                 # print "# Prediction:", median #, "Error:", abs_err
-                unnormalized_data.set_value(index, (tc + "_prediction"), median)
-                unnormalized_data.set_value(index, (tc + "_mean"), clusters[cluster_index_euc][tc].mean())
-                unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
-                unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
-                unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
-                unnormalized_data.set_value(index, (tc + "_25quantile"), clusters[cluster_index_euc][tc].quantile(.25))
-                unnormalized_data.set_value(index, (tc + "_75quantile"), clusters[cluster_index_euc][tc].quantile(.75))
+                if not np.isnan(median):
+                    unnormalized_data.set_value(index, (tc + "_prediction"), median)
+                    unnormalized_data.set_value(index, (tc + "_mean"), clusters[cluster_index_euc][tc].mean())
+                    unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
+                    unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
+                    unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
+                    unnormalized_data.set_value(index, (tc + "_25quantile"), clusters[cluster_index_euc][tc].quantile(.25))
+                    unnormalized_data.set_value(index, (tc + "_75quantile"), clusters[cluster_index_euc][tc].quantile(.75))
             else:
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
                 if len(value_counts) > 0:
