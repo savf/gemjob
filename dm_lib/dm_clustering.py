@@ -612,7 +612,7 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
     return ms, clusters, centroids, min, max, vectorizers
 
 
-def predict(unnormalized_data, normalized_data, clusters, centroids, target_columns):
+def predict(unnormalized_data, normalized_data, clusters, centroids, target_columns, do_reweighting=True):
     """ Predict columns based on distance to cluster centroids
 
     :param unnormalized_data: Pandas DataFrames holding non-normalized data
@@ -627,6 +627,8 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     :type target_columns: list
     :return: Pandas Dataframe with predictions for each row of the input data and the "cluster_size" as its own column
     :rtype: pandas.DataFrame
+    :param do_reweighting: Remove tokens not in test example and reweight tokens
+    :type do_reweighting: bool
     """
 
     # get actual target_columns (dummies)
@@ -646,7 +648,11 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     # print "\nCentroid indices", centroids.index
     for index, row in normalized_data.iterrows():
         row_df = pd.DataFrame(row.values.reshape(1, -1), index=[0], columns=list(normalized_data.columns))
-        row_rw, centroids_rw = reduce_tokens_to_single_job(row_df, centroids.copy())
+        if do_reweighting:
+            row_rw, centroids_rw = reduce_tokens_to_single_job(row_df, centroids.copy())
+        else:
+            row_rw = row_df
+            centroids_rw = centroids
         distances = euclidean_distances(centroids_rw, row_rw)
         cluster_index = np.array(distances).argmin()
         cluster_index = centroids.index[cluster_index]
@@ -658,12 +664,13 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
     # add stats columns
     for tc in all_columns:
-        if tc not in unnormalized_data.index and tc in numeric_columns:
-            unnormalized_data[tc] = 0
-        elif tc not in unnormalized_data.index :
-            unnormalized_data[tc] = ""
+        # if tc not in unnormalized_data.index and tc in numeric_columns:
+        #     unnormalized_data[tc] = 0
+        # elif tc not in unnormalized_data.index :
+        #     unnormalized_data[tc] = ""
 
         if tc in numeric_columns:
+            unnormalized_data[tc + "_prediction"] = 0
             unnormalized_data[tc + "_mean"] = 0
             unnormalized_data[tc + "_min"] = 0
             unnormalized_data[tc + "_max"] = 0
@@ -671,6 +678,7 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
             unnormalized_data[tc + "_25quantile"] = 0
             unnormalized_data[tc + "_75quantile"] = 0
         else:
+            unnormalized_data[tc + "_prediction"] = ""
             unnormalized_data[tc + "_value_counts"] = ""
 
     unnormalized_data = unnormalized_data[all_columns]
@@ -678,38 +686,39 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
 
     for index, _ in normalized_data.iterrows():
         for tc in all_columns:
-            print "\n\n\n\n##### Predict label:", tc
-            print "\n#### Current row:", index
+            # print "\n\n\n\n##### Predict label:", tc
+            # print "\n#### Current row:", index
             cluster_index_euc = predicted_clusters["prediction_euclidean"].loc[index]
-            print "Cluster found:", cluster_index_euc
-            print "Cluster shape:", clusters[cluster_index_euc].shape
+            # print "Cluster found:", cluster_index_euc
+            # print "Cluster shape:", clusters[cluster_index_euc].shape
             unnormalized_data.set_value(index, "cluster_size", clusters[cluster_index_euc].shape[0])
 
             actual = unnormalized_data.loc[index][tc]
-            print "## Actucal value:", actual
+            # print "## Actucal value:", actual
 
             if tc in numeric_columns:
                 median = clusters[cluster_index_euc][tc].median()
-                if np.isnan(median):
-                    print "#ERROR: no median found!"
-                    # unnormalized_data.set_value(index, tc, ERROR_VALUE)
-                else:
-                    print "# Prediction:", median #, "Error:", abs_err
-                    unnormalized_data.set_value(index, tc, median)
-                    unnormalized_data.set_value(index, (tc + "_mean"), clusters[cluster_index_euc][tc].mean())
-                    unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
-                    unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
-                    unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
-                    unnormalized_data.set_value(index, (tc + "_25quantile"), clusters[cluster_index_euc][tc].quantile(.25))
-                    unnormalized_data.set_value(index, (tc + "_75quantile"), clusters[cluster_index_euc][tc].quantile(.75))
+                # if np.isnan(median):
+                #     print "#ERROR for "+tc+": no median found!"
+                #     # unnormalized_data.set_value(index, tc, ERROR_VALUE)
+                # else:
+                # print "# Prediction:", median #, "Error:", abs_err
+                unnormalized_data.set_value(index, (tc + "_prediction"), median)
+                unnormalized_data.set_value(index, (tc + "_mean"), clusters[cluster_index_euc][tc].mean())
+                unnormalized_data.set_value(index, (tc + "_min"), clusters[cluster_index_euc][tc].min())
+                unnormalized_data.set_value(index, (tc + "_max"), clusters[cluster_index_euc][tc].max())
+                unnormalized_data.set_value(index, (tc + "_std"), clusters[cluster_index_euc][tc].std())
+                unnormalized_data.set_value(index, (tc + "_25quantile"), clusters[cluster_index_euc][tc].quantile(.25))
+                unnormalized_data.set_value(index, (tc + "_75quantile"), clusters[cluster_index_euc][tc].quantile(.75))
             else:
                 value_counts = clusters[cluster_index_euc][tc].value_counts()
                 if len(value_counts) > 0:
                     majority = value_counts.idxmax(axis=1)
                 else:
+                    # print "#ERROR: no majority found!"
                     majority = np.NaN
-                print "Majority voting:", majority
-                unnormalized_data.set_value(index, tc, majority)
+                # print "Majority voting:", majority
+                unnormalized_data.set_value(index, (tc + "_prediction"), majority)
                 value_counts_string = ""
                 for k, v in value_counts.iteritems():
                     value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(v) + "</span><br>"
@@ -734,6 +743,8 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
     :type centroids: pandas.DataFrame
     :param target_columns: columns to predict_comparison
     :type target_columns: list
+    :param do_reweighting: Remove tokens not in test example and reweight tokens
+    :type do_reweighting: bool
     """
 
     # get actual target_columns (dummies)
@@ -924,17 +935,19 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
     :type target: str
     """
 
+    target_columns = [target]
+
     data_frame = prepare_data(file_name)
-    print_data_frame("After preparing data", data_frame)
+    # print_data_frame("After preparing data", data_frame)
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
     data_frame_original_test = df_test.copy()
 
     if method == "Mean-Shift":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=False)
+        # model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=False)
         model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=True)
     elif method == "K-Means":
-        model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train.copy(), find_best_params=False, do_explore=False)
+        # model, clusters, centroids, min, max, vectorizers = do_clustering_kmeans(df_train.copy(), find_best_params=False, do_explore=False)
         model_log, clusters_log, centroids_log, min_log, max_log, vectorizers_log = do_clustering_kmeans(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=True)
     elif method == "DBSCAN":
         model, clusters, centroids, min, max, vectorizers = do_clustering_dbscan(df_train, find_best_params=True, do_explore=True, do_log_transform=True)
@@ -946,24 +959,28 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
         df_test.dropna(subset=["budget"], how='any', inplace=True)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
         df_test = balance_data_set(df_test, target, relative_sampling=False)
+    if target == "job_type":
+        target_columns = [target, "budget", "workload"] # remove attributes that give away the job type
 
     # prepare test data
     df_test_log = prepare_test_data_clustering(df_test.copy(), centroids_log.columns, min_log, max_log, vectorizers=vectorizers_log, weighting=True, do_log_transform=True)
-    df_test = prepare_test_data_clustering(df_test.copy(), centroids.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=False)
+    # df_test = prepare_test_data_clustering(df_test.copy(), centroids.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=False)
 
     # predict(data_frame_original_test, df_test.drop(df_test.index[1:-1]), clusters, centroids, target_columns=['experience_level'])
     # unnormalized_data = predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['budget'], do_reweighting=False)
-    unnormalized_data = predict_comparison(model, data_frame_original_test.copy(), df_test, clusters, centroids, target_columns=[target], do_reweighting=False)
-    unnormalized_data_log = predict_comparison(model_log, data_frame_original_test.copy(), df_test_log, clusters_log, centroids_log, target_columns=[target], do_reweighting=False)
+    # unnormalized_data = predict_comparison(model, data_frame_original_test.copy(), df_test, clusters, centroids, target_columns=[target], do_reweighting=False)
+    # unnormalized_data_log = predict_comparison(model_log, data_frame_original_test.copy(), df_test_log, clusters_log, centroids_log, target_columns=[target], do_reweighting=False)
+    unnormalized_data_log = predict(data_frame_original_test.loc[df_test_log.index], df_test_log, clusters_log, centroids_log, target_columns=target_columns, do_reweighting=False)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['subcategory2'], do_reweighting=True)
     # predict_comparison(model, data_frame_original_test, df_test, clusters, centroids, target_columns=['client_feedback'])
 
     print "\n"
     if target in ["budget", "client_feedback", "feedback_for_client", "feedback_for_freelancer"]:
-        evaluate_regression(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
-        print "\nLog transfomed:"
-        evaluate_regression(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
+        # evaluate_regression(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
+        # print "\nLog transfomed:"
+        # return evaluate_regression(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
+        return evaluate_regression(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
-        evaluate_classification(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
-        print "\nLog transfomed:"
-        evaluate_classification(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
+        # evaluate_classification(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
+        # print "\nLog transfomed:"
+        return evaluate_classification(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)

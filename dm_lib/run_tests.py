@@ -9,6 +9,7 @@ from dm_feedbackModel import feedback_model_development, \
 from parameters import *
 from dm_clustering import test_clustering
 from dm_knn import test_knn
+from dm_general import evaluate_predictions_regression, evaluate_predictions_classification
 
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
@@ -62,24 +63,29 @@ def test_text_mining():
 RDB_HOST = "localhost"
 
 #run
+
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "Mean-Shift", "budget"), 5)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 15)
+accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "job_type"), 2)
+
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
 # test_knn(JOBS_FILE, target="budget")
-db_setup(JOBS_FILE, host=RDB_HOST)
-
-connection = rdb.connect(RDB_HOST, RDB_PORT)
-try:
-    # prepare_data(JOBS_FILE)
-    budget_model_development(JOBS_FILE, connection)
-    # budget_model_production(connection)
-    # jobtype_model_production(connection)
-    # jobtype_model_development(JOBS_FILE, connection)
-    # feedback_model_development(JOBS_FILE, connection)
-    # feedback_model_production(connection, normalization=False)
-    # experience_level_model(JOBS_FILE)
-    # test_text_mining()
-    # explore_data(JOBS_FILE)
-    # test_knn(JOBS_FILE)
-except RqlRuntimeError as e:
-    print 'Database error: {}'.format(e)
-finally:
-    connection.close()
+# db_setup(JOBS_FILE, host=RDB_HOST)
+#
+# connection = rdb.connect(RDB_HOST, RDB_PORT)
+# try:
+#     # prepare_data(JOBS_FILE)
+#     budget_model_development(JOBS_FILE, connection)
+#     # budget_model_production(connection)
+#     # jobtype_model_production(connection)
+#     # jobtype_model_development(JOBS_FILE, connection)
+#     # feedback_model_development(JOBS_FILE, connection)
+#     # feedback_model_production(connection, normalization=False)
+#     # experience_level_model(JOBS_FILE)
+#     # test_text_mining()
+#     # explore_data(JOBS_FILE)
+#     # test_knn(JOBS_FILE)
+# except RqlRuntimeError as e:
+#     print 'Database error: {}'.format(e)
+# finally:
+#     connection.close()

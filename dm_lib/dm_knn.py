@@ -22,6 +22,7 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
     if get_example_text:
         unnormalized_data_predict["title_prediction"] = ""
         unnormalized_data_predict["snippet_prediction"] = ""
+        unnormalized_data_predict["skills_prediction"] = ""
     else:
         for tc in target_columns:
             if tc in numeric_columns:
@@ -52,6 +53,12 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
         if get_example_text:
             unnormalized_data_predict.set_value(index_test, "title_prediction", neighbor_values["title"][0])
             unnormalized_data_predict.set_value(index_test, "snippet_prediction", neighbor_values["snippet"][0])
+            skills_prediction = ""
+            for skill in neighbor_values["skills"][0]:
+                skills_prediction = skill + " "
+            if skills_prediction == "":
+                skills_prediction = "none"
+            unnormalized_data_predict.set_value(index_test, "skills_prediction", skills_prediction)
         else:
             for tc in target_columns:
 
@@ -109,10 +116,10 @@ def test_knn(file_name, target="budget"):
     df_test = prepare_test_data_clustering(df_test, df_train.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=True)
 
     # Reweighting harms budget! Benefits subcategory however and shows more similar example snippet and title
-    unnormalized_data = predict_knn(data_frame_original.loc[df_test.index], data_frame_original.loc[df_train.index], df_test.copy(), df_train.copy(), k=15, target_columns=[target], do_reweighting=False)
+    unnormalized_data = predict_knn(data_frame_original.loc[df_test.index], data_frame_original.loc[df_train.index], df_test.copy(), df_train.copy(), k=15, target_columns=[target], do_reweighting=False, get_example_text=False)
 
     print "\n"
     if target in ["budget", "client_feedback", "feedback_for_client", "feedback_for_freelancer"]:
-        evaluate_regression(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)
+        return evaluate_regression(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
-        evaluate_classification(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)
+        return evaluate_classification(unnormalized_data[target], unnormalized_data[target+'_prediction'], target)

@@ -812,7 +812,7 @@ def weight_data(data_frame, text_weight=1.0):
     for text_column_name in ["skills", "snippet", "title"]:
         token_names = [col for col in list(data_frame) if col.startswith("$token_" + text_column_name)]
         if len(token_names) > 1:
-            print "Number of "+text_column_name+" tokens:", len(token_names)
+            # print "Number of "+text_column_name+" tokens:", len(token_names)
             data_frame[token_names] = data_frame[token_names] * text_weight / len(token_names)
 
     data_frame.replace([np.inf, -np.inf], np.nan, inplace=True)

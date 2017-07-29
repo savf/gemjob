@@ -504,7 +504,7 @@ function updateRealTimePredictions(){
             recommendation_elements.each(function() {
                 var current_el = $( this );
                 var current_id = current_el.attr('id');
-                var rec_value = cluster_predictions[current_id];
+                var rec_value = cluster_predictions[current_id + "_prediction"];
                 if (rec_value == undefined)
                     rec_value = "undefined";
                 current_el.text(rec_value);
@@ -537,19 +537,19 @@ function updateRealTimePredictions(){
             });
 
             $("#cluster_size").text(cluster_predictions["cluster_size"]);
-            $("#feedback_for_client").text(cluster_predictions["feedback_for_client"]);
+            $("#feedback_for_client").text(cluster_predictions["feedback_for_client_prediction"]);
             recommendation_labels.show();
 
             var text_field_names = ["title", "snippet"];
             for (var i = 0; i < text_field_names.length; i++) {
                 if(form_values[text_field_names[i]]) {
                     var wordCount = form_values[text_field_names[i]].split(" ").length;
-                    if (cluster_predictions[text_field_names[i] + "_length"] != wordCount)
+                    if (cluster_predictions[text_field_names[i] + "_length_prediction"] != wordCount)
                         $("#" + text_field_names[i] + "_length").addClass("DifferentPrediction");
                     else $("#" + text_field_names[i] + "_length").removeClass("DifferentPrediction");
                 }
             }
-            if (cluster_predictions["skills_number"] != skills_selected.length)
+            if (cluster_predictions["skills_number_prediction"] != skills_selected.length)
                 $("#skills_number").addClass("DifferentPrediction");
             else $("#skills_number").removeClass("DifferentPrediction");
 
@@ -574,8 +574,8 @@ function showStats(element){
             "<br><h2>Stats:</h2>" +
             "<table class='BreakDownTable'> <tr valign='top'> <td>Attribute name:</td> <td>" + element.attr("id") + "</td> </tr> ";
 
-        if (typeof cluster_predictions[element.attr("id")] === 'string') {
-            content += "<tr valign='top'> <td>Majority:</td>  <td>" + cluster_predictions[element.attr("id")] + "</td> </tr>" +
+        if (typeof cluster_predictions[element.attr("id")+"_prediction"] === 'string') {
+            content += "<tr valign='top'> <td>Majority:</td>  <td>" + cluster_predictions[element.attr("id")+"_prediction"] + "</td> </tr>" +
                 "<tr valign='top'> <td>Value counts:</td>  <td>" + cluster_predictions[element.attr("id") + "_value_counts"] + "</td> </tr> </table>" +
                 "<div id='BoxPlotLiveRecommendation'></div>";
 
@@ -633,7 +633,7 @@ function showStats(element){
             adjustPopUp()
         }
         else {
-            var median = cluster_predictions[element.attr("id")];
+            var median = cluster_predictions[element.attr("id")+"_prediction"];
             var hint = "";
             if (median == undefined) {
                 median = "undefined";
@@ -736,7 +736,9 @@ function getExampleText(){
                     "<br><h2>Title:</h2>" +
                     "<p>"+ knn_predictions["title_prediction"] +"</p>" +
                     "<br><h2>Description:</h2>" +
-                    "<p>"+ knn_predictions["snippet_prediction"] +"</p>";
+                    "<p>"+ knn_predictions["snippet_prediction"] +"</p>" +
+                    "<br><h2>Skills:</h2>" +
+                    "<p>"+ knn_predictions["skills_prediction"] +"</p>";
 
 			showPopUp("Example Text:", content);
 

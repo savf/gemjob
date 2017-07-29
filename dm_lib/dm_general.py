@@ -104,6 +104,7 @@ def evaluate_regression(df, predictions, label_name, printing=True):
     print "## Mean squared error: ", sq_err
     mape = mape_vectorized(df, predictions)
     print "## Mean absolute percentage error: {:.1f}%".format(mape)
+    print ""
 
     enable_printing()
     return exp_var_sc, abs_err, sq_err, mape
@@ -157,6 +158,7 @@ def evaluate_classification(df, predictions, label_name, printing=True):
     print "### Evaluation of " + label_name + " ###"
     accuracy = accuracy_score(df, predictions)
     print "## Accuracy as a fraction: ", accuracy
+    print ""
 
     # TODO: add more measures http://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics
 
@@ -249,3 +251,69 @@ def generate_model_stats(data_frame, model):
             del importances[key]
 
     return importances
+
+
+def evaluate_predictions_regression(function, function_args, iterations=10):
+    """ Get average accuracy of a regression model after many iterations
+
+    :param function: Function returning the result of the evaluate_regression function in the end
+    :type function: def
+    :param function_args: Arguments for the function
+    :type function_args: various
+    :return: Average errors
+    :rtype: various
+    """
+
+    if iterations == 0: return
+
+    tot_exp_var_sc = 0
+    tot_abs_err = 0
+    tot_sq_err = 0
+    tot_mape = 0
+
+    for i in range(0, iterations):
+        exp_var_sc, abs_err, sq_err, mape = function(*function_args)
+        tot_exp_var_sc = tot_exp_var_sc + exp_var_sc
+        tot_abs_err = tot_abs_err + abs_err
+        tot_sq_err = tot_sq_err + sq_err
+        tot_mape = tot_mape + mape
+
+    tot_exp_var_sc = tot_exp_var_sc / iterations
+    tot_abs_err = tot_abs_err / iterations
+    tot_sq_err = tot_sq_err / iterations
+    tot_mape = tot_mape / iterations
+
+    print "\n\n\n\n####### Final average evaluation after", iterations, "iterations #######"
+    print "## Explained variance score (best is 1.0): ", tot_exp_var_sc
+    print "## Mean absolute error: ", tot_abs_err
+    print "## Mean squared error: ", tot_sq_err
+    print "## Mean absolute percentage error: {:.1f}%".format(tot_mape)
+
+    return tot_exp_var_sc, tot_abs_err, tot_sq_err, tot_mape
+
+
+def evaluate_predictions_classification(function, function_args, iterations=10):
+    """ Get average accuracy of a classification model after many iterations
+
+    :param function: Function returning the result of the evaluate_classification function in the end
+    :type function: def
+    :param function_args: Arguments for the function
+    :type function_args: various
+    :return: Average errors
+    :rtype: various
+    """
+
+    if iterations == 0: return
+
+    tot_accuracy = 0
+
+    for i in range(0, iterations):
+        accuracy = function(*function_args)
+        tot_accuracy = tot_accuracy + accuracy
+
+    tot_accuracy = tot_accuracy / iterations
+
+    print "\n\n\n\n####### Final average evaluation after", iterations, "iterations #######"
+    print "## Accuracy: ", tot_accuracy
+
+    return tot_accuracy
