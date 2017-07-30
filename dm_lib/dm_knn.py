@@ -12,7 +12,8 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
     for tc in target_columns:
         actual_cols = actual_cols + [col for col in list(normalized_train) if col.startswith(tc)]
 
-    numeric_columns = unnormalized_data_train._get_numeric_data().columns
+    numeric_columns = list(unnormalized_data_train._get_numeric_data().columns)
+    numeric_columns.remove("experience_level")
 
     # drop target columns in train and in test data so distance not based on them
     normalized_train.drop(labels=actual_cols, axis=1, inplace=True)

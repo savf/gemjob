@@ -65,8 +65,9 @@ RDB_HOST = "localhost"
 #run
 
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "Mean-Shift", "budget"), 5)
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 15)
-accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "job_type"), 2)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 5)
+# accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "job_type"), 2)
+exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(budget_model_development, (JOBS_FILE, None), 20)
 
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
 # test_knn(JOBS_FILE, target="budget")

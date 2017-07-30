@@ -219,7 +219,7 @@ def prepare_single_job_clustering(data_frame, cluster_columns, min, max, vectori
         if col not in cluster_columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
 
-    print_data_frame("after adding all cols", data_frame)
+    # print_data_frame("after adding all cols", data_frame)
 
     # transform to log scale where skewed distribution
     if do_log_transform:
@@ -661,7 +661,8 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
     # find nearest centroid for each row of the given data
     all_columns = list(clusters.itervalues().next().columns)
     all_columns = [x for x in all_columns if x not in ["cluster_label", "skills", "title", "snippet", "client_country", "date_created", "client_reviews_count", ]]
-    numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
+    numeric_columns = list(clusters.itervalues().next()._get_numeric_data().columns)
+    numeric_columns.remove("experience_level")
 
     unnormalized_data = unnormalized_data[all_columns]
 
@@ -723,8 +724,13 @@ def predict(unnormalized_data, normalized_data, clusters, centroids, target_colu
                 # print "Majority voting:", majority
                 unnormalized_data.set_value(index, (tc + "_prediction"), majority)
                 value_counts_string = ""
-                for k, v in value_counts.iteritems():
-                    value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(v) + "</span><br>"
+                if tc == "experience_level":
+                    experience_level_names = ["Entry Level", "Intermediate", "Expert"]
+                    for k, v in value_counts.iteritems():
+                        value_counts_string = value_counts_string + experience_level_names[int(k) - 1] + ": <span style='float: right;'>" + str(v) + "</span><br>"
+                else:
+                    for k, v in value_counts.iteritems():
+                        value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(v) + "</span><br>"
                 unnormalized_data.set_value(index, (tc + "_value_counts"), value_counts_string)
 
     return unnormalized_data
@@ -799,7 +805,8 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
 
 
     # find nearest centroid for each row of the given data
-    numeric_columns = clusters.itervalues().next()._get_numeric_data().columns
+    numeric_columns = list(clusters.itervalues().next()._get_numeric_data().columns)
+    numeric_columns.remove("experience_level")
 
     for tc in target_columns:
 

@@ -303,11 +303,6 @@ def prepare_data(file_name, jobs=None):
     data_frame['date_created'] = pd.to_datetime(data_frame['date_created'])
     data_frame['date_created'] = data_frame['date_created'].apply(lambda dt: dt.replace(day=1, hour=0, minute=0, second=0, microsecond=0, nanosecond=0))
 
-    # convert experience level from numeric to categorical
-    experience_levels = ['Entry Level', 'Intermediate', 'Expert']
-    data_frame['experience_level'] = pd.cut(data_frame['experience_level'], len(experience_levels),
-                                            labels=experience_levels)
-
     # fill missing experience levels with forward filling
     data_frame['experience_level'].fillna(method='ffill', inplace=True)
 
@@ -371,12 +366,9 @@ def prepare_single_job(json_data):
         # budgets for hourly jobs are set to 0
         data_frame.budget.fillna(0, inplace=True)
 
-    # convert experience level from numeric to categorical
-    if 'experience_level' in data_frame.columns:
-        data_frame['experience_level'] = data_frame.experience_level.astype(str)
-        data_frame.loc[data_frame.experience_level == "1", 'experience_level'] = "Entry Level"
-        data_frame.loc[data_frame.experience_level == "2", 'experience_level'] = "Intermediate"
-        data_frame.loc[data_frame.experience_level == "3", 'experience_level'] = "Expert"
+    # convert experience level to numeric
+    data_frame["experience_level"] = pd.to_numeric(data_frame["experience_level"], errors='coerce')  # errors are filled with NaN
+    # print "# After to numeric:", data_frame["experience_level"]
 
     # add additional attributes like text size (how long is the description?) or number of skills
     if 'snippet' in data_frame.columns:
@@ -611,11 +603,9 @@ def convert_to_numeric(data_frame, label_name):
 
     # transform nominals client_country, job_type and subcategory2 to numeric
     if label_name == 'job_type' or 'job_type' not in data_frame.columns:
-        cols_to_transform = ['client_payment_verification_status', 'client_country', 'subcategory2', 'experience_level']
-    elif label_name == 'experience_level':
-        cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2']
+        cols_to_transform = ['client_payment_verification_status', 'client_country', 'subcategory2']
     else:
-        cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2', 'experience_level']
+        cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2']
     cols_to_transform = set(cols_to_transform).intersection(data_frame.columns)
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
 

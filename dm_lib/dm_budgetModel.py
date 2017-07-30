@@ -283,7 +283,7 @@ def budget_model_development(file_name, connection):
         print "\n## Revert log:"
         df_test_target_log = revert_log_scale(df_test_target_log)
         predictions = revert_log_scale(pd.Series(predictions))
-        evaluate_regression(df_test_target_log, predictions.values, label_name)
+        return evaluate_regression(df_test_target_log, predictions.values, label_name)
 
         # plt.figure(3)
         # residplot(df_test_target_log.values, predictions.values)
@@ -312,10 +312,10 @@ def budget_model_development(file_name, connection):
         print "\n\n##### With Log transform, without text:"
         model, predictions, data_frame_target = create_model_cross_val(data_frame, label_name, budget_classification)
         if budget_classification:
-            evaluate_classification(data_frame_target, predictions, label_name)
+            return evaluate_classification(data_frame_target, predictions, label_name)
         else:
-            evaluate_regression(data_frame_target, predictions, label_name)
-        print_predictions_comparison(data_frame_target, predictions, label_name, 20)
+            return evaluate_regression(data_frame_target, predictions, label_name)
+        # print_predictions_comparison(data_frame_target, predictions, label_name, 20)
 
 
 def budget_model_production(connection, budget_name='budget', normalization=True, do_log_transform=True):

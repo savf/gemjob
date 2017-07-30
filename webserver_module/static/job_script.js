@@ -507,9 +507,8 @@ function updateRealTimePredictions(){
                 var rec_value = cluster_predictions[current_id + "_prediction"];
                 if (rec_value == undefined)
                     rec_value = "undefined";
-                current_el.text(rec_value);
 
-                if(form_values[current_id] && current_id != "experience_level") {
+                if(form_values[current_id]) {
 
                     if (typeof rec_value === 'string' && rec_value.toLowerCase() != form_values[current_id].toLowerCase() &&
                     !(rec_value == "Fixed" && form_values[current_id] == "fixed-price"))
@@ -526,15 +525,17 @@ function updateRealTimePredictions(){
                     else
                         current_el.removeClass("DifferentPrediction");
                 }
-                else if (current_id == "experience_level"){
-                    if(     (rec_value == "Entry Level" && form_values["experience_level"] == 1) ||
-                            (rec_value == "Intermediate" && form_values["experience_level"] == 2) ||
-                            (rec_value == "Expert" && form_values["experience_level"] == 3))
-                        current_el.removeClass("DifferentPrediction")
-                    else current_el.addClass("DifferentPrediction");
-                }
                 else current_el.removeClass("DifferentPrediction");
+
+                if (current_id == "experience_level") {
+                    var levels = ["Entry Level", "Intermediate", "Expert"];
+                    rec_value = levels[rec_value-1];
+                }
+
+                current_el.text(rec_value);
             });
+
+
 
             $("#cluster_size").text(cluster_predictions["cluster_size"]);
             $("#feedback_for_client").text(cluster_predictions["feedback_for_client_prediction"]);
@@ -574,7 +575,7 @@ function showStats(element){
             "<br><h2>Stats:</h2>" +
             "<table class='BreakDownTable'> <tr valign='top'> <td>Attribute name:</td> <td>" + element.attr("id") + "</td> </tr> ";
 
-        if (typeof cluster_predictions[element.attr("id")+"_prediction"] === 'string') {
+        if (typeof cluster_predictions[element.attr("id")+"_prediction"] === 'string' || element.attr("id") == "experience_level") {
             content += "<tr valign='top'> <td>Majority:</td>  <td>" + cluster_predictions[element.attr("id")+"_prediction"] + "</td> </tr>" +
                 "<tr valign='top'> <td>Value counts:</td>  <td>" + cluster_predictions[element.attr("id") + "_value_counts"] + "</td> </tr> </table>" +
                 "<div id='BoxPlotLiveRecommendation'></div>";
