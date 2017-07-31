@@ -1,0 +1,60 @@
+version: '2'
+services:
+  webserver_module:
+    build:
+      context: .
+      dockerfile: webserver_module/Dockerfile.prod
+    container_name: webserver_module
+    hostname: webserver_module.local
+    ports:
+        - "80:8000"
+
+  data_module:
+    build:
+      context: .
+      dockerfile: data_module/Dockerfile.prod
+    container_name: data_module
+    hostname: data_module.local
+
+  cluster_module:
+    build:
+      context: .
+      dockerfile: cluster_module/Dockerfile.prod
+    container_name: cluster_module
+    hostname: cluster_module.local
+
+  budget_module:
+    build:
+      context: .
+      dockerfile: budget_module/Dockerfile.prod
+    container_name: budget_module
+    hostname: budget_module.local
+
+  feedback_module:
+    build:
+      context: .
+      dockerfile: feedback_module/Dockerfile.prod
+    container_name: feedback_module
+    hostname: feedback_module.local
+
+  jobtype_module:
+    build:
+      context: .
+      dockerfile: jobtype_module/Dockerfile.prod
+    container_name: jobtype_module
+    hostname: jobtype_module.local
+
+  knn_module:
+    build:
+      context: .
+      dockerfile: knn_module/Dockerfile.prod
+    container_name: knn_module
+    hostname: knn_module.local
+
+  database_module:
+    # https://hub.docker.com/_/rethinkdb/
+    image: rethinkdb:2.3.5
+    container_name: database_module
+    hostname: database_module.local
+    ports:
+      - "8001:8080"
