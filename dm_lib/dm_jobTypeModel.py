@@ -1,4 +1,4 @@
-from sklearn.ensemble import BaggingRegressor, RandomForestClassifier
+from sklearn.ensemble import BaggingRegressor, RandomForestClassifier, BaggingClassifier, AdaBoostClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, \
     mutual_info_regression
 from sklearn.model_selection import train_test_split
@@ -118,9 +118,9 @@ def create_model(df_train, label_name, is_classification, selectbest=False):
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
-        model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        model = BaggingRegressor(n_estimators=250)  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
-        model = RandomForestClassifier(n_estimators=100)
+        model = BaggingClassifier(n_estimators=50)
 
     model.fit(df_train, df_target_train)
     return model, df_train.columns
@@ -160,9 +160,9 @@ def jobtype_model_development(file_name, connection):
 
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
 
-    evaluate_classification(df_test, predictions, label_name, printing=True)
+    return evaluate_classification(df_test, predictions, label_name, printing=True)
 
-    print_predictions_comparison(df_test, predictions, label_name)
+    # print_predictions_comparison(df_test, predictions, label_name)
 
     #with open("job_type_tree.dot", 'w') as f:
     #    f = tree.export_graphviz(clf, feature_names=df_train.columns.values, out_file=f)

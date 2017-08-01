@@ -1,7 +1,6 @@
 # from dm_data_exploration import explore_data
 from dm_data_preparation import *
-# from dm_lib.dm_jobTypeModel import jobtype_model_production, \
-#     jobtype_model_development
+from dm_jobTypeModel import jobtype_model_production, jobtype_model_development
 from dm_text_mining import *
 from dm_budgetModel import budget_model_development, budget_model_production
 from dm_feedbackModel import feedback_model_development, \
@@ -68,6 +67,7 @@ RDB_HOST = "localhost"
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 5)
 # accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "job_type"), 2)
 exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(budget_model_development, (JOBS_FILE, None), 20)
+# accuracy = evaluate_predictions_classification(jobtype_model_development, (JOBS_FILE, None), 20)
 
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
 # test_knn(JOBS_FILE, target="budget")

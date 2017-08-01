@@ -1,7 +1,7 @@
 from sklearn import svm, linear_model, decomposition
 
 from dm_general import *
-from sklearn.ensemble import BaggingRegressor
+from sklearn.ensemble import BaggingRegressor, BaggingClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, \
     mutual_info_regression, VarianceThreshold
@@ -170,9 +170,9 @@ def create_model(df_train, label_name, is_classification,
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
-        model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        model = BaggingRegressor(n_estimators=250)  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
-        model = RandomForestClassifier(n_estimators=100)
+        model = BaggingClassifier(n_estimators=50)
 
     model.fit(df_train, df_target_train)
     return model, df_train.columns
@@ -247,18 +247,18 @@ def budget_model_development(file_name, connection):
         # model, _ = create_model(df_train.copy(), label_name, budget_classification, selectbest=False)
         # print_model_evaluation(model, df_test.copy(), label_name, budget_classification)
         
-        print "\n##### With Text Tokens, With Outlier Treatment:"
-        df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
-        df_test_outl, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
-        # df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
-        model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
-        # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
-
-        df_test_target_outl = df_test_outl[label_name]
-        df_test_outl.drop(labels=[label_name], axis=1, inplace=True)
-        predictions = model.predict(df_test_outl)
-
-        evaluate_regression(df_test_target_outl, predictions, label_name)
+        # print "\n##### With Text Tokens, With Outlier Treatment:"
+        # df_train_outl, vectorizers = add_text_tokens_to_data_frame(df_train_outl, text_train_outl)
+        # df_test_outl, _ = add_text_tokens_to_data_frame(df_test, text_test, vectorizers=vectorizers)
+        # # df_train_outl, df_test_outl, lsa = dimensionality_reduction(df_train_outl, df_test_outl, label_name)
+        # model, _ = create_model(df_train_outl.copy(), label_name, budget_classification, selectbest=False, variance_threshold=False)
+        # # print_model_evaluation(model, df_test_outl.copy(), label_name, budget_classification)
+        #
+        # df_test_target_outl = df_test_outl[label_name]
+        # df_test_outl.drop(labels=[label_name], axis=1, inplace=True)
+        # predictions = model.predict(df_test_outl)
+        #
+        # evaluate_regression(df_test_target_outl, predictions, label_name)
 
         # plt.figure(1)
         # plt.scatter(df_test_target_outl.values, predictions)
