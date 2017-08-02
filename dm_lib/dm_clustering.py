@@ -26,6 +26,9 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     :rtype: pandas.DataFrame
     """
 
+    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
+    data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
+
     # drop columns that are unnecessary for clustering: are they?
         # idea: we don't want to predict_comparison anymore, we just want to cluster based on interesting attributes provided by user
     drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
@@ -101,6 +104,9 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     :return: Cleaned Pandas DataFrame with only numerical attributes
     :rtype: pandas.DataFrame
     """
+
+    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
+    data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
 
     # drop columns that are unnecessary for clustering: are they?
         # idea: we don't want to predict_comparison anymore, we just want to cluster based on interesting attributes provided by user

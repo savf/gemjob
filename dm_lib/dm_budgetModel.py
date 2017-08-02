@@ -40,6 +40,7 @@ def prepare_data_budget_model(data_frame, label_name, is_train_data, budget_clas
 
         # Discretize budget into 4 bins for classification
         if budget_classification:
+            do_log_transform = False
             budget_levels = ['low', 'medium', 'high', 'ultra']
             data_frame['budget'] = pd.qcut(
                 data_frame.loc[data_frame['budget'] > 0.0, 'budget'],
@@ -199,16 +200,17 @@ def create_model_cross_val(data_frame, label_name, is_classification):
 
 
 # TODO: try classification instead of regression. Predict low budget (0 to x$), medium budget, ...
-def budget_model_development(file_name, connection):
+def budget_model_development(file_name, connection, budget_classification=False):
     """ Learn model for label 'budget' and return it
 
     :param file_name: JSON file containing all data
     :type file_name: str
     :param connection: RethinkDB connection to load the data
     :type connection: rethinkdb.net.ConnectionInstance
+    :param budget_classification: Predict the budget in classes or as a quantity
+    :type budget_classification: bool
     """
     label_name = "budget"
-    budget_classification = False
     do_cross_val = False
 
     # data_frame = prepare_data(file_name)
@@ -224,8 +226,12 @@ def budget_model_development(file_name, connection):
         # treat outliers
         df_train_outl = treat_outliers_deletion(df_train.copy())
         # budget log scale and outlier deletion
-        df_train_log = transform_log_scale(df_train_outl.copy(), add_to_df=False)
-        df_test_log = transform_log_scale(df_test.copy(), add_to_df=False)
+        if not budget_classification:
+            df_train_log = transform_log_scale(df_train_outl.copy(), add_to_df=False)
+            df_test_log = transform_log_scale(df_test.copy(), add_to_df=False)
+        else:
+            df_train_log = df_train_outl.copy()
+            df_test_log = balance_data_set(df_test.copy(), label_name, relative_sampling=False)
 
         # separate text
         # df_train, text_train = separate_text(df_train)
@@ -274,8 +280,10 @@ def budget_model_development(file_name, connection):
         df_test_log.drop(labels=[label_name], axis=1, inplace=True)
         predictions = model.predict(df_test_log)
 
-        evaluate_regression(df_test_target_log, predictions, label_name)
-
+        if budget_classification:
+            return evaluate_classification(df_test_target_log, predictions, label_name)
+        else:
+            evaluate_regression(df_test_target_log, predictions, label_name)
         # plt.figure(2)
         # plt.scatter(df_test_target_log.values, predictions)
         # residplot(df_test_target_log.values, predictions)

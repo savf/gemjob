@@ -276,8 +276,8 @@ def prepare_data(file_name, jobs=None):
 
     # generate aggregate feedback for client and freelancer and fill missings
     data_frame = get_overall_job_reviews(data_frame, drop_detailed=True)
-    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
-    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
+    data_frame.feedback_for_client.fillna(-1, inplace=True)
+    data_frame.feedback_for_freelancer.fillna(-1, inplace=True)
 
     # set missing of client_payment_verification_status to unknown (as this is already an option anyway)
     data_frame["client_payment_verification_status"].fillna("UNKNOWN", inplace=True)
@@ -450,12 +450,6 @@ def treat_outliers_deletion(data_frame, ignore_labels=[]):
     """
     # delete only in training set!!!!
 
-    q1 = data_frame.quantile(0.25)
-    q3 = data_frame.quantile(0.75)
-    iqr = q3 - q1
-
-    outliers = ((data_frame < (q1 - 1.5 * iqr)) | (data_frame > (q3 + 1.5 * iqr)))
-
     attributes = ['total_hours', 'duration_weeks_median', 'total_charge']
 
     if data_frame['budget'].dtype.name != "category":
@@ -465,7 +459,13 @@ def treat_outliers_deletion(data_frame, ignore_labels=[]):
         if attr in ignore_labels or attr not in data_frame.columns:
             attributes.remove(attr)
 
-    outlier_indices = [idx for idx in data_frame.index if outliers[attributes].loc[idx].any()]
+    q1 = data_frame[attributes].quantile(0.25)
+    q3 = data_frame[attributes].quantile(0.75)
+    iqr = q3 - q1
+
+    outliers = ((data_frame[attributes] < (q1 - 1.5 * iqr)) | (data_frame[attributes] > (q3 + 1.5 * iqr)))
+
+    outlier_indices = [idx for idx in data_frame[attributes].index if outliers[attributes].loc[idx].any()]
     del outliers
     data_frame.drop(outlier_indices, inplace=True)
 

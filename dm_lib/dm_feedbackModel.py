@@ -19,6 +19,8 @@ def prepare_data_feedback_model(data_frame, label_name):
     :return: Cleaned Pandas DataFrames
     :rtype: pandas.DataFrame
     """
+    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
+    data_frame.dropna(subset=["feedback_for_client"], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary
     drop_unnecessary = ["client_payment_verification_status",
@@ -164,7 +166,7 @@ def feedback_model_development(file_name, connection=None):
     print "\nNo changes:"
     model, columns = create_model(df_train, label_name, feedback_classification, selectbest=False, variance_threshold=True)
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
-    evaluate_regression(df_test[label_name], predictions, label_name)
+    return evaluate_regression(df_test[label_name], predictions, label_name)
 
     print "\nLog transformed and outliers deleted:"
     model, columns = create_model(df_train_log, label_name, feedback_classification, selectbest=False, variance_threshold=True)
