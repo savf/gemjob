@@ -246,7 +246,8 @@ def generate_model_stats(data_frame, model):
         importance = feature_importances_mean.loc[importances[key]].sum()
         importances[key] = {'importance': round(importance*100, 2),
                             'error': [round(max(0.0, min(importance - std, 1.0))*100, 2),
-                                      round(max(0.0, min(importance + std, 1.0))*100, 2)]}
+                                      round(max(0.0, min(importance + std, 1.0))*100, 2)],
+                            'std': round(std*100, 2)}
         if importances[key]['importance'] == 0.0:
             del importances[key]
 

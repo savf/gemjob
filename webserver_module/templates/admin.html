@@ -59,25 +59,5 @@
         </div>
     </div>
 
-    <div class="Section">
-        <div class="Form">
-            <h2>Get new sample</h2>
-
-            {% if server_message %}
-                <p class="Warning"> {{ server_message }} </p>
-            {% endif %}
-            <form action="." method="POST">
-                <input type="number" min="1" step="1" name="sample_size" placeholder="Sample Size" size=50 maxlength=120 value="">
-                <input type="number" min="0" step="1" name="days_posted" placeholder="Oldest job (in days from now)" size=50 maxlength=120 value="">
-                <input type="number" min="0" step="1" name="page_offset" placeholder="Page Offset" size=50 maxlength=120 value="">
-                <input type="submit" value="Start" name="submit" class="Button" id="GetSample">
-            </form>
-            <div class="Text">
-                <h2>Response:</h2>
-                <p id="Result">None</p>
-            </div>
-        </div>
-    </div>
-
 </body>
 </html>

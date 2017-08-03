@@ -37,30 +37,34 @@ class Predictions(Resource):
     def post(self):
         local_variable = copy.deepcopy(GLOBAL_VARIABLE)
         if "model" in local_variable:
-            json_data = request.get_json(force=True)
+            try:
+                json_data = request.get_json(force=True)
 
-            data_frame = prepare_single_job(json_data)
-            unnormalized_data = data_frame.copy()
+                data_frame = prepare_single_job(json_data)
+                unnormalized_data = data_frame.copy()
 
-            normalized_data =\
-                prepare_single_job_feedback_model(unnormalized_data,
-                                                  TARGET_NAME,
-                                                  local_variable['columns'],
-                                                  local_variable['min'],
-                                                  local_variable['max'],
-                                                  local_variable['vectorizers'])
+                normalized_data =\
+                    prepare_single_job_feedback_model(unnormalized_data,
+                                                      TARGET_NAME,
+                                                      local_variable['columns'],
+                                                      local_variable['min'],
+                                                      local_variable['max'],
+                                                      local_variable['vectorizers'])
 
-            prediction = predict(normalized_data, TARGET_NAME,
-                                 local_variable['model'],
-                                 local_variable['min'],
-                                 local_variable['max'])
+                prediction = predict(normalized_data, TARGET_NAME,
+                                     local_variable['model'],
+                                     local_variable['min'],
+                                     local_variable['max'])
 
-            app.logger.info("{} Prediction: {}".format(TARGET_NAME,
-                                                       prediction))
+                app.logger.info("{} Prediction: {}".format(TARGET_NAME,
+                                                           prediction))
 
-            return {TARGET_NAME: {'prediction': prediction,
-                                  'stats': local_variable['feature_importances']}
-                    }
+                return {TARGET_NAME: {'prediction': prediction,
+                                      'stats': local_variable['feature_importances']}
+                        }
+            except Exception as e:
+                app.logger.error(e)
+                return {}
 
         return {}
 
