@@ -18,9 +18,64 @@ RDB_PORT = 28015
 RDB_DB = 'datasets'
 RDB_OPTIMIZED_TABLE = 'jobs_optimized'
 
+dictionary = {"budget": "Budget",
+    "client_country": "Country",
+    "client_feedback": "Overall feedback",
+    "client_jobs_posted": "Number of jobs created by the client",
+    "client_past_hires": "Number of hires",
+    "client_payment_verification_status": "Payment verification status",
+    "client_reviews_count": "Number of reviews the client received",
+    "timestamp": "Start date",
+    "duration_weeks_median": "Duration in weeks",
+    "experience_level":  "Desired Experience Level",
+    "feedback_for_client": "Feedback from freelancers for this job",
+    "feedback_for_freelancer": "Feedback to freelancers for this job",
+    "freelancer_count": "Number of freelancers",
+    "job_type": "Payment type",
+    "skills": "Skills",
+    "skills_number": "Number of skills",
+    "snippet": "Description",
+    "snippet_length": "Length of description",
+    "subcategory2":  "Subcategory",
+    "title":  "Title",
+    "title_length": "Length of title",
+    "total_charge": "Total costs of this job",
+    "total_hours": "Total hours worked on the job",
+    "workload":  "Workload"
+}
+
 
 def perc_convert(ser):
     return ser/float(ser[-1])
+
+
+def plot_importances(importances, pretty_labels=False):
+    """ Plot importances generated from model
+
+    :param importances: Dictionary containing importance, error range and std
+    :param pretty_labels: Whether to print nice labels or the raw attribute names
+    """
+    fig, ax = plt.subplots()
+    ind = np.arange(len(importances))
+    importance_values = list()
+    importance_errors = list()
+    for key, value in importances.iteritems():
+        if key != "text":
+            importance_values.append({'name': dictionary[key] if pretty_labels else key,
+                                      'importance': value['importance'],
+                                      'error': value['std']})
+
+    values = pd.DataFrame(importance_values)
+    values.set_index('name', inplace=True)
+    values.sort_values(by='importance', inplace=True)
+
+    colors = ["#73ae43"]
+    values['importance'].plot(kind='barh', xerr=values['error'], color=colors, ax=ax)
+    ax.set_ylabel("")
+    ax.set_xlabel("Feature Importance in %")
+    plt.xticks(np.arange(0.0, max(values['importance']) + 1, 5.0))
+    plt.tight_layout()
+    plt.show()
 
 
 def replace_missing_with_kde_samples(data_frame, attribute):
