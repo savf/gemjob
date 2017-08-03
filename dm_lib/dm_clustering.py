@@ -9,6 +9,24 @@ from dm_text_mining import add_text_tokens_to_data_frame
 
 ERROR_VALUE = -1
 
+def fill_missing_feedbacks(data_frame):
+    """ Fill all missing feedbacks with forward fill and the remaining ones (if first few already missing) with the mean
+
+    :param data_frame: Pandas DataFrame that holds the data
+    :type data_frame: pandas.DataFrame
+    :return: Cleaned Pandas DataFrame
+    :rtype: pandas.DataFrame
+    """
+    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
+    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
+    data_frame.client_feedback.fillna(method='ffill', inplace=True)
+    data_frame['feedback_for_client'].fillna(data_frame['feedback_for_client'].mean(), inplace=True)
+    data_frame['client_feedback'].fillna(data_frame['client_feedback'].mean(), inplace=True)
+    data_frame['feedback_for_freelancer'].fillna(data_frame['feedback_for_freelancer'].mean(), inplace=True)
+
+    return data_frame
+
+
 def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weighting=True, do_log_transform=True):
     """ Clean and prepare data specific to clustering
 
@@ -43,9 +61,7 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     # remove rows with missing values
 
     # feedbacks
-    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
-    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
-    data_frame.client_feedback.fillna(method='ffill', inplace=True)
+    data_frame = fill_missing_feedbacks(data_frame)
 
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name="")
@@ -119,9 +135,7 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     # remove rows with missing values
 
     # feedbacks
-    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
-    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
-    data_frame.client_feedback.fillna(method='ffill', inplace=True)
+    data_frame = fill_missing_feedbacks(data_frame)
 
     # experience level
     # data_frame["experience_level"].dropna(how='any', inplace=True)
@@ -353,7 +367,7 @@ def do_clustering_dbscan(data_frame, find_best_params=False, do_explore=True, mi
     eps = 1.0 # no text, min-max
     min_samples = 2 # no text, min-max
 
-    data_frame_original = data_frame.copy()
+    data_frame_original = fill_missing_feedbacks(data_frame.copy())
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
@@ -453,7 +467,7 @@ def do_clustering_kmeans(data_frame, find_best_params=False, do_explore=True, mi
     # n_clusters = 98  # without text, min-max scaling
     n_clusters = 65 # with text, min-max scaling
 
-    data_frame_original = data_frame.copy()
+    data_frame_original = fill_missing_feedbacks(data_frame.copy())
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
@@ -539,7 +553,7 @@ def do_clustering_mean_shift(data_frame, find_best_params=False, do_explore=True
 
     bandwidth = 1.2
 
-    data_frame_original = data_frame.copy()
+    data_frame_original = fill_missing_feedbacks(data_frame.copy())
 
     # prepare for clustering
     data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=False, add_text=True, do_log_transform=do_log_transform)
