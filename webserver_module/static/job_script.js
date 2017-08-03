@@ -202,7 +202,7 @@ function markupStats(attribute, title, stats, element) {
             "number of skills " + stats.skills_number.importance.toFixed(0) + "% of the overall prediction result.";
         delete stats.text;
     }
-    var normal_content = "<p> The non-text attributes influence the prediction with the following percentages:</p>";
+    var normal_content = "<p> The following chart visualizes the percental importances of all attributes influencing the prediction:</p>";
     var bar_chart = $("<div/>",{
         id: "stats_chart_" + attribute,
         style: "min-width: 310px; max-width: 800px; height: 400px; margin: 0 auto"
@@ -227,7 +227,7 @@ function markupStats(attribute, title, stats, element) {
         type: 'bar'
     },
     title: {
-        text: 'Importance of the non-text values'
+        text: ''
     },
     xAxis: [{
         categories: sorted_attributes

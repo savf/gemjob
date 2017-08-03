@@ -70,7 +70,6 @@ def db_setup(file_name, host='localhost', port='28015', connection=None):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-        if rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection):
             data_frame = prepare_data(file_name)
             data_frame.date_created = data_frame.date_created.apply(
                 lambda time: time.to_pydatetime().replace(
