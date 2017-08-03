@@ -724,8 +724,8 @@ function getExampleText(){
     $("#Status").text("Getting sample texts ...").removeClass("Warning").removeClass("OK");
 
 	// make sure text and title are updated, if button was pressed right after writing into text field
-	form_values["title"] = $("#SnippetTextArea").val();
-	form_values["snippet"] = $("#TitleInput").val();
+	form_values["title"] = $("#TitleInput").val();
+	form_values["snippet"] = $("#SnippetTextArea").val();
 
     $.getJSON($SCRIPT_ROOT + '/get_knn_predictions/target=text', form_values).done(function (data) {
         var time = new Date();
