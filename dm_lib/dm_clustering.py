@@ -26,9 +26,6 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     :rtype: pandas.DataFrame
     """
 
-    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
-    data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
-
     # drop columns that are unnecessary for clustering: are they?
         # idea: we don't want to predict_comparison anymore, we just want to cluster based on interesting attributes provided by user
     drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
@@ -46,9 +43,9 @@ def prepare_data_clustering(data_frame, z_score_norm=False, add_text=False, weig
     # remove rows with missing values
 
     # feedbacks
-    data_frame['feedback_for_client'].fillna(data_frame['feedback_for_client'].mean(), inplace=True)
-    data_frame['feedback_for_freelancer'].fillna(data_frame['feedback_for_freelancer'].mean(), inplace=True)
-    data_frame['client_feedback'].fillna(data_frame['client_feedback'].mean(), inplace=True)
+    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
+    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
+    data_frame.client_feedback.fillna(method='ffill', inplace=True)
 
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name="")
@@ -105,9 +102,6 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     :rtype: pandas.DataFrame
     """
 
-    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
-    data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
-
     # drop columns that are unnecessary for clustering: are they?
         # idea: we don't want to predict_comparison anymore, we just want to cluster based on interesting attributes provided by user
     drop_unnecessary = ["date_created", "client_jobs_posted", "client_past_hires", "client_reviews_count"]
@@ -125,9 +119,9 @@ def prepare_test_data_clustering(data_frame, cluster_columns, min, max, vectoriz
     # remove rows with missing values
 
     # feedbacks
-    data_frame['feedback_for_client'].dropna(how='any', inplace=True)
-    data_frame['feedback_for_freelancer'].dropna(how='any', inplace=True)
-    data_frame['client_feedback'].dropna(how='any', inplace=True)
+    data_frame.feedback_for_client.fillna(method='ffill', inplace=True)
+    data_frame.feedback_for_freelancer.fillna(method='ffill', inplace=True)
+    data_frame.client_feedback.fillna(method='ffill', inplace=True)
 
     # experience level
     # data_frame["experience_level"].dropna(how='any', inplace=True)
@@ -977,6 +971,12 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
         df_test = balance_data_set(df_test, target, relative_sampling=False)
     if target == "job_type":
         target_columns = [target, "budget", "workload"] # remove attributes that give away the job type
+    if target == "feedback_for_client":
+        df_test.dropna(subset=["feedback_for_client"], how='any', inplace=True)
+        target_columns = [target, "feedback_for_freelancer", "client_feedback"]  # remove attributes that give away the feedback
+
+    target_columns.append("client_payment_verification_status")  # not available for user job
+    target_columns.append("total_charge")  # not available for user job
 
     # prepare test data
     df_test_log = prepare_test_data_clustering(df_test.copy(), centroids_log.columns, min_log, max_log, vectorizers=vectorizers_log, weighting=True, do_log_transform=True)

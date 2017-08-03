@@ -323,6 +323,9 @@ def prepare_data(file_name, jobs=None):
     # print_data_frame("After preparing data", data_frame)
     # print data_frame[0:3]
 
+    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
+    data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
+
     return data_frame
 
 

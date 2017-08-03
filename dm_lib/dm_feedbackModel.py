@@ -1,4 +1,4 @@
-from sklearn.ensemble import BaggingRegressor, RandomForestClassifier
+from sklearn.ensemble import BaggingRegressor, RandomForestClassifier, BaggingClassifier
 from sklearn.feature_selection import SelectKBest, f_classif, \
     mutual_info_regression, VarianceThreshold
 from sklearn.model_selection import train_test_split
@@ -19,7 +19,6 @@ def prepare_data_feedback_model(data_frame, label_name):
     :return: Cleaned Pandas DataFrames
     :rtype: pandas.DataFrame
     """
-    data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
     data_frame.dropna(subset=["feedback_for_client"], how='any', inplace=True)
 
     # drop columns where we don't have user data or are unnecessary
@@ -122,16 +121,24 @@ def create_model(df_train, label_name, is_classification,
         relevant_indices = selector.get_support(indices=True)
         df_train = df_train.iloc[:, relevant_indices]
     if not is_classification:
-        model = BaggingRegressor()  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
+        model = BaggingRegressor(n_estimators=250)  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
-        model = RandomForestClassifier(n_estimators=100)
+        model = BaggingClassifier(n_estimators=50)
 
     model.fit(df_train, df_target_train)
     return model, df_train.columns
 
+def balance_feedback(data_frame, label_name):
+    # print data_frame[label_name][0:30]
+    data_frame[label_name+"_bins"] = pd.cut(x=data_frame[label_name], bins=[0, 2, 3, 4, 6], labels=["bin1t2", "bin2t3", "bin3t4", "bin4t5"])
+    # print data_frame[[label_name, label_name+"_bins"]][0:30]
+    # TODO: Use over-sampling instead!
+    data_frame = balance_data_set(data_frame, label_name+"_bins", relative_sampling=False)
+    data_frame.drop(labels=[label_name+"_bins"], axis=1, inplace=True)
+    return data_frame
 
 # TODO: try classification instead of regression
-def feedback_model_development(file_name, connection=None):
+def feedback_model_development(file_name, connection=None, normalization=False, do_balance_feedback=False):
     """ Learn model for label 'feedback' and return it
 
     :param file_name: JSON file containing all data
@@ -148,8 +155,19 @@ def feedback_model_development(file_name, connection=None):
 
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
+    if do_balance_feedback:
+        df_test = balance_feedback(df_test, label_name)
+
     df_train, df_train_text = separate_text(df_train, label_name)
     df_test, df_test_text = separate_text(df_test, label_name)
+
+    if normalization:
+        min_feedback = data_frame[label_name].min()
+        max_feedback = data_frame[label_name].max()
+        # std_feedback = data_frame[label_name].std()
+        # mean_feedback = data_frame[label_name].mean()
+        df_train, min, max = normalize_min_max(df_train)
+        df_test, min, max = normalize_min_max(df_test, min, max)
 
     df_train, vectorizers = add_text_tokens_to_data_frame(df_train,
                                                           df_train_text)
@@ -166,6 +184,12 @@ def feedback_model_development(file_name, connection=None):
     print "\nNo changes:"
     model, columns = create_model(df_train, label_name, feedback_classification, selectbest=False, variance_threshold=True)
     predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
+
+    if normalization:
+        df_test[label_name] = df_test[label_name] * (max_feedback - min_feedback) + min_feedback
+        predictions = predictions * (max_feedback - min_feedback) + min_feedback
+        # df_test[label_name] = df_test[label_name] * std_feedback + mean_feedback
+        # predictions = predictions * std_feedback + mean_feedback
     return evaluate_regression(df_test[label_name], predictions, label_name)
 
     print "\nLog transformed and outliers deleted:"
