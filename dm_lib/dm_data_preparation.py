@@ -18,11 +18,11 @@ _percentage_too_many_missing = 0.5
 
 def get_detailed_feedbacks_names():
     return ['feedback_for_client_availability', 'feedback_for_client_communication',
-                 'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
-                 'feedback_for_client_quality', 'feedback_for_client_skills',
-                 'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
-                 'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
-                 'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
+            'feedback_for_client_cooperation', 'feedback_for_client_deadlines',
+            'feedback_for_client_quality', 'feedback_for_client_skills',
+            'feedback_for_freelancer_availability', 'feedback_for_freelancer_communication',
+            'feedback_for_freelancer_cooperation', 'feedback_for_freelancer_deadlines',
+            'feedback_for_freelancer_quality', 'feedback_for_freelancer_skills']
 
 
 def create_data_frame(file_name, jobs=None):
@@ -76,6 +76,8 @@ def db_setup(file_name, host='localhost', port='28015', connection=None):
                 lambda time: time.to_pydatetime().replace(
                     tzinfo=rdb.make_timezone("+02:00"))
             )
+            data_frame.feedback_for_client.fillna(-1, inplace=True)
+            data_frame.feedback_for_freelancer.fillna(-1, inplace=True)
             data_frame['id'] = data_frame.index
             rdb.db(database).table(prepared_jobs_table).insert(
                 data_frame.to_dict('records'), conflict="replace").run(connection)
@@ -111,6 +113,8 @@ def load_data_frame_from_db(connection=None, host='localhost', port='28015'):
         data_frame['date_created'] = data_frame['date_created'].apply(
             lambda timestamp: pd.Timestamp(timestamp.replace(tzinfo=None))
         )
+        data_frame.ix[data_frame.feedback_for_client == -1, 'feedback_for_client'] = None
+        data_frame.ix[data_frame.feedback_for_freelancer == -1, 'feedback_for_freelancer'] = None
 
         return data_frame
     except RqlDriverError:
