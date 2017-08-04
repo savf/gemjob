@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from dm_data_preparation import *
 from dm_general import *
 from dm_text_mining import add_text_tokens_to_data_frame
+from dm_feedbackModel import balance_feedback
 
 ERROR_VALUE = -1
 
@@ -948,7 +949,7 @@ def predict_comparison(model, unnormalized_data, normalized_data, clusters, cent
         return unnormalized_data.loc[normalized_data.index]
 
 
-def test_clustering(file_name, method="Mean-Shift", target="budget"):
+def test_clustering(file_name, method="Mean-Shift", target="budget", do_balance_feedback=True):
     """ Test clustering for predictions (with test and train set)
 
     :param file_name: JSON file containing all data
@@ -966,6 +967,8 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
     data_frame_original_test = df_test.copy()
+
+    print "Starting", method
 
     if method == "Mean-Shift":
         # model, clusters, centroids, min, max, vectorizers = do_clustering_mean_shift(df_train.copy(), find_best_params=False, do_explore=False, do_log_transform=False)
@@ -988,6 +991,8 @@ def test_clustering(file_name, method="Mean-Shift", target="budget"):
     if target == "feedback_for_client":
         df_test.dropna(subset=["feedback_for_client"], how='any', inplace=True)
         target_columns = [target, "feedback_for_freelancer", "client_feedback"]  # remove attributes that give away the feedback
+        if do_balance_feedback:
+            df_test = balance_feedback(df_test, target)
 
     target_columns.append("client_payment_verification_status")  # not available for user job
     target_columns.append("total_charge")  # not available for user job

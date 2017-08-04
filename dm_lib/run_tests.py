@@ -9,7 +9,7 @@ from parameters import *
 from dm_clustering import test_clustering, prepare_data_clustering
 from dm_knn import test_knn
 from dm_general import evaluate_predictions_regression, evaluate_predictions_classification
-
+from dm_feedbackModelClasses import feedback_model_development_classes
 pd.set_option('chained_assignment', None) # turns off SettingWithCopyWarning
 pd.set_option('display.max_columns', 200)
 pd.set_option('display.max_rows', 200)
@@ -64,15 +64,16 @@ RDB_HOST = "localhost"
 
 #run
 
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "Mean-Shift", "budget"), 20)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "K-Means", "budget"), 8)
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 5)
-accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "job_type"), 10)
+# accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "K-Means", "job_type"), 10)
 # accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "subcategory2"), 10)
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(budget_model_development, (JOBS_FILE, None), 20)
 # accuracy = evaluate_predictions_classification(jobtype_model_development, (JOBS_FILE, None), 20)
 # accuracy = evaluate_predictions_classification(budget_model_development, (JOBS_FILE, None, True), 20)
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(feedback_model_development, (JOBS_FILE, None, False, True), 20) # TODO: Use over-sampling for balancing!!
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "Mean-Shift", "feedback_for_client"), 10)
+exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(feedback_model_development, (JOBS_FILE, None, False, True), 20)
+# accuracy = evaluate_predictions_classification(feedback_model_development_classes, (JOBS_FILE, None), 20)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "K-Means", "feedback_for_client", False), 10)
 
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")
 # test_knn(JOBS_FILE, target="budget")
@@ -105,12 +106,15 @@ accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mea
 #
 # data_frame = prepare_data(JOBS_FILE)
 # attr = "feedback_for_client"
+# print data_frame["feedback_for_client"].describe()
 # plt.figure(0)
 # data_frame[attr].plot.density()
+# plt.figure(1)
+# data_frame.boxplot(column=attr)
 #
 # # data_frame[attr] = data_frame[attr].apply(lambda row: 0 if row < 1 else math.sqrt(float(row)))
 # data_frame, min, max, vectorizers = prepare_data_clustering(data_frame, z_score_norm=True, add_text=True, do_log_transform=False)
-# plt.figure(1)
+# plt.figure(2)
 # data_frame[attr].plot.density()
 #
 # plt.show()

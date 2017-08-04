@@ -9,13 +9,15 @@ from dm_general import evaluate_regression, print_predictions_comparison, \
 from dm_text_mining import add_text_tokens_to_data_frame
 
 
-def prepare_data_feedback_model(data_frame, label_name):
+def prepare_data_feedback_model(data_frame, label_name, do_balance_feedback=True):
     """ Clean data specific to the feedback model
 
     :param data_frame: Pandas DataFrame that holds the data
     :type data_frame: pandas.DataFrame
     :param label_name: Target label that will be predicted
     :type label_name: str
+    :param label_name: Balance the feedbacks based on binning
+    :type label_name: do_balance_feedback
     :return: Cleaned Pandas DataFrames
     :rtype: pandas.DataFrame
     """
@@ -29,6 +31,9 @@ def prepare_data_feedback_model(data_frame, label_name):
 
     # convert everything to numeric
     data_frame = convert_to_numeric(data_frame, label_name)
+
+    if do_balance_feedback:
+        data_frame = balance_feedback(data_frame, label_name)
 
     # print data_frame, "\n"
     # print_data_frame("After preparing for feedback model", data_frame)
@@ -123,7 +128,7 @@ def create_model(df_train, label_name, is_classification,
     if not is_classification:
         model = BaggingRegressor(n_estimators=250)  # svm.SVR(kernel='linear')  # linear_model.Ridge(alpha=.5) #linear_model.LinearRegression()
     else:
-        model = BaggingClassifier(n_estimators=50)
+        model = BaggingClassifier(n_estimators=250)
 
     model.fit(df_train, df_target_train)
     return model, df_train.columns
@@ -138,7 +143,7 @@ def balance_feedback(data_frame, label_name):
     return data_frame
 
 # TODO: try classification instead of regression
-def feedback_model_development(file_name, connection=None, normalization=False, do_balance_feedback=False):
+def feedback_model_development(file_name, connection=None, normalization=False, do_balance_feedback=True):
     """ Learn model for label 'feedback' and return it
 
     :param file_name: JSON file containing all data
@@ -151,12 +156,12 @@ def feedback_model_development(file_name, connection=None, normalization=False, 
 
     #data_frame = prepare_data(file_name)
     data_frame = load_data_frame_from_db(connection)
-    data_frame = prepare_data_feedback_model(data_frame, label_name)
+    data_frame = prepare_data_feedback_model(data_frame, label_name, do_balance_feedback)
 
     df_train, df_test = train_test_split(data_frame, train_size=0.8)
 
-    if do_balance_feedback:
-        df_test = balance_feedback(df_test, label_name)
+    # if do_balance_feedback:
+    #     df_test = balance_feedback(df_test, label_name)
 
     df_train, df_train_text = separate_text(df_train, label_name)
     df_test, df_test_text = separate_text(df_test, label_name)
@@ -175,11 +180,6 @@ def feedback_model_development(file_name, connection=None, normalization=False, 
     df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
                                                vectorizers=vectorizers)
 
-    # treat outliers
-    df_train_outl = treat_outliers_deletion(df_train.copy())
-    # budget log scale and outlier deletion
-    df_train_log = transform_log_scale(df_train_outl.copy(), add_to_df=False)
-    df_test_log = transform_log_scale(df_test.copy(), add_to_df=False)
 
     print "\nNo changes:"
     model, columns = create_model(df_train, label_name, feedback_classification, selectbest=False, variance_threshold=True)
@@ -192,23 +192,6 @@ def feedback_model_development(file_name, connection=None, normalization=False, 
         # predictions = predictions * std_feedback + mean_feedback
     return evaluate_regression(df_test[label_name], predictions, label_name)
 
-    print "\nLog transformed and outliers deleted:"
-    model, columns = create_model(df_train_log, label_name, feedback_classification, selectbest=False, variance_threshold=True)
-    predictions = model.predict(df_test_log.ix[:, df_test_log.columns != label_name])
-    evaluate_regression(df_test_log[label_name], predictions, label_name)
-
-    print "\n## Revert log:"
-    df_test_target_log = revert_log_scale(df_test_log[label_name])
-    predictions = revert_log_scale(pd.Series(predictions))
-    evaluate_regression(df_test_target_log, predictions.values, label_name)
-
-    # print_predictions_comparison(df_test, predictions, label_name, 50)
-
-    # Test predictions for feedbacks < 3.0
-    # threshold = 3.0
-    # evaluate_regression(df_test.loc[df_test['feedback_for_client'] < threshold, 'feedback_for_client'],
-    #                     predictions[np.where(df_test['feedback_for_client'] < threshold)], label_name)
-    # print_correlations(data_frame, label_name)
 
 
 def predict(data_frame, label_name, model, min=None, max=None):
