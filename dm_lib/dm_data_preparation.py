@@ -70,7 +70,6 @@ def db_setup(file_name, host='localhost', port='28015', connection=None):
             rdb.db_create(database).run(connection)
         if not rdb.db(database).table_list().contains(prepared_jobs_table).run(connection):
             rdb.db(database).table_create(prepared_jobs_table).run(connection)
-        if rdb.db(RDB_DB).table(RDB_JOB_OPTIMIZED_TABLE).is_empty().run(connection):
             data_frame = prepare_data(file_name)
             data_frame.date_created = data_frame.date_created.apply(
                 lambda time: time.to_pydatetime().replace(
@@ -615,8 +614,7 @@ def convert_to_numeric(data_frame, label_name):
         cols_to_transform = ['client_payment_verification_status', 'client_country', 'job_type', 'subcategory2']
     cols_to_transform = set(cols_to_transform).intersection(data_frame.columns)
     data_frame = pd.get_dummies(data_frame, columns=cols_to_transform)
-
-    if 'workload' in data_frame.columns:
+    if 'workload' in data_frame.columns and not data_frame['workload'].empty:
         # workload: has less than 10, 10-30 and 30+ -> convert to 5, 15 and 30?
         data_frame.ix[data_frame.workload == "Less than 10 hrs/week", 'workload'] = 5
         data_frame.ix[data_frame.workload == "10-30 hrs/week", 'workload'] = 20

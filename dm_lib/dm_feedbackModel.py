@@ -58,7 +58,14 @@ def prepare_single_job_feedback_model(data_frame, label_name,
     :return: Data Frame with single job ready for prediction
     :rtype: pandas.DataFrame
     """
-    data_frame = prepare_data_feedback_model(data_frame, label_name=label_name)
+    # drop columns where we don't have user data or are unnecessary
+    drop_unnecessary = ["client_payment_verification_status",
+                        "feedback_for_freelancer", "client_feedback",
+                        "total_charge"]
+    data_frame.drop(labels=drop_unnecessary, axis=1, inplace=True)
+
+    # convert everything to numeric
+    data_frame = convert_to_numeric(data_frame, label_name)
 
     # handle text
     data_frame, text_data = separate_text(data_frame)
@@ -75,10 +82,6 @@ def prepare_single_job_feedback_model(data_frame, label_name,
         if col not in columns:
             data_frame.drop(labels=[col], axis=1, inplace=True)
 
-    # if no reviews yet -> after this job, client will have first review
-    if 'client_reviews_count' in data_frame and \
-        data_frame['client_reviews_count'][0] == 0:
-            data_frame['client_reviews_count'] = 1.0
     # normalize
     if min is not None and max is not None:
         data_frame, _, _ = normalize_min_max(data_frame, min, max)
