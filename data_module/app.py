@@ -178,13 +178,13 @@ class DataUpdater(Resource):  # Our class "DataUpdater" inherits from "Resource"
                 if not isinstance(assignment_info, list):
                     assignment_info = [assignment_info]
                 # Create the divisors to build the average of the individual feedback elements
-                divisor_client = float(len(assignment_info))
-                divisor_freelancer = float(len(assignment_info))
+                divisor_client = 0.0
+                divisor_freelancer = 0.0
                 for info in assignment_info:
-                    if 'feedback_for_buyer' not in info:
-                        divisor_client -= 1.0
-                    elif 'feedback_for_provider' not in info:
-                        divisor_freelancer -= 1.0
+                    if 'feedback_for_buyer' in info:
+                        divisor_client = divisor_client + 1.0
+                    if 'feedback_for_provider' in info:
+                        divisor_freelancer = divisor_freelancer + 1.0
 
                 total_charge = 0
                 total_hours = 0
