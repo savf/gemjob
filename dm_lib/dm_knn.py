@@ -48,7 +48,7 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
         distances = euclidean_distances(normalized_train_rw, row_df)
         distances = pd.DataFrame(distances, columns=["distances"], index=normalized_train_rw.index)
         distances.sort_values(by="distances", axis=0, inplace=True)
-        neighbor_indices = distances[0:k].index.values
+        neighbor_indices = distances.index.values[0:k]
         neighbor_values = unnormalized_data_train.ix[neighbor_indices]
 
         if get_example_text:
@@ -80,8 +80,8 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
                     unnormalized_data_predict.set_value(index_test, tc + "_prediction", majority)
 
                     value_counts_string = ""
-                    for k, v in value_counts.iteritems():
-                        value_counts_string = value_counts_string + str(k) + ": <span style='float: right;'>" + str(
+                    for key, v in value_counts.iteritems():
+                        value_counts_string = value_counts_string + str(key) + ": <span style='float: right;'>" + str(
                             v) + "</span><br>"
 
                     unnormalized_data_predict.set_value(index_test, tc + "_value_counts", value_counts_string)
@@ -89,7 +89,7 @@ def predict_knn(unnormalized_data_predict, unnormalized_data_train, normalized_p
     return unnormalized_data_predict
 
 
-def test_knn(file_name, target="budget"):
+def test_knn(file_name, target="budget", do_balance_feedback=True):
     """ Test k nearest neighbors for predictions (with test and train set)
 
     :param file_name: JSON file containing all data
@@ -97,6 +97,7 @@ def test_knn(file_name, target="budget"):
     :param target: Target label to predict
     :type target: str
     """
+    target_columns = [target]
 
     data_frame = prepare_data(file_name)
     data_frame_original = data_frame.copy()
@@ -112,12 +113,22 @@ def test_knn(file_name, target="budget"):
         df_test.dropna(subset=["budget"], how='any', inplace=True)
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
         df_test = balance_data_set(df_test, target, relative_sampling=False)
+    if target == "job_type":
+        target_columns = [target, "budget", "workload"] # remove attributes that give away the job type
+    if target == "feedback_for_client":
+        df_test.dropna(subset=["feedback_for_client"], how='any', inplace=True)
+        target_columns = [target, "feedback_for_freelancer", "client_feedback"]  # remove attributes that give away the feedback
+        if do_balance_feedback:
+            df_test = balance_feedback(df_test, target)
+
+    target_columns.append("client_payment_verification_status")  # not available for user job
+    target_columns.append("total_charge")  # not available for user job
 
     # prepare test data
     df_test = prepare_test_data_clustering(df_test, df_train.columns, min, max, vectorizers=vectorizers, weighting=True, do_log_transform=True)
 
     # Reweighting harms budget! Benefits subcategory however and shows more similar example snippet and title
-    unnormalized_data = predict_knn(data_frame_original.loc[df_test.index], data_frame_original.loc[df_train.index], df_test.copy(), df_train.copy(), k=15, target_columns=[target], do_reweighting=False, get_example_text=False)
+    unnormalized_data = predict_knn(data_frame_original.loc[df_test.index], data_frame_original.loc[df_train.index], df_test.copy(), df_train.copy(), k=15, target_columns=target_columns, do_reweighting=False, get_example_text=False)
 
     print "\n"
     if target in ["budget", "client_feedback", "feedback_for_client", "feedback_for_freelancer"]:

@@ -10,8 +10,6 @@ from sklearn.model_selection import train_test_split
 
 from dm_data_preparation import *
 from dm_text_mining import add_text_tokens_to_data_frame
-# import matplotlib.pyplot as plt
-# from seaborn import residplot
 
 def prepare_data_budget_model(data_frame, label_name, is_train_data, budget_classification=False, do_log_transform=True):
     """ Clean data specific to the budget model
@@ -263,8 +261,12 @@ def budget_model_development(file_name, connection, budget_classification=False)
         # df_test_target_outl = df_test_outl[label_name]
         # df_test_outl.drop(labels=[label_name], axis=1, inplace=True)
         # predictions = model.predict(df_test_outl)
-        #
-        # evaluate_regression(df_test_target_outl, predictions, label_name)
+        # import matplotlib.pyplot as plt
+        # plt.scatter(df_test[label_name], predictions, color="#73ae43")
+        # plt.xlabel('actual')
+        # plt.ylabel('predictions')
+        # plt.show()
+        # return evaluate_regression(df_test_target_outl, predictions, label_name)
 
         # plt.figure(1)
         # plt.scatter(df_test_target_outl.values, predictions)
@@ -283,6 +285,13 @@ def budget_model_development(file_name, connection, budget_classification=False)
         if budget_classification:
             return evaluate_classification(df_test_target_log, predictions, label_name)
         else:
+            # import matplotlib.pyplot as plt
+            # fig, ax = plt.subplots(1, 2)
+            #
+            # ax[0].scatter(df_test_target_log, predictions, color="#73ae43")
+            # ax[0].set_xlabel('actual')
+            # ax[0].set_ylabel('predictions')
+            # plt.show()
             evaluate_regression(df_test_target_log, predictions, label_name)
         # plt.figure(2)
         # plt.scatter(df_test_target_log.values, predictions)
@@ -291,6 +300,10 @@ def budget_model_development(file_name, connection, budget_classification=False)
         print "\n## Revert log:"
         df_test_target_log = revert_log_scale(df_test_target_log)
         predictions = revert_log_scale(pd.Series(predictions))
+        # ax[1].scatter(df_test_target_log, predictions, color="#73ae43")
+        # ax[1].set_xlabel('actual')
+        # ax[1].set_ylabel('predictions')
+        # plt.show()
         return evaluate_regression(df_test_target_log, predictions.values, label_name)
 
         # plt.figure(3)

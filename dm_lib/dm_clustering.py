@@ -1018,4 +1018,8 @@ def test_clustering(file_name, method="Mean-Shift", target="budget", do_balance_
     elif target == "job_type" or target == "experience_level" or target == "subcategory2":
         # evaluate_classification(unnormalized_data[target], unnormalized_data[target + '_prediction'], target)
         # print "\nLog transfomed:"
-        return evaluate_classification(unnormalized_data_log[target], unnormalized_data_log[target + '_prediction'], target)
+        # print "ACTUAL", unnormalized_data_log[target][0:10]
+        # print "PREDICTED", unnormalized_data_log[target + '_prediction'][0:10]
+        # print_data_frame("ACTUAL", unnormalized_data_log[target])
+        # print_data_frame("PREDICTED", unnormalized_data_log[target + '_prediction'])
+        return evaluate_classification(unnormalized_data_log[target], pd.to_numeric(unnormalized_data_log[target + '_prediction']), target)

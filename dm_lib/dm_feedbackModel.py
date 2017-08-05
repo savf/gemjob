@@ -9,7 +9,7 @@ from dm_general import evaluate_regression, print_predictions_comparison, \
 from dm_text_mining import add_text_tokens_to_data_frame
 
 
-def prepare_data_feedback_model(data_frame, label_name, do_balance_feedback=True):
+def prepare_data_feedback_model(data_frame, label_name, do_balance_feedback=False):
     """ Clean data specific to the feedback model
 
     :param data_frame: Pandas DataFrame that holds the data
@@ -69,9 +69,9 @@ def prepare_single_job_feedback_model(data_frame, label_name,
 
     # handle text
     data_frame, text_data = separate_text(data_frame)
-    # if vectorizers is not None:
-    #     data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data,
-    #                                                   vectorizers=vectorizers)
+    if vectorizers is not None:
+        data_frame, _ = add_text_tokens_to_data_frame(data_frame, text_data,
+                                                      vectorizers=vectorizers)
 
     # add missing columns (dummies, that were not in this data set)
     for col in columns:
@@ -183,16 +183,20 @@ def feedback_model_development(file_name, connection=None, normalization=False, 
     df_test, _ = add_text_tokens_to_data_frame(df_test, df_test_text,
                                                vectorizers=vectorizers)
 
-
     print "\nNo changes:"
     model, columns = create_model(df_train, label_name, feedback_classification, selectbest=False, variance_threshold=True)
-    predictions = model.predict(df_test.ix[:, df_test.columns != label_name])
+    predictions = model.predict(df_test[columns])
 
     if normalization:
         df_test[label_name] = df_test[label_name] * (max_feedback - min_feedback) + min_feedback
         predictions = predictions * (max_feedback - min_feedback) + min_feedback
         # df_test[label_name] = df_test[label_name] * std_feedback + mean_feedback
         # predictions = predictions * std_feedback + mean_feedback
+    # import matplotlib.pyplot as plt
+    # plt.scatter(df_test[label_name], predictions, color="#73ae43")
+    # plt.xlabel('actual')
+    # plt.ylabel('predictions')
+    # plt.show()
     return evaluate_regression(df_test[label_name], predictions, label_name)
 
 

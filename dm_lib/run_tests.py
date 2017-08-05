@@ -64,15 +64,16 @@ RDB_HOST = "localhost"
 
 #run
 
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "K-Means", "budget"), 8)
-# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "budget"), 5)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "Mean-Shift", "feedback_for_client"), 8)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_knn, (JOBS_FILE, "feedback_for_client"), 10)
+# accuracy = evaluate_predictions_classification(test_knn, (JOBS_FILE, "job_type"), 10)
 # accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "K-Means", "job_type"), 10)
-# accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "subcategory2"), 10)
+# accuracy = evaluate_predictions_classification(test_clustering, (JOBS_FILE, "Mean-Shift", "experience_level"), 10)
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(budget_model_development, (JOBS_FILE, None), 20)
 # accuracy = evaluate_predictions_classification(jobtype_model_development, (JOBS_FILE, None), 20)
 # accuracy = evaluate_predictions_classification(budget_model_development, (JOBS_FILE, None, True), 20)
-exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(feedback_model_development, (JOBS_FILE, None, False, True), 20)
-# accuracy = evaluate_predictions_classification(feedback_model_development_classes, (JOBS_FILE, None), 20)
+# exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(feedback_model_development, (JOBS_FILE, None, False, False), 20)
+accuracy = evaluate_predictions_classification(feedback_model_development_classes, (JOBS_FILE, None), 20)
 # exp_var_sc, abs_err, sq_err, mape = evaluate_predictions_regression(test_clustering, (JOBS_FILE, "K-Means", "feedback_for_client", False), 10)
 
 # test_clustering(JOBS_FILE, "Mean-Shift", target="budget")

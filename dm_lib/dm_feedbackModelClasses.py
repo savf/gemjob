@@ -19,23 +19,29 @@ def prepare_data_feedback_model_classes(data_frame, label_name):
     :return: Cleaned Pandas DataFrames
     :rtype: pandas.DataFrame
     """
-    data_frame = prepare_data_feedback_model(data_frame, label_name=label_name)
+    data_frame = prepare_data_feedback_model(data_frame, label_name=label_name, do_balance_feedback=False)
 
     # print data_frame["feedback_for_client"].mean(), "\n"
-    # print data_frame["feedback_for_client"][0:40], "\n"
+    # print data_frame["feedback_for_client"][0:30], "\n"
 
-    #mean = data_frame["feedback_for_client"].mean()
-    mean = 4.8
+    # print "MEAN =",data_frame["feedback_for_client"].mean()
+    mean = 4.81
     data_frame.ix[data_frame[label_name] < mean, label_name] = 1
     data_frame.ix[data_frame[label_name] >= mean, label_name] = 2
     data_frame[label_name] = pd.cut(x=data_frame[label_name], bins=2,
                                     labels=["lower", "higher"])
+    # data_frame.ix[(data_frame[label_name] <= 2), label_name] = 2
+    # data_frame.ix[(data_frame[label_name] <= 3) & (data_frame[label_name] > 2), label_name] = 3
+    # data_frame.ix[(data_frame[label_name] <= 4) & (data_frame[label_name] > 3), label_name] = 4
+    # data_frame.ix[(data_frame[label_name] <= 5) & (data_frame[label_name] > 4), label_name] = 5
+    # data_frame[label_name] = pd.cut(x=data_frame[label_name], bins=4,
+    #                                 labels=["2stars", "3stars", "4stars", "5stars"])
 
     # print data_frame["feedback_for_client"].value_counts()
 
     data_frame = balance_data_set(data_frame, label_name, relative_sampling=False)
 
-    # print data_frame["feedback_for_client"][0:40], "\n"
+    # print data_frame["feedback_for_client"][0:30], "\n"
     # print data_frame["feedback_for_client"].value_counts()
     # print_data_frame("After preparing for feedback model", data_frame)
 
@@ -62,7 +68,7 @@ def prepare_single_job_feedback_model_classes(data_frame, label_name,
     data_frame = prepare_single_job_feedback_model(data_frame, label_name,
                                       columns, min, max, vectorizers)
 
-    mean = 4.8
+    mean = 4.81
     data_frame.ix[data_frame[label_name] < mean, label_name] = 1
     data_frame.ix[data_frame[label_name] >= mean, label_name] = 2
     data_frame[label_name] = pd.cut(x=data_frame[label_name], bins=2,
